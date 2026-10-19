@@ -55,3 +55,21 @@
   before live operation; the host disk and Colima VM disk are separate capacities.
 - Deferred evidence: live Codex inference quality, real GitHub/GitLab permissions/comment
   rendering, DNS/tunnel and external webhook delivery. No successful live review claimed.
+- User revision: concise four-section format and 3–10 questions to help the developer
+  understand this change, including essential behavior, design choices, edge cases and
+  relevant technical learning/interview prompts. No generic filler or automatic answers.
+- Branch codex/concise-review-questions from 1e40353; initially clean. Existing no-Jira
+  feature-branch ruling still applies. Keep external connections and services deferred.
+- Observed RED for old six-section rendering, missing question count/schema constraints
+  and legacy same-SHA caching. Implemented schema + two-pass question generation,
+  source/diff and duplicate validation, compact rendering, legacy refresh and failure clearing.
+- Independent review found no-anchor changes, escape-expanded comment budgets and hidden
+  skipped-CI details. Added failing regressions, source anchors for pure renames, explicit
+  partial/no-source results with reusable status, bounded escaped output, and skipped/neutral
+  provider statuses plus concise CI details. Final independent revalidation found no
+  remaining P1/P2 blockers; combined schema-max/Unicode/escaping output fits 28,285
+  characters with all three complete questions and code URLs preserved.
+- Revision completed in 6ee8d0f on codex/concise-review-questions. Final verification:
+  40 unit tests, 4 real PostgreSQL/HTTP integration tests and git diff --check passed;
+  demo regenerated. No account/model connection or service activation; Docker images
+  must be rebuilt from this source before the later live connection step.
