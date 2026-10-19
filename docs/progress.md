@@ -16,3 +16,7 @@
   permission checks, check evidence and issue retrieval implemented. `npm test`: 9 pass.
 - Ruling: a provider fixture initially returned an unrelated web host; corrected the
   fixture after confirming origin validation was correctly refusing it.
+- Unit 3: bounded Git snapshot export, base policy, contextual two-pass review,
+  real diff/evidence validation, conservative finding lifecycle and isolated subprocess
+  adapter implemented. Real local Git and subprocess boundary tests pass; no model
+  inference claimed by fixture tests. A live account check remains pending setup.
