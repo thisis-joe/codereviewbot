@@ -11,3 +11,8 @@
 - Unit 1: implemented strict model JSON schemas and fixed Korean templates. Initial
   missing-module RED observed; `npm test` GREEN, 5 tests (schema, fixed sections,
   unsafe markup, incomplete verdict, native suggestion/answer shape).
+- Unit 2: original-byte GitHub HMAC / timestamped GitLab signing (explicit legacy mode),
+  event normalization, paginated APIs, GitHub App/PAT credentials, native diff refs,
+  permission checks, check evidence and issue retrieval implemented. `npm test`: 9 pass.
+- Ruling: a provider fixture initially returned an unrelated web host; corrected the
+  fixture after confirming origin validation was correctly refusing it.
