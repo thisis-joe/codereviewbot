@@ -101,4 +101,7 @@
   no other project images, caches, containers or volumes were removed. Final controller image
   retained, runner must be rebuilt after capacity planning before live connection. Services
   remain stopped. Disk was approximately 591 MiB free after final controller verification.
-- Interactive-learning implementation complete; work-unit commit and PR preparation follow.
+- Interactive-learning implementation completed in c9de00d on codex/interactive-learning.
+  PR preparation targets a separate Draft PR based on codex/concise-review-questions
+  (existing Draft PR #1). Publication of this new branch remains pending; no merge,
+  live account/model connection, webhook/tunnel or service activation performed.
