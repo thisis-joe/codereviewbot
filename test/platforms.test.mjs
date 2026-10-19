@@ -49,3 +49,23 @@ test('provider preserves native GitLab refs and creates correctly positioned dis
   assert.equal(posted.position.old_path, 'src/old.ts');
   assert.equal(posted.position.new_line, 9);
 });
+
+test('GitHub Maintainer role and GitLab unchanged hunk coordinates preserve native semantics', async t => {
+  const { parsePositions } = await import('../dist/review.js');
+  let posted;
+  const server = createServer(async (req, res) => {
+    res.setHeader('content-type', 'application/json');
+    if (req.method === 'POST') { let body = ''; for await (const chunk of req) body += chunk; posted = JSON.parse(body); res.end('{}'); }
+    else res.end(JSON.stringify({ permission: 'write', role_name: req.url.includes('maintainer') ? 'maintain' : 'write' }));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
+  const instance = `http://127.0.0.1:${server.address().port}`;
+  const gh = new Platform({ ...repo, instance }, async () => 'token');
+  assert.equal(await gh.permission('maintainer'), 'maintain'); assert.equal(await gh.permission('developer'), 'write');
+  const positions = parsePositions('@@ -8,2 +8,3 @@\n context();\n+added();\n tail();\n');
+  assert.deepEqual(positions.RIGHT[10], { oldLine: 9, newLine: 10 });
+  assert.deepEqual(positions.RIGHT[9], { newLine: 9 });
+  const gl = new Platform({ ...repo, instance, platform: 'gitlab' }, async () => 'token');
+  await gl.inline({ ...(await import('./fixtures.mjs')).snapshot(), platform: 'gitlab' }, { path: 'file.ts', oldPath: 'file.ts', side: 'RIGHT', line: 10, coordinates: positions.RIGHT[10], body: 'finding', suggestion: null });
+  assert.equal(posted.position.old_line, 9); assert.equal(posted.position.new_line, 10);
+});

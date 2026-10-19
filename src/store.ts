@@ -3,9 +3,10 @@ import { readFile } from 'node:fs/promises';
 import type { Pool, PoolClient } from 'pg';
 import type { Report, Target } from './contracts.js';
 import type { Event } from './webhooks.js';
+import type { DiffMetadata } from './review.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
-export interface Job { id: string; target_key: string; kind: 'review' | 'ci' | 'command'; body: Event & { force?: boolean }; state: string; owner: string; attempts: number; result: Report | null; diff: Record<string, { oldPath: string }> | null; max_inline: number }
+export interface Job { id: string; target_key: string; kind: 'review' | 'ci' | 'command'; body: Event & { force?: boolean }; state: string; owner: string; attempts: number; result: Report | null; diff: Record<string, DiffMetadata> | null; max_inline: number }
 export class Store {
   constructor(readonly pool: Pool) {}
   async migrate(): Promise<void> {
@@ -30,8 +31,8 @@ export class Store {
         if (queued.rows[0]) { const id = queued.rows[0].id; await c.query("UPDATE jobs SET body=$2,due_at=now()+$3::double precision*interval '1 millisecond',updated_at=now() WHERE id=$1", [id, { ...event, force }, debounceMs]); return id; }
       }
       if (event.kind === 'ci') {
-        const active = await c.query("SELECT id FROM jobs WHERE target_key=$1 AND kind IN ('review','ci') AND state IN ('queued','running','ready','publishing')", [key]);
-        if (active.rowCount) return active.rows[0].id;
+        const queued = await c.query("SELECT id FROM jobs WHERE target_key=$1 AND kind='ci' AND state='queued' FOR UPDATE", [key]);
+        if (queued.rowCount) { await c.query('UPDATE jobs SET body=$2,updated_at=now() WHERE id=$1', [queued.rows[0].id, event]); return queued.rows[0].id; }
       }
       const id = randomUUID();
       await c.query("INSERT INTO jobs(id,target_key,kind,body,state,due_at) VALUES($1,$2,$3,$4,'queued',now()+$5::double precision*interval '1 millisecond')", [id, key, event.kind, { ...event, force }, event.kind === 'review' ? debounceMs : 0]);
@@ -57,7 +58,7 @@ export class Store {
   }
   async getJob(id: string): Promise<Job | null> { return (await this.pool.query('SELECT * FROM jobs WHERE id=$1', [id])).rows[0] ?? null; }
   async getTarget(t: Target): Promise<{ paused: boolean; report: Report | null } | null> { return (await this.pool.query('SELECT * FROM targets WHERE key=$1', [targetKey(t)])).rows[0] ?? null; }
-  async saveResult(id: string, owner: string, report: Report, diff: Record<string, { oldPath: string }>, maxInline: number): Promise<void> {
+  async saveResult(id: string, owner: string, report: Report, diff: Record<string, DiffMetadata>, maxInline: number): Promise<void> {
     await this.transaction(async c => {
       const row = await c.query("UPDATE jobs SET result=$3,diff=$4,max_inline=$5,state='ready',owner=NULL,lease_until=NULL,attempts=0,updated_at=now() WHERE id=$1 AND owner=$2 AND state='running' AND lease_until>now() RETURNING target_key", [id, owner, report, diff, maxInline]);
       if (!row.rows[0]) throw new Error('Job lease lost');
@@ -78,7 +79,18 @@ export class Store {
       const report = row.rows[0]?.report as Report | null; const finding = report?.findings.find(f => f.id === id);
       if (!report || !finding) return false;
       finding.status = 'dismissed'; report.delta.dismissed = [...new Set([...report.delta.dismissed, id])];
-      await c.query('UPDATE targets SET report=$2,updated_at=now() WHERE key=$1', [targetKey(t), report]); return true;
+      for (const group of ['added', 'retained', 'fixed', 'unverified'] as const) report.delta[group] = report.delta[group].filter(value => value !== id);
+      await c.query('UPDATE targets SET report=$2,updated_at=now() WHERE key=$1', [targetKey(t), report]);
+      // A command can run before a saved result is published. Keep that result in sync.
+      const ready = await c.query("SELECT id,result FROM jobs WHERE target_key=$1 AND state='ready' FOR UPDATE", [targetKey(t)]);
+      for (const row of ready.rows) {
+        const pending = row.result as Report | null, item = pending?.findings.find(f => f.id === id);
+        if (!pending || !item) continue;
+        item.status = 'dismissed'; pending.delta.dismissed = [...new Set([...pending.delta.dismissed, id])];
+        for (const group of ['added', 'retained', 'fixed', 'unverified'] as const) pending.delta[group] = pending.delta[group].filter(value => value !== id);
+        await c.query('UPDATE jobs SET result=$2,updated_at=now() WHERE id=$1', [row.id, pending]);
+      }
+      return true;
     });
   }
   async addFeedback(t: Target, author: string, rule: string, sourceKey: string = randomUUID()): Promise<string> {

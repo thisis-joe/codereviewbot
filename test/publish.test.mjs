@@ -32,3 +32,13 @@ test('commands distinguish explicit dismiss/learning approval from ordinary conv
   assert.equal(parseCommand('unrelated comment'), null);
   assert.equal(parseCommand('@reviewbot why is this unsafe?').action, 'ask');
 });
+
+test('large valid review output remains publishable with all fixed sections and visible truncation', async () => {
+  const p = platform();
+  const r = report({ changes: Array.from({ length: 100 }, (_, i) => ({ name: 'group'+i, files: ['src/pay.ts'], description: 'x'.repeat(6000), impact: 'y'.repeat(6000) })), findings: [finding({ id: 'CRB-0001', problem: 'p'.repeat(6000), condition: 'c'.repeat(6000), impact: 'i'.repeat(6000), evidence: Array.from({ length: 12 }, () => ({ path: 'src/pay.ts', line: 4, side: 'RIGHT', reason: 'r'.repeat(6000) })) })] });
+  await publish(p, r, { 'src/pay.ts': { oldPath: 'src/pay.ts' } }, 5, async () => {});
+  const body = p.stored.comments[0].body; assert.ok(body.length <= 60000);
+  for (let i = 1; i <= 6; i++) assert.ok(body.includes(`### ${i}.`));
+  assert.match(body, /축약/); assert.match(body, /CRB-0001/);
+  assert.equal(p.stored.inline.length, 1); assert.ok(p.stored.inline[0].body.length <= 60000);
+});

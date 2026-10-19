@@ -1,9 +1,10 @@
 import { ApiClient, HttpError, type TokenSource } from './http-client.js';
 import type { RepositoryConfig } from './config.js';
 import { Sha, type Snapshot, type Target, type Check, type Candidate } from './contracts.js';
+import type { DiffPosition } from './review.js';
 
 export interface RemoteComment { id: string; body: string; author: string; url: string; discussionId?: string }
-export interface InlineInput { path: string; oldPath: string; line: number; side?: 'LEFT' | 'RIGHT'; body: string; suggestion: Candidate['suggestion'] }
+export interface InlineInput { path: string; oldPath: string; line: number; side?: 'LEFT' | 'RIGHT'; coordinates?: DiffPosition; body: string; suggestion: Candidate['suggestion'] }
 export class Platform {
   readonly api: ApiClient;
   readonly root: string;
@@ -56,7 +57,8 @@ export class Platform {
         ...(value.suggestion && value.suggestion.startLine !== value.suggestion.endLine ? { start_line: value.suggestion.startLine, start_side: 'RIGHT' } : {}) });
     }
     return this.api.request(`${this.root}/merge_requests/${s.number}/discussions`, 'POST', { body: value.body,
-      position: { position_type: 'text', base_sha: s.baseSha, start_sha: s.startSha, head_sha: s.headSha, old_path: value.oldPath, new_path: value.path, ...(value.side === 'LEFT' ? { old_line: value.line } : { new_line: value.line }) } });
+      position: { position_type: 'text', base_sha: s.baseSha, start_sha: s.startSha, head_sha: s.headSha, old_path: value.oldPath, new_path: value.path,
+        ...(value.coordinates ? { ...(value.coordinates.oldLine ? { old_line: value.coordinates.oldLine } : {}), ...(value.coordinates.newLine ? { new_line: value.coordinates.newLine } : {}) } : value.side === 'LEFT' ? { old_line: value.line } : { new_line: value.line }) } });
   }
   async reply(number: number, body: string, parentId: string | null, discussionId: string | null): Promise<unknown> {
     if (this.config.platform === 'github' && parentId) return this.api.request(`${this.root}/pulls/${number}/comments/${encodeURIComponent(parentId)}/replies`, 'POST', { body });
@@ -68,7 +70,7 @@ export class Platform {
     try {
       if (this.config.platform === 'github') {
         const p = await this.api.request(`${this.root}/collaborators/${encodeURIComponent(username)}/permission`);
-        if (['admin', 'maintain'].includes(p.permission)) return 'maintain';
+        if (['admin', 'maintain'].includes(p.role_name) || ['admin', 'maintain'].includes(p.permission) || p.user?.permissions?.maintain || p.user?.permissions?.admin) return 'maintain';
         return p.permission === 'write' ? 'write' : 'none';
       }
       const users = await this.api.request(`/users?username=${encodeURIComponent(username)}`);

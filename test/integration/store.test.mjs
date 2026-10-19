@@ -37,3 +37,16 @@ test('a newer source push supersedes a running review and paused repositories re
   await store.enqueue({ kind: 'command', target, deliveryId: 'd4', comment: { id: '4', body: '/reviewbot resume', author: 'joe', parentId: null, discussionId: null } }, 0);
   assert.equal((await store.claim()).kind, 'command');
 });
+
+test('CI completion during review is retained for refresh and dismissal cannot resurrect a ready finding', async t => {
+  const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  const target = snapshot(); await store.enqueue({ kind: 'review', target, deliveryId: 'review', headSha: target.headSha }, 0);
+  const reviewing = await store.claim();
+  await store.enqueue({ kind: 'ci', target, deliveryId: 'ci-finished', headSha: target.headSha }, 0);
+  await store.saveResult(reviewing.id, reviewing.owner, report({ findings: [{ ...(await import('../fixtures.mjs')).finding(), id: 'CRB-0001', status: 'new' }] }), {}, 5);
+  assert.equal(await store.dismiss(target, 'CRB-0001'), true);
+  const ready = await store.claim(); assert.equal(ready.state, 'publishing'); assert.equal(ready.result.findings[0].status, 'dismissed');
+  await store.complete(ready.id, ready.owner);
+  assert.equal((await store.claim()).kind, 'ci');
+});

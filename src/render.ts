@@ -32,6 +32,21 @@ function flowDiagram(flow: Flow | null): string {
   return ['```mermaid', 'flowchart LR', ...flow.nodes.map(n => `  ${n.id}["${label(n.label)}"]`), ...flow.edges.map(e => `  ${e.from} -->|"${label(e.label)}"| ${e.to}`), '```'].join('\n');
 }
 export function renderReport(r: Report): string {
+  const full = renderReportBody(r); if (full.length <= 60000) return full;
+  const short = (value: string) => value.length > 200 ? value.slice(0, 200) + '…' : value;
+  const sorted = [...r.findings].sort((a, b) => Number(['fixed', 'dismissed'].includes(a.status)) - Number(['fixed', 'dismissed'].includes(b.status)) || a.severity.localeCompare(b.severity) || a.id.localeCompare(b.id));
+  for (const limit of [40, 20, 10, 5, 2, 1, 0]) {
+    const compact: Report = { ...r, state: r.state === 'completed' ? 'partial' : r.state, summary: short(r.summary),
+      findings: sorted.slice(0, limit), changes: r.changes.slice(0, Math.min(limit, 5)).map(c => ({ ...c, name: short(c.name), description: short(c.description), impact: short(c.impact), files: c.files.slice(0, 1) })),
+      flow: null, checks: r.checks.slice(0, 30).map(c => ({ ...c, detail: short(c.detail) })), recommendedTests: r.recommendedTests.slice(0, 5).map(short),
+      reviewedFiles: r.reviewedFiles.slice(0, 10), excludedFiles: r.excludedFiles.slice(0, 10), rules: r.rules.slice(0, 5).map(short),
+      delta: Object.fromEntries(Object.entries(r.delta).map(([key, ids]) => [key, ids.slice(0, 40)])) as Report['delta'],
+      limitations: [`댓글 길이 제한으로 내용·목록을 축약했습니다. 발견 사항 ${r.findings.length}건 중 ${Math.min(limit, r.findings.length)}건을 표시합니다. 상세 내용은 인라인 댓글 또는 /reviewbot explain ID로 확인하세요.`, ...r.limitations.slice(0, 5).map(short)] };
+    const body = renderReportBody(compact); if (body.length <= 60000) return body;
+  }
+  throw new Error('Report metadata exceeds comment budget');
+}
+function renderReportBody(r: Report): string {
   const findings = [...r.findings].sort((a, b) => a.severity.localeCompare(b.severity) || a.path.localeCompare(b.path) || a.line - b.line || a.id.localeCompare(b.id));
   const rows = findings.map(f => `| ${f.id} | ${f.severity} | ${f.category} | ${findingStatus[f.status]} | ${plain(f.title)} | ${ref({ ...r.snapshot, headSha: f.observedHeadSha ?? r.snapshot.headSha, baseSha: f.observedBaseSha ?? r.snapshot.baseSha }, f.side === 'LEFT' ? f.oldPath ?? f.path : f.path, f.line, f.side)} |`);
   const groups = r.changes.map(c => `| ${plain(c.name)} | ${c.files.map(f => ref(r.snapshot, f)).join(', ')} | ${plain(`${c.description} / ${c.impact}`)} |`);
@@ -60,6 +75,12 @@ export function renderReport(r: Report): string {
   ].join('\n');
 }
 export function renderFinding(f: Finding, s: Snapshot): string {
+  const full = renderFindingBody(f, s); if (full.length <= 60000) return full;
+  const short = (value: string) => value.length > 700 ? value.slice(0, 700) + '… (축약)' : value;
+  return renderFindingBody({ ...f, problem: short(f.problem), condition: short(f.condition), impact: short(f.impact), fix: short(f.fix), test: short(f.test),
+    evidence: f.evidence.slice(0, 4).map(e => ({ ...e, reason: short(e.reason) })) }, s);
+}
+function renderFindingBody(f: Finding, s: Snapshot): string {
   let suggestion = '코드 제안 없음: 주변 변경이 필요한 경우 수정 방향을 참고하세요.';
   if (f.suggestion) {
     const max = Math.max(2, ...[...f.suggestion.replacement.matchAll(/`+/g)].map(m => m[0].length));

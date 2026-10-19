@@ -1,8 +1,9 @@
 import type { Platform } from './platform.js';
 import type { Report } from './contracts.js';
 import { renderReport, renderFinding, SUMMARY_MARKER } from './render.js';
+import type { DiffMetadata } from './review.js';
 export class Superseded extends Error {}
-export async function publish(platform: Platform, report: Report, diff: Record<string, { oldPath: string }>, maxInline: number, fence: () => Promise<void>): Promise<void> {
+export async function publish(platform: Platform, report: Report, diff: Record<string, DiffMetadata>, maxInline: number, fence: () => Promise<void>): Promise<void> {
   const current = async () => {
     await fence(); const live = await platform.snapshot(report.snapshot.number);
     if (live.headSha !== report.snapshot.headSha || live.baseSha !== report.snapshot.baseSha || live.startSha !== report.snapshot.startSha) throw new Superseded('Review snapshot changed');
@@ -22,6 +23,6 @@ export async function publish(platform: Platform, report: Report, diff: Record<s
     if (posted >= maxInline) break;
     const body = renderFinding(f, report.snapshot); if (body.length > 60000) continue;
     await current();
-    await platform.inline(report.snapshot, { path: f.path, oldPath: diff[f.path]!.oldPath, line: f.line, side: f.side, body, suggestion: f.suggestion }); posted++;
+    await platform.inline(report.snapshot, { path: f.path, oldPath: diff[f.path]!.oldPath, line: f.line, side: f.side, coordinates: diff[f.path]!.positions?.[f.side][f.line], body, suggestion: f.suggestion }); posted++;
   }
 }
