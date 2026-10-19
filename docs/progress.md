@@ -7,7 +7,7 @@
   the engine must never reconstruct GitLab start/base/head refs from branch names.
 - Preflight: all posting steps must reconcile platform state after an unknown response;
   database completion alone cannot guarantee external exactly-once behavior.
-- Implementation in progress; no services or webhooks activated yet.
+- Implementation and local verification completed; external account/webhook setup deferred.
 - Unit 1: implemented strict model JSON schemas and fixed Korean templates. Initial
   missing-module RED observed; `npm test` GREEN, 5 tests (schema, fixed sections,
   unsafe markup, incomplete verdict, native suggestion/answer shape).
@@ -39,3 +39,16 @@
   connection are deferred. No personal auth copied, remote webhook, DNS or tunnel activated.
 - Final independent review in progress; regression cases first reproduced for semantic
   coverage, full-PR rename mappings, oversized output, stale dismissal and in-flight CI.
+- Final review: fixed sensitive old-path rename export, queued CI refresh, GitLab dual
+  context coordinates, GitHub Maintain roles, stable IDs across renames and stale answers.
+  Independent reviewer revalidated all six fixes with no remaining blockers in offline scope.
+- Final verification: 30 unit tests and 4 real PostgreSQL integration tests passed;
+  both final images built, real n8n import/publish and authenticated dispatch passed.
+  A real temporary-Git test covers multi-rename, reused filenames and sensitive old paths.
+  Production npm audit reported 0 vulnerabilities. Generated workflows reproduce cleanly.
+- Environment finding: the 20 GiB Colima disk filled during a repeated image build.
+  Stopped only this stack and removed its confirmed old build cache, then final build,
+  PostgreSQL integration and n8n smoke passed. No other project's resources were pruned.
+  Connection-time setup must check VM disk capacity; local services are stopped afterward.
+- Deferred evidence: live Codex inference quality, real GitHub/GitLab permissions/comment
+  rendering, DNS/tunnel and external webhook delivery. No successful live review claimed.
