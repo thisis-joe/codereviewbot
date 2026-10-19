@@ -10,8 +10,16 @@ one review at a time, 10 minute review budget. No automatic commits/approvals/me
 ## Required behavior
 
 1. Versioned strict JSON and deterministic Korean report/inline/answer templates.
-   Report always includes metadata and six sections: summary, findings, changes,
-   checks/tests, review delta, coverage/limitations. No successful verdict for partial/failed work.
+   Format v2 (user revision): compact metadata and four sections: summary, findings,
+   checks/caveats, change-understanding questions. No successful verdict for partial/failed work.
+   Remove duplicate change tables, empty diagrams/lists and long audit inventories from output.
+   Generate 3–10 varied questions about the actual diff, independently check them, validate
+   unique text and real diff/source anchors, and publish questions without answers.
+   Failed/in-progress/legacy reports show an explicit unavailable message, never fabricated
+   questions. Upgrade question-less legacy caches while retaining the same summary marker.
+   Pure renames may use readable source anchors. Changes without any usable text source
+   return an explicit partial/unavailable result, preserve unresolved findings, and do not
+   retry inference solely to invent three questions. Preserve skipped/neutral CI disclosures.
 2. Signed webhook admission and repository allowlist, durable inbox, debounce and
    leased work; normalize PR/MR and comment/CI events. Confirm live head before writes.
 3. Exact-snapshot code and context collection, base-branch policy, two-pass Codex

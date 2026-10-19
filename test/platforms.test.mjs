@@ -69,3 +69,19 @@ test('GitHub Maintainer role and GitLab unchanged hunk coordinates preserve nati
   await gl.inline({ ...(await import('./fixtures.mjs')).snapshot(), platform: 'gitlab' }, { path: 'file.ts', oldPath: 'file.ts', side: 'RIGHT', line: 10, coordinates: positions.RIGHT[10], body: 'finding', suggestion: null });
   assert.equal(posted.position.old_line, 9); assert.equal(posted.position.new_line, 10);
 });
+
+test('provider CI mapping keeps skipped and neutral separate from tests that passed', async t => {
+  const server = createServer((req, res) => {
+    res.setHeader('content-type', 'application/json');
+    if (req.url.includes('check-runs')) res.end(JSON.stringify({ check_runs: ['success', 'skipped', 'neutral'].map(conclusion => ({ name: conclusion, head_sha: 'b'.repeat(40), status: 'completed', conclusion, output: {}, html_url: null })) }));
+    else if (req.url.endsWith('/status')) res.end('{"statuses":[]}');
+    else if (req.url.includes('/pipelines/')) res.end(JSON.stringify([{ name: 'unit', id: 1, status: 'skipped' }]));
+    else res.end(JSON.stringify([{ id: 1, sha: 'b'.repeat(40) }]));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
+  const instance = `http://127.0.0.1:${server.address().port}`, snap = (await import('./fixtures.mjs')).snapshot();
+  const gh = new Platform({ ...repo, instance }, async () => 'token');
+  assert.deepEqual((await gh.checks(snap)).map(c => c.status), ['passed', 'skipped', 'neutral']);
+  const gl = new Platform({ ...repo, instance, platform: 'gitlab' }, async () => 'token');
+  assert.equal((await gl.checks(snap))[0].status, 'skipped');
+});

@@ -88,7 +88,7 @@ export class Platform {
           const runs = await this.api.request(`${this.root}/commits/${s.headSha}/check-runs?per_page=100&page=${page}`);
           const items = runs.check_runs ?? [];
           for (const c of items) if (c.head_sha === s.headSha) {
-            result.push({ name: `CI: ${c.name}`, status: c.status !== 'completed' ? 'pending' : ['success', 'neutral', 'skipped'].includes(c.conclusion) ? 'passed' : 'failed', detail: `${c.output?.title ?? ''}\n${c.output?.summary ?? ''}\n${c.output?.text ?? ''}`.slice(0, 5500), url: c.html_url ?? null });
+            result.push({ name: `CI: ${c.name}`, status: c.status !== 'completed' ? 'pending' : c.conclusion === 'skipped' ? 'skipped' : c.conclusion === 'neutral' ? 'neutral' : c.conclusion === 'success' ? 'passed' : 'failed', detail: `${c.output?.title ?? ''}\n${c.output?.summary ?? ''}\n${c.output?.text ?? ''}`.slice(0, 5500), url: c.html_url ?? null });
           }
           if (items.length < 100) break; if (++page > 10) throw new Error('Check pagination limit');
         }
@@ -106,7 +106,7 @@ export class Platform {
               try { detail += '\n' + (await this.api.request(`${this.root}/jobs/${Number(job.id)}/trace`, 'GET', undefined, true)).slice(-5000); }
               catch { detail += '\n실패 로그 확인 불가'; }
             }
-            result.push({ name: `CI: ${job.name}`, status: job.status === 'success' || job.status === 'skipped' ? 'passed' : ['failed', 'canceled'].includes(job.status) ? 'failed' : 'pending', detail: detail.slice(0, 5500), url: job.web_url ?? null });
+            result.push({ name: `CI: ${job.name}`, status: job.status === 'success' ? 'passed' : job.status === 'skipped' ? 'skipped' : ['failed', 'canceled'].includes(job.status) ? 'failed' : 'pending', detail: detail.slice(0, 5500), url: job.web_url ?? null });
           }
         }
       }

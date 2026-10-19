@@ -72,6 +72,7 @@ docker compose --profile tunnel up -d
 
 ## 5. 실연동 검증
 
+코드가 바뀌었다면 먼저 `docker compose build controller runner`로 최신 코드를 이미지에 반영한다.
 설정 변경 후 `docker compose up -d --force-recreate controller`로 환경을 다시 읽는다.
 테스트 PR/MR에서 결함 생성 → 댓글 위치·양식 확인 → 수정 → 지적 상태 갱신을 양쪽 플랫폼에서 확인한다.
 같은 이벤트를 재전송하고 연속 푸시·force push·권한 없는 댓글·일시정지·재개도 검증한다.

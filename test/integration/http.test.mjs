@@ -5,7 +5,7 @@ import pg from 'pg';
 import { Store } from '../../dist/store.js';
 import { application } from '../../dist/application.js';
 import { Controller } from '../../dist/controller.js';
-import { analysis, finding, snapshot } from '../fixtures.mjs';
+import { analysis, finding, snapshot, changeQuestions } from '../fixtures.mjs';
 import { parsePatch } from '../../dist/review.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
@@ -22,7 +22,7 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   const patch = '@@ -1,2 +1,2 @@\n function pay() {\n+charge();\n';
   const workspaces = { prepare: async () => ({ policy: { version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5 }, guidelines: [], mode: 'full', context: { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/snapshots/source' } }), cleanup: async () => {} };
   const checks = ['정확성·신뢰성','보안','성능','호환성','테스트','팀 규칙·요구사항'].map(name => ({ name, status: 'clear', detail: '관련 코드 검토', url: null }));
-  const model = { run: async phase => phase === 'review' ? analysis({ checks, findings: [finding({ line: 2, evidence: [{ path: 'src/pay.ts', line: 2, reason: '승인 호출' }] })] }) : { decisions: [{ id: 'C-1', decision: 'confirmed', reason: '재시도 흐름 확인' }], resolutions: [] } };
+  const model = { run: async phase => phase === 'review' ? analysis({ checks, findings: [finding({ line: 2, evidence: [{ path: 'src/pay.ts', line: 2, reason: '승인 호출' }] })] }) : { questions: changeQuestions(), decisions: [{ id: 'C-1', decision: 'confirmed', reason: '재시도 흐름 확인' }], resolutions: [] } };
   const controller = new Controller(store, [platform], workspaces, model, 0);
   const server = application(controller, [config], { INTERNAL_TOKEN: 'internal-test-secret', HOOK_SECRET: 'hook-test-secret' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
@@ -37,4 +37,42 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   assert.equal(comments.length,1); assert.equal(inline.length,1);
   assert.match(comments[0].body,/수정 필요/); assert.match(inline[0].body,/CRB-0001/);
   assert.equal((await store.health()).queued,0);
+  assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
+  // A same-SHA report from the old format must be regenerated, then update the same comment.
+  await pool.query("UPDATE targets SET report=report-'questions'");
+  await store.enqueue({ kind: 'ci', target: snapshot(), deliveryId: 'legacy-ci', headSha: snapshot().headSha }, 0);
+  await tick(); await tick();
+  assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
+  assert.equal(comments.length, 1); assert.match(comments[0].body, /### 4\. 변경 이해 질문/);
+  // Recovery must upgrade an old report even if there is no new push or CI event.
+  platform.openNumbers = async () => [1];
+  await pool.query("UPDATE targets SET report=report-'questions'");
+  await controller.recover();
+  const pending = await pool.query("SELECT kind FROM jobs WHERE state='queued'");
+  assert.equal(pending.rows[0].kind, 'review');
+  await tick(); await tick();
+  assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
+  // Ordinary CI refreshes keep questions without inference; failed full runs clear old questions.
+  model.run = async () => { throw new Error('inference unavailable'); };
+  await store.enqueue({ kind: 'ci', target: snapshot(), deliveryId: 'ci-only', headSha: snapshot().headSha }, 0);
+  await tick(); await tick();
+  assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
+  const prepare = workspaces.prepare;
+  workspaces.prepare = async (...args) => { const prepared = await prepare(...args); return { ...prepared, context: { ...prepared.context, files: {}, diff: {} } }; };
+  await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'no-source', headSha: snapshot().headSha }, 0, true);
+  await tick(); await tick();
+  const unavailable = (await store.getTarget(snapshot())).report;
+  assert.equal(unavailable.state, 'partial'); assert.deepEqual(unavailable.questions, []);
+  assert.ok(unavailable.questionsUnavailableReason);
+  await controller.recover();
+  assert.equal((await pool.query("SELECT kind FROM jobs WHERE state='queued'")).rows[0].kind, 'ci');
+  await tick(); await tick();
+  assert.equal((await store.getTarget(snapshot())).report.questionsUnavailableReason, unavailable.questionsUnavailableReason);
+  workspaces.prepare = prepare;
+  const failed = await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'failed-full', headSha: snapshot().headSha }, 0, true);
+  await pool.query('UPDATE jobs SET attempts=2 WHERE id=$1', [failed]);
+  await tick(); await tick();
+  const failedReport = (await store.getTarget(snapshot())).report;
+  assert.equal(failedReport.state, 'failed'); assert.deepEqual(failedReport.questions, []);
+  assert.doesNotMatch(comments[0].body, /^\d+\. /m);
 });

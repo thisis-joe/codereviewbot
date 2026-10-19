@@ -3,7 +3,7 @@ import { Store, type Job } from './store.js';
 import { Platform } from './platform.js';
 import { Workspaces } from './workspace.js';
 import { review, type Model } from './review.js';
-import { emptyReport, AnswerSchema, type Snapshot, type Report, type Target } from './contracts.js';
+import { emptyReport, hasQuestionResult, AnswerSchema, type Snapshot, type Report, type Target } from './contracts.js';
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
 import { parseCommand, type Command } from './commands.js';
@@ -41,14 +41,14 @@ export class Controller {
       snap.title = redact(snap.title); snap.description = redact(snap.description);
       previous = (await this.store.getTarget(snap))?.report ?? null;
       const checks = (await platform.checks(snap)).map(c => ({ ...c, detail: redact(c.detail) }));
-      if (job.kind === 'ci' && previous && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha) {
+      if (job.kind === 'ci' && previous && hasQuestionResult(previous) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha) {
         const updated: Report = { ...previous, checks: [...previous.checks.filter(c => !c.name.startsWith('CI:') && c.name !== 'CI·정적 검사'), ...checks] };
         await this.store.saveResult(job.id, job.owner, updated, {}, 0); return;
       }
       const learnings = await this.store.learnings(snap);
-      const prepared = await this.workspaces.prepare(platform, snap, job.id, job.body.force || previous?.state !== 'completed' ? null : previous.snapshot, learnings);
+      const prepared = await this.workspaces.prepare(platform, snap, job.id, job.body.force || previous?.state !== 'completed' || !hasQuestionResult(previous) ? null : previous.snapshot, learnings);
       await lease();
-      if (!job.body.force && previous && ['completed', 'partial'].includes(previous.state) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha && previous.snapshot.policyVersion === snap.policyVersion) {
+      if (!job.body.force && previous && hasQuestionResult(previous) && ['completed', 'partial'].includes(previous.state) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha && previous.snapshot.policyVersion === snap.policyVersion) {
         await this.store.saveResult(job.id, job.owner, { ...previous, checks: [...previous.checks.filter(c => !c.name.startsWith('CI:') && c.name !== 'CI·정적 검사'), ...checks] }, {}, 0); return;
       }
       const issues = (await platform.linkedIssues(snap.description)).map(redact);
@@ -59,7 +59,7 @@ export class Controller {
     } catch (error) {
       if (error instanceof Superseded || (error instanceof HttpError && error.status === 410)) await this.store.supersede(job.id, job.owner);
       else if (snap && job.state !== 'publishing' && job.attempts >= 3) {
-        const failed = previous ? { ...previous, snapshot: snap, state: 'failed' as const, summary: '리뷰 실행 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.', limitations: ['리뷰를 완료하지 못했습니다. 이전 지적의 현재 상태는 확인 불가입니다.'], findings: previous.findings.map(f => ({ ...f, status: f.status === 'dismissed' ? 'dismissed' as const : 'unverified' as const })) } : emptyReport(snap, 'failed', '리뷰 실행 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.');
+        const failed = previous ? { ...previous, snapshot: snap, state: 'failed' as const, questions: [], questionsUnavailableReason: undefined, summary: '리뷰 실행 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.', limitations: ['리뷰를 완료하지 못했습니다. 이전 지적의 현재 상태는 확인 불가입니다.'], findings: previous.findings.map(f => ({ ...f, status: f.status === 'dismissed' ? 'dismissed' as const : 'unverified' as const })) } : emptyReport(snap, 'failed', '리뷰 실행 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.');
         try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
       } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
       console.error(JSON.stringify({ jobId: job.id, stage: job.state, error: error instanceof Superseded ? 'superseded' : 'execution_failed' }));
@@ -129,7 +129,7 @@ export class Controller {
             const snap = await platform.snapshot(number); const state = await this.store.getTarget(snap);
             if (state?.paused) continue;
             const prior = state?.report?.snapshot;
-            if (!prior || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:${snap.headSha}:${snap.startSha}:${snap.baseSha}` }, this.debounceMs);
+            if (!prior || !hasQuestionResult(state?.report) || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:questions-v2:${snap.headSha}:${snap.startSha}:${snap.baseSha}` }, this.debounceMs);
             else {
               const checks = (await platform.checks(snap)).map(c => ({ ...c, detail: redact(c.detail) }));
               const digest = createHash('sha256').update(JSON.stringify(checks)).digest('hex');

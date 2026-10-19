@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { parsePatch, validateFindings, reconcile, buildPrompts, review } from '../dist/review.js';
 import { exportSnapshot } from '../dist/workspace.js';
 import { readPolicy } from '../dist/policy.js';
-import { analysis, snapshot, finding } from './fixtures.mjs';
+import { analysis, snapshot, finding, changeQuestions } from './fixtures.mjs';
 
 const patch = 'diff --git a/src/pay.ts b/src/pay.ts\n--- a/src/pay.ts\n+++ b/src/pay.ts\n@@ -2,2 +2,3 @@\n const key = input.id;\n+charge(input);\n return result;\n';
 test('diff validation rejects invented lines, paths and ungrounded evidence', () => {
@@ -61,7 +61,7 @@ test('review prompts require source exploration, evidence and a separate verific
 });
 
 test('unverified candidates and missing review axes produce partial coverage rather than a clear verdict', async () => {
-  const model = { run: async phase => phase === 'review' ? analysis({ findings: [finding({ line: 3, evidence: [{ path: 'src/pay.ts', line: 3, reason: '승인 호출' }] })] }) : { decisions: [], resolutions: [] } };
+  const model = { run: async phase => phase === 'review' ? analysis({ findings: [finding({ line: 3, evidence: [{ path: 'src/pay.ts', line: 3, reason: '승인 호출' }] })] }) : { questions: changeQuestions(), decisions: [], resolutions: [] } };
   const result = await review(model, 'test', snapshot(), readPolicy(), { files: { 'src/pay.ts': 'one\ntwo\ncharge();' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/tmp/source' }, null, [], [], [], [], 'full');
   assert.equal(result.state, 'partial'); assert.equal(result.findings.length, 0);
   assert.ok(result.limitations.length > 0);
@@ -73,7 +73,7 @@ test('explicitly unavailable axes, contradictory verification and unverifiable c
   const checks = checkNames.slice(0, 6).map(name => ({ name, status: 'clear', detail: '코드 확인', url: null }));
   for (const scenario of ['unavailable', 'unverifiable', 'duplicate']) {
     const candidate = finding({ line: 3, evidence: [{ path: 'src/pay.ts', line: 3, reason: '승인 호출' }] });
-    const model = { run: async phase => phase === 'review' ? analysis({ checks: scenario === 'unavailable' ? checks.map((c, i) => i ? c : { ...c, status: 'unavailable' }) : checks, findings: scenario === 'unavailable' ? [] : [candidate] }) : { decisions: scenario === 'unverifiable' ? [{ id: 'C-1', decision: 'unverifiable', reason: '호출부 확인 불가' }] : scenario === 'duplicate' ? [{ id: 'C-1', decision: 'rejected', reason: '방어 존재' }, { id: 'C-1', decision: 'confirmed', reason: '충돌' }] : [], resolutions: [] } };
+    const model = { run: async phase => phase === 'review' ? analysis({ checks: scenario === 'unavailable' ? checks.map((c, i) => i ? c : { ...c, status: 'unavailable' }) : checks, findings: scenario === 'unavailable' ? [] : [candidate] }) : { questions: changeQuestions(), decisions: scenario === 'unverifiable' ? [{ id: 'C-1', decision: 'unverifiable', reason: '호출부 확인 불가' }] : scenario === 'duplicate' ? [{ id: 'C-1', decision: 'rejected', reason: '방어 존재' }, { id: 'C-1', decision: 'confirmed', reason: '충돌' }] : [], resolutions: [] } };
     const result = await review(model, 'test', snapshot(), readPolicy(), context, null, [], [], [], [], 'full');
     assert.equal(result.state, 'partial', scenario); assert.equal(result.findings.length, 0, scenario);
   }
@@ -92,4 +92,49 @@ test('a validated rename retains stable IDs and a prior dismissal', () => {
   const previous = [finding({ id: 'CRB-0007', path: 'middle.ts', oldPath: 'original.ts', status: 'dismissed' })];
   const result = reconcile([finding({ existingId: 'CRB-0007', path: 'current.ts', oldPath: 'original.ts' })], previous, [], true);
   assert.equal(result.findings.length, 1); assert.equal(result.findings[0].id, 'CRB-0007'); assert.equal(result.findings[0].status, 'dismissed');
+});
+
+test('review publishes independently checked change questions and refuses duplicate or unrelated anchors', async () => {
+  const { checkNames } = await import('../dist/contracts.js');
+  const checks = checkNames.slice(0, 6).map(name => ({ name, status: 'clear', detail: '코드 확인', url: null }));
+  const context = { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}', 'unrelated.ts': 'const x = 1;' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/tmp/source' };
+  const run = questions => review({ run: async phase => phase === 'review' ? analysis({ checks }) : { questions, decisions: [], resolutions: [] } }, 'test', snapshot(), readPolicy(), context, null, [], [], [], [], 'full');
+  const checked = changeQuestions().map(q => ({ ...q, question: q.question.replace('?', ' 재검증 질문?') }));
+  const result = await run(checked); assert.deepEqual(result.questions, checked);
+  await assert.rejects(() => run(changeQuestions().map(q => ({ ...q, path: 'unrelated.ts', line: 1 }))), /질문.*코드 근거|question.*anchor/i);
+  await assert.rejects(() => run(changeQuestions().map(q => ({ ...q, line: 500 }))), /질문.*코드 근거|question.*anchor/i);
+  await assert.rejects(() => run(changeQuestions().map((q, i, all) => i ? q : { ...q, question: `  ${all[1].question}  ` })), /중복.*질문|duplicate.*question/i);
+});
+
+test('questions on removed code retain the base path and side instead of pointing to nonexistent new code', async () => {
+  const questions = [
+    { question: '이번 checkAuth 삭제로 호출자가 보장해야 할 조건은 무엇인가요?', path: 'renamed.ts', line: 2, side: 'LEFT' },
+    { question: '삭제한 checkAuth를 대체하는 권한 검사는 어느 호출 경계에서 수행해야 하나요?', path: 'renamed.ts', line: 2, side: 'LEFT' },
+    { question: '이 인증 검사 삭제가 미인증 호출에 미치는 영향을 어떻게 검증하나요?', path: 'renamed.ts', line: 2, side: 'LEFT' },
+  ];
+  const patch = '@@ -1,3 +1,2 @@\n begin();\n-checkAuth();\n next();\n';
+  const context = { files: {}, baseFiles: { 'original.ts': 'begin();\ncheckAuth();\nnext();' }, diff: { 'renamed.ts': { oldPath: 'original.ts', patch, lines: parsePatch(patch), oldLines: parsePatch(patch, 'LEFT') } }, excluded: [], limited: false, sourceDir: '/source' };
+  const result = await review({ run: async phase => phase === 'review' ? analysis({ questions }) : { questions, decisions: [], resolutions: [] } }, 'test', snapshot(), readPolicy(), context, null, [], [], [], [], 'full');
+  assert.equal(result.questions.length, 3); assert.equal(result.questions[0].path, 'original.ts'); assert.equal(result.questions[0].side, 'LEFT');
+});
+
+test('pure renames support source anchors when the file has no textual hunk', async () => {
+  const questions = [
+    { question: 'old.ts에서 new.ts로 이동한 함수의 공개 import 경로는 어떻게 달라지나요?', path: 'new.ts', line: 1, side: 'RIGHT' },
+    { question: 'new.ts로 옮긴 pay 함수를 호출하는 코드는 어떤 경계에서 확인해야 하나요?', path: 'new.ts', line: 1, side: 'RIGHT' },
+    { question: '이번 new.ts 이동 후 대소문자를 구분하는 환경에서 모듈 해석을 어떻게 검증하나요?', path: 'new.ts', line: 1, side: 'RIGHT' },
+  ];
+  const context = { files: { 'new.ts': 'export function pay() {}' }, baseFiles: { 'old.ts': 'export function pay() {}' }, diff: { 'new.ts': { oldPath: 'old.ts', patch: '', lines: new Set(), oldLines: new Set() } }, excluded: [], limited: false, sourceDir: '/source' };
+  const result = await review({ run: async phase => phase === 'review' ? analysis({ questions }) : { questions, decisions: [], resolutions: [] } }, 'test', snapshot(), readPolicy(), context, null, [], [], [], [], 'full');
+  assert.equal(result.questions.length, 3); assert.equal(result.questions[0].path, 'new.ts');
+});
+
+test('unavailable text diffs produce honest partial reports and preserve prior findings without inference', async () => {
+  const { report } = await import('./fixtures.mjs');
+  for (const diff of [{}, { 'asset.png': { oldPath: 'asset.png', patch: 'Binary files differ', lines: new Set(), oldLines: new Set() } }, { 'mode.ts': { oldPath: 'mode.ts', patch: '', lines: new Set(), oldLines: new Set() } }]) {
+    const context = { files: { 'mode.ts': 'export const unchanged = 1;' }, diff, excluded: ['asset.png'], limited: false, sourceDir: '/source' };
+    const result = await review({ run: async () => { throw new Error('No model call is applicable'); } }, 'test', snapshot(), readPolicy(), context, report({ findings: [finding({ id: 'CRB-0001', status: 'open' })] }), [], [], [], [], 'incremental');
+    assert.equal(result.state, 'partial'); assert.deepEqual(result.questions, []);
+    assert.match(result.questionsUnavailableReason, /변경 근거/); assert.equal(result.findings[0].status, 'unverified');
+  }
 });
