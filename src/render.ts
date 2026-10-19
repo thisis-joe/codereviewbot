@@ -1,4 +1,5 @@
-import { checkNames, hasChangeQuestions, type Report, type Finding, type Snapshot } from './contracts.js';
+import { checkNames, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade } from './contracts.js';
+import { questionId } from './learning.js';
 
 export const SUMMARY_MARKER = '<!-- codereviewbot:summary:v1 -->';
 const status = { running: '진행 중', completed: '완료', partial: '부분 완료', failed: '실패', paused: '일시정지' };
@@ -53,7 +54,7 @@ function renderReportBody(r: Report, omittedChecks = false): string {
   const repo = s.platform === 'github' ? web.pathname.split('/pull/')[0]! : web.pathname.split('/-/merge_requests/')[0]!;
   const commit = `${web.origin}${repo}/${s.platform === 'github' ? 'commit' : '-/commit'}/${s.headSha}`;
   const questions = ['completed', 'partial'].includes(r.state) && hasChangeQuestions(r)
-    ? r.questions!.map((q, i) => `${i + 1}. ${plain(q.question)} — ${ref(s, q.path, q.line, q.side, 80)}`)
+    ? renderQuestions(r.questions!, s)
     : [r.state === 'failed' ? '리뷰를 완료하지 못해 질문을 생성하지 못했습니다.'
       : r.state === 'running' || r.state === 'paused' ? '리뷰 완료 후 이번 변경에 대한 질문을 제공합니다.'
       : r.questionsUnavailableReason ? plain(r.questionsUnavailableReason)
@@ -67,6 +68,7 @@ function renderReportBody(r: Report, omittedChecks = false): string {
     ...r.limitations.map(l => `- ${plain(l)}`),
     ...(r.recommendedTests.length ? ['', '**권장 확인**', '', list(r.recommendedTests)] : []), '',
     '### 4. 변경 이해 질문', '', ...questions,
+    ...(hasChangeQuestions(r) && ['completed', 'partial'].includes(r.state) ? ['', '답변: `/reviewbot answer Q-ID 내 답변` · 심화 질문: `더 알아보자`'] : []),
   ].join('\n');
 }
 export function renderFinding(f: Finding, s: Snapshot): string {
@@ -91,4 +93,28 @@ function renderFindingBody(f: Finding, s: Snapshot): string {
 export function renderAnswer(a: { answer: string; evidence: string[]; next: string }, marker: string): string {
   return [`<!-- codereviewbot:reply:${marker.replace(/[^\w-]/g, '')} -->`, '### 답변', '', plain(a.answer), '',
     '### 코드 근거', '', list(a.evidence), '', '### 후속 조치·한계', '', plain(a.next)].join('\n');
+}
+function renderQuestions(questions: ChangeQuestion[], s: Snapshot): string[] {
+  return questions.flatMap((q, i) => [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `${i + 1}. **${questionId(s, q)}** ${plain(q.question)} — ${ref(s, q.path, q.line, q.side, 80)}`, ...(q.options ?? []).map(o => `   - ${o.id}. ${plain(o.text)}`)]);
+}
+export function replyMarker(id: string): string { return `<!-- codereviewbot:reply:${id.replace(/[^\w-]/g, '')} -->`; }
+export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string): string {
+  return [replyMarker(commentId), '### 심화 학습 질문', '', `기준 커밋: ${s.headSha.slice(0, 8)}`, '', ...renderQuestions(questions, s), '',
+    '답변: `/reviewbot answer Q-ID 내 답변` · 추가 학습: `더 알아보자`'].join('\n');
+}
+export function renderGrade(q: ChangeQuestion, s: Snapshot, grade: Grade, commentId: string): string {
+  // Leave room for the request link and input-compaction disclosure added by the caller.
+  const full = renderGradeBody(q, s, grade, commentId); if (full.length <= 59000) return full;
+  const compact = renderGradeBody(q, s, { ...grade, explanation: clip(grade.explanation, 700), expectedAnswer: clip(grade.expectedAnswer, 700),
+    optionExplanations: grade.optionExplanations.map(o => ({ ...o, explanation: clip(o.explanation, 400) })), evidence: grade.evidence.slice(0, 3).map(e => ({ ...e, reason: clip(e.reason, 300) })) }, commentId) + '\n\n댓글 길이 제한으로 해설과 근거를 축약했습니다.';
+  if (compact.length > 60000) throw new Error('Grading response exceeds comment budget');
+  return compact;
+}
+function renderGradeBody(q: ChangeQuestion, s: Snapshot, grade: Grade, commentId: string): string {
+  const labels = { correct: '정답', partial: '부분 정답', incorrect: '오답', unverifiable: '판정 보류' };
+  return [replyMarker(commentId), `<!-- codereviewbot:question:${questionId(s, q)} -->`, `### ${questionId(s, q)} · ${labels[grade.verdict]}`, '',
+    plain(q.question), '', '**답변 평가**', plain(grade.explanation), '', '**문제 해설**', plain(grade.expectedAnswer),
+    ...((q.options ?? []).length ? ['', '**보기별 해설**', ...q.options.map(o => `- ${o.id}. ${plain(o.text)} — ${plain(grade.optionExplanations.find(e => e.id === o.id)!.explanation)}`)] : []), '',
+    '**코드 근거**', ...(grade.evidence.length ? grade.evidence.map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, 700))}`) : ['확인 가능한 코드 근거가 부족해 정답·오답을 확정하지 않았습니다.']), '',
+    `기준 커밋: ${s.headSha.slice(0, 8)} · 추가 학습: \`더 알아보자\``].join('\n');
 }

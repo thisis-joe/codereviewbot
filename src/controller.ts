@@ -9,6 +9,8 @@ import { HttpError } from './http-client.js';
 import { parseCommand, type Command } from './commands.js';
 import { renderAnswer } from './render.js';
 import { redact } from './redact.js';
+import { handleLearning } from './learning-command.js';
+import { commentKey } from './webhooks.js';
 
 export class Controller {
   active: Promise<void> | null = null;
@@ -72,11 +74,21 @@ export class Controller {
     const normalized = comment.body.replace(new RegExp(`^@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), '@reviewbot ');
     let command = parseCommand(normalized);
     const all = [...await platform.comments(job.body.target.number), ...await platform.inlineComments(job.body.target.number)];
-    const marker = `<!-- codereviewbot:reply:${comment.id.replace(/[^\w-]/g, '')} -->`;
+    const key = commentKey(comment), marker = `<!-- codereviewbot:reply:${key.replace(/[^\w-]/g, '')} -->`;
     if (all.some(c => platform.owned(c) && c.body.includes(marker))) return;
-    if (!command && (comment.parentId || comment.discussionId) && all.some(c => platform.owned(c) && c.body.includes('codereviewbot:finding:') && (c.id === comment.parentId || (comment.discussionId && c.discussionId === comment.discussionId)))) command = { action: 'ask', text: comment.body };
+    const usage = async (answer: string) => { await lease(); await platform.snapshot(job.body.target.number); await platform.reply(job.body.target.number, renderAnswer({ answer, evidence: [], next: '/reviewbot answer Q-ID 내 답변 · 더 알아보자' }, key), comment.parentId, comment.discussionId); };
+    if (!command && /^\/reviewbot\b/i.test(normalized.trim())) { await usage('명령을 확인하세요. 답변은 /reviewbot answer Q-ID 내 답변 형식으로 작성하세요.'); return; }
+    if (!command && (comment.parentId || comment.discussionId)) {
+      const ids = new Set(all.filter(c => platform.owned(c) && (!comment.surface || c.surface === comment.surface) && (c.id === comment.parentId || (comment.parentId && c.parentId === comment.parentId) || (comment.discussionId && c.discussionId === comment.discussionId))).flatMap(c => [...c.body.matchAll(/<!-- codereviewbot:question:(Q-[a-f0-9]{12}) -->/g)].map(m => m[1]!)));
+      if (ids.size === 1) command = { action: 'answer', id: [...ids][0]!, text: comment.body.slice(0, 8000) };
+      else if (ids.size > 1) { await usage('이 스레드에는 여러 질문이 있습니다. 답할 질문 ID를 명시하세요.'); return; }
+    }
+    if (!command && (comment.parentId || comment.discussionId) && all.some(c => platform.owned(c) && (!comment.surface || c.surface === comment.surface) && c.body.includes('codereviewbot:finding:') && (c.id === comment.parentId || (comment.discussionId && c.discussionId === comment.discussionId)))) command = { action: 'ask', text: comment.body };
     if (!command) return;
     await lease();
+    if (command.action === 'questions' || command.action === 'answer') {
+      await handleLearning(command, job, platform, this.store, this.workspaces, this.model, all, lease); return;
+    }
     let answer = '요청을 처리했습니다.', evidence: string[] = [], next = '이 PR/MR의 최신 보고서에서 상태를 확인하세요.', answeredSnapshot: Snapshot | undefined;
     const target = job.body.target;
     if (command.action === 'pause' || command.action === 'resume') {
@@ -114,7 +126,7 @@ export class Controller {
     }
     await lease(); const latest = await platform.snapshot(target.number);
     if (answeredSnapshot && (latest.headSha !== answeredSnapshot.headSha || latest.baseSha !== answeredSnapshot.baseSha || latest.startSha !== answeredSnapshot.startSha)) throw new Error('Answer snapshot changed; retry against latest code');
-    await platform.reply(target.number, renderAnswer({ answer: redact(answer), evidence: evidence.map(redact), next: redact(next) }, comment.id), comment.parentId, comment.discussionId);
+    await platform.reply(target.number, renderAnswer({ answer: redact(answer), evidence: evidence.map(redact), next: redact(next) }, key), comment.parentId, comment.discussionId);
   }
   private async enqueueFromCommand(job: Job, platform: Platform, force: boolean): Promise<void> {
     const snap = await platform.snapshot(job.body.target.number);

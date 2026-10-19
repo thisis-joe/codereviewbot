@@ -50,3 +50,43 @@ test('CI completion during review is retained for refresh and dismissal cannot r
   await store.complete(ready.id, ready.owner);
   assert.equal((await store.claim()).kind, 'ci');
 });
+
+test('learning responses survive restart, remain target-scoped and reject expired-lease writes', async t => {
+  const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
+  const store = new Store(pool); await store.migrate(); await store.migrate();
+  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  const target = snapshot();
+  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '더 알아보자', parentId: null, discussionId: null } }, 0);
+  const job = await store.claim();
+  const response = { snapshot: target, body: 'saved questions', questions: report().questions };
+  assert.equal(typeof store.saveCommandResult, 'function', 'learning needs durable responses before external effects');
+  await store.saveCommandResult(id, job.owner, response);
+  await store.fail(job, 'temporary network failure');
+  await pool.query('UPDATE jobs SET due_at=now() WHERE id=$1', [id]);
+  const restarted = new Store(pool), retry = await restarted.claim();
+  assert.deepEqual(retry.command_result, response);
+  assert.equal((await restarted.learningBatches(target)).length, 1);
+  assert.equal((await restarted.learningBatches({ ...target, number: 2 })).length, 0);
+  await assert.rejects(() => store.saveCommandResult(id, job.owner, { ...response, body: 'obsolete owner' }), /lease/);
+  await assert.rejects(() => restarted.saveCommandResult(id, retry.owner, { ...response, body: 'must stay immutable' }), /already|immutable/);
+  await pool.query("UPDATE jobs SET lease_until=now()-interval '1 second' WHERE id=$1", [id]);
+  await assert.rejects(() => restarted.saveCommandResult(id, retry.owner, response), /lease/);
+  assert.equal((await restarted.getJob(id)).command_result.body, 'saved questions');
+});
+
+test('question history preserves earlier same-revision report questions without crossing targets or refs', async t => {
+  const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end()); const store = new Store(pool); await store.migrate();
+  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  for (let i = 0; i < 3; i++) {
+    const snap = snapshot(i === 2 ? { headSha: 'c'.repeat(40) } : {});
+    await store.enqueue({ kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `history-${i}` }, 0, true);
+    const running = await store.claim();
+    await store.saveResult(running.id, running.owner, report({ snapshot: snap, questions: report().questions.map(q => ({ ...q, question: `${i}: ${q.question}` })) }), {}, 0);
+    const publishing = await store.claim(); await store.complete(publishing.id, publishing.owner);
+  }
+  assert.equal(typeof store.questionHistory, 'function', 'question IDs must survive report replacement');
+  const history = await store.questionHistory(snapshot()); assert.equal(history.length, 6);
+  assert.ok(history.some(q => q.question.startsWith('0:'))); assert.ok(history.some(q => q.question.startsWith('1:')));
+  assert.ok(!history.some(q => q.question.startsWith('2:')));
+  assert.equal((await store.questionHistory(snapshot({ number: 2 }))).length, 0);
+});
