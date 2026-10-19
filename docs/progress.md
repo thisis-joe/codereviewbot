@@ -30,3 +30,12 @@
   is covered by a real stdio handshake/tool test.
 - Ruling: deleted code uses LEFT-side native refs; incremental selection uses canonical
   full-PR hunks for comment positioning. Historical findings retain their observed SHA.
+- Unit 5: separate least-privilege Compose services, disabled repository examples,
+  idempotent private setup, n8n workflow generation/import/publish, local smoke script,
+  CI, demo and connection/operations guides implemented. Both container images built;
+  real n8n 2.43.8 import/publish and authenticated dispatch to the controller passed.
+  Baseline: 23 unit + 3 PostgreSQL integration tests passed, production npm audit clean.
+- User steering: external GitHub/GitLab/Codex account authentication and Cloudflare
+  connection are deferred. No personal auth copied, remote webhook, DNS or tunnel activated.
+- Final independent review in progress; regression cases first reproduced for semantic
+  coverage, full-PR rename mappings, oversized output, stale dismissal and in-flight CI.
