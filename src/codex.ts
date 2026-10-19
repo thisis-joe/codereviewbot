@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { AnalysisSchema, VerificationSchema, AnswerSchema } from './contracts.js';
 import { execute } from './process.js';
 import type { Model } from './review.js';
+import { redact } from './redact.js';
 
 export class Codex implements Model {
   constructor(readonly root: string, readonly home: string, readonly binary = 'codex', readonly model = '') {}
@@ -23,11 +24,12 @@ export class Codex implements Model {
       await execute(this.binary, ['exec', '--sandbox', 'read-only', '--ignore-user-config', '--ignore-rules', '--ephemeral', '--skip-git-repo-check', '--json',
         ...['shell_tool', 'multi_agent', 'apps', 'hooks', 'browser_use', 'computer_use', 'view_image', 'image_generation'].flatMap(feature => ['--disable', feature]),
         '-c', 'web_search="disabled"',
+        '-c', 'approval_policy="never"',
         '-c', 'mcp_servers.review_source.command="node"', '-c', `mcp_servers.review_source.args=${JSON.stringify([fileURLToPath(new URL('./source-mcp.js', import.meta.url)), source])}`,
         '-c', 'mcp_servers.review_source.required=true',
         '--output-schema', schemaFile, '-o', output, '-C', dir,
         ...(this.model ? ['--model', this.model] : []), '-'], {
-        cwd: dir, input: prompt, timeoutMs,
+        cwd: dir, input: redact(prompt), timeoutMs,
         env: { PATH: process.env.PATH, HOME: this.home, CODEX_HOME: this.home, LANG: 'C.UTF-8', ...(process.env.CODEX_API_KEY ? { CODEX_API_KEY: process.env.CODEX_API_KEY } : {}) },
         maxBytes: 16 * 1024 * 1024,
       });

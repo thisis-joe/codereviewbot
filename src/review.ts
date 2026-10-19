@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto';
 import { AnalysisSchema, VerificationSchema, checkNames, type Analysis, type Candidate, type Finding, type Report, type Snapshot, type Check } from './contracts.js';
 import type { Policy } from './policy.js';
 
-export interface DiffFile { oldPath: string; patch: string; lines: Set<number>; oldLines?: Set<number> }
+export interface DiffPosition { oldLine?: number; newLine?: number }
+export interface DiffMetadata { oldPath: string; positions?: Record<'LEFT' | 'RIGHT', Record<number, DiffPosition>> }
+export interface DiffFile extends DiffMetadata { patch: string; lines: Set<number>; oldLines?: Set<number> }
 export interface ReviewContext { files: Record<string, string>; baseFiles?: Record<string, string>; diff: Record<string, DiffFile>; excluded: string[]; limited: boolean; sourceDir: string }
 export interface Model { run(phase: 'review' | 'verify' | 'answer', prompt: string, workspaceId: string, timeoutMs?: number): Promise<unknown> }
 export function parsePatch(patch: string, side: 'LEFT' | 'RIGHT' = 'RIGHT'): Set<number> {
@@ -14,6 +16,19 @@ export function parsePatch(patch: string, side: 'LEFT' | 'RIGHT' = 'RIGHT'): Set
     else if (text.startsWith('diff --git')) active = false;
   }
   return result;
+}
+export function parsePositions(patch: string): NonNullable<DiffMetadata['positions']> {
+  const positions: NonNullable<DiffMetadata['positions']> = { LEFT: {}, RIGHT: {} };
+  let oldLine = 0, newLine = 0, active = false;
+  for (const text of patch.split('\n')) {
+    const hunk = text.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunk) { oldLine = Number(hunk[1]); newLine = Number(hunk[2]); active = true; }
+    else if (text.startsWith('diff --git')) active = false;
+    else if (active && text.startsWith(' ')) { const point = { oldLine, newLine }; positions.LEFT[oldLine++] = point; positions.RIGHT[newLine++] = point; }
+    else if (active && text.startsWith('-')) positions.LEFT[oldLine] = { oldLine: oldLine++ };
+    else if (active && text.startsWith('+')) positions.RIGHT[newLine] = { newLine: newLine++ };
+  }
+  return positions;
 }
 export function validateFindings(candidates: Candidate[], files: Record<string, string>, diff: Record<string, DiffFile>, baseFiles: Record<string, string> = {}): { accepted: (Candidate & { oldPath?: string })[]; rejected: string[] } {
   const accepted: (Candidate & { oldPath?: string })[] = [], rejected: string[] = [], ids = new Set<string>();
@@ -33,13 +48,13 @@ export function validateFindings(candidates: Candidate[], files: Record<string, 
 function fingerprint(f: Candidate): string {
   return createHash('sha256').update(JSON.stringify([f.category, f.path, f.symbol, f.title.replace(/\s+/g, '')])).digest('hex');
 }
-export function reconcile(current: Candidate[], previous: Finding[], resolutions: Analysis['resolutions'], complete: boolean): { findings: Finding[]; delta: Report['delta'] } {
+export function reconcile(current: (Candidate & { oldPath?: string })[], previous: Finding[], resolutions: Analysis['resolutions'], complete: boolean): { findings: Finding[]; delta: Report['delta'] } {
   const delta: Report['delta'] = { added: [], retained: [], fixed: [], dismissed: [], unverified: [] };
   let next = Math.max(0, ...previous.map(f => Number(f.id.slice(4)) || 0)) + 1;
   const used = new Set<string>(), findings: Finding[] = [];
   for (const f of current) {
     const key = fingerprint(f);
-    const old = previous.find(p => !used.has(p.id) && ((p.id === f.existingId && p.path === f.path && p.category === f.category && p.symbol === f.symbol) || p.fingerprint === key));
+    const old = previous.find(p => !used.has(p.id) && ((p.id === f.existingId && (p.path === f.path || p.path === f.oldPath || Boolean(p.oldPath && p.oldPath === f.oldPath)) && p.category === f.category && p.symbol === f.symbol) || p.fingerprint === key));
     const id = old?.id ?? `CRB-${String(next++).padStart(4, '0')}`;
     used.add(id);
     const status = old?.status === 'dismissed' ? 'dismissed' : old ? 'open' : 'new';
@@ -65,20 +80,22 @@ export async function review(model: Model, workspaceId: string, s: Snapshot, pol
   const analysis = AnalysisSchema.parse(await model.run('review', prompts.review, workspaceId, Math.max(1000, budgetMs - (Date.now() - started))));
   const verified = VerificationSchema.parse(await model.run('verify', prompts.verify(analysis), workspaceId, Math.max(1000, budgetMs - (Date.now() - started))));
   const valid = validateFindings(analysis.findings, context.files, context.diff, context.baseFiles);
-  const decisions = new Map(verified.decisions.map(d => [d.id, d]));
+  const repeated = new Set(verified.decisions.filter((d, i, all) => all.findIndex(v => v.id === d.id) !== i).map(d => d.id));
+  const decisions = new Map(verified.decisions.filter(d => !repeated.has(d.id)).map(d => [d.id, d]));
   const omitted = analysis.findings.filter(f => !decisions.has(f.id));
   const confirmed = valid.accepted.filter(f => decisions.get(f.id)?.decision === 'confirmed');
-  const incomplete = context.limited || valid.rejected.length > 0 || omitted.length > 0;
+  const uncertain = verified.decisions.some(d => d.decision === 'unverifiable');
+  const incomplete = context.limited || valid.rejected.length > 0 || omitted.length > 0 || uncertain || analysis.limitations.length > 0;
   const resolutions = verified.resolutions.filter(r => analysis.resolutions.some(a => a.id === r.id && a.status === r.status) && (r.status !== 'fixed' || previous?.findings.some(f => f.id === r.id && f.path in context.files)));
   const semanticChecks = analysis.checks.filter(c => checkNames.slice(0, 6).includes(c.name as any) && !['passed', 'failed'].includes(c.status));
-  const checkCoverage = checkNames.slice(0, 6).filter(n => !semanticChecks.some(c => c.name === n));
+  const checkCoverage = checkNames.slice(0, 6).filter(n => !semanticChecks.some(c => c.name === n && ['clear', 'found', 'not_applicable'].includes(c.status)));
   const partial = incomplete || checkCoverage.length > 0;
   const merged = reconcile(confirmed, previous?.findings ?? [], resolutions, !partial);
   const refreshed = new Set([...merged.delta.added, ...merged.delta.retained]);
   merged.findings = merged.findings.map(f => refreshed.has(f.id) ? { ...f, observedHeadSha: s.headSha, observedBaseSha: s.baseSha } : f);
   return { schemaVersion: '1', snapshot: s, state: partial ? 'partial' : 'completed', mode,
-    summary: analysis.summary, changes: analysis.changes.filter(c => c.files.every(p => p in context.files || context.excluded.includes(p))), ...merged,
+    summary: analysis.summary, changes: analysis.changes.filter(c => c.files.every(p => p in context.files || p in context.diff || context.excluded.includes(p))), ...merged,
     checks: [...semanticChecks, ...checks], recommendedTests: analysis.recommendedTests, flow: analysis.flow,
-    limitations: [...analysis.limitations, ...(context.limited ? ['자료 크기 제한으로 일부 코드를 검토하지 못했습니다.'] : []), ...(valid.rejected.length ? ['코드 근거 또는 라인이 유효하지 않은 후보를 제외했습니다.'] : []), ...(omitted.length ? ['일부 후보의 2차 검증 결과가 없습니다.'] : []), ...(checkCoverage.length ? [`검토 축 확인 불가: ${checkCoverage.join(', ')}`] : [])],
+    limitations: [...analysis.limitations, ...(context.limited ? ['자료 크기 제한으로 일부 코드를 검토하지 못했습니다.'] : []), ...(valid.rejected.length ? ['코드 근거 또는 라인이 유효하지 않은 후보를 제외했습니다.'] : []), ...(omitted.length ? ['일부 후보의 2차 검증 결과가 없거나 서로 충돌합니다.'] : []), ...(uncertain ? ['일부 후보는 근거 부족으로 확인할 수 없습니다.'] : []), ...(checkCoverage.length ? [`검토 축 확인 불가: ${checkCoverage.join(', ')}`] : [])],
     reviewedFiles: Object.keys(context.diff), excludedFiles: context.excluded, rules: [...guidelines.map(g => g.split('\n')[0]!), ...policy.pathInstructions.map(p => p.path), ...learnings] };
 }

@@ -66,3 +66,30 @@ test('unverified candidates and missing review axes produce partial coverage rat
   assert.equal(result.state, 'partial'); assert.equal(result.findings.length, 0);
   assert.ok(result.limitations.length > 0);
 });
+
+test('explicitly unavailable axes, contradictory verification and unverifiable candidates keep review partial', async () => {
+  const { checkNames } = await import('../dist/contracts.js');
+  const context = { files: { 'src/pay.ts': 'one\ntwo\ncharge();' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/tmp/source' };
+  const checks = checkNames.slice(0, 6).map(name => ({ name, status: 'clear', detail: '코드 확인', url: null }));
+  for (const scenario of ['unavailable', 'unverifiable', 'duplicate']) {
+    const candidate = finding({ line: 3, evidence: [{ path: 'src/pay.ts', line: 3, reason: '승인 호출' }] });
+    const model = { run: async phase => phase === 'review' ? analysis({ checks: scenario === 'unavailable' ? checks.map((c, i) => i ? c : { ...c, status: 'unavailable' }) : checks, findings: scenario === 'unavailable' ? [] : [candidate] }) : { decisions: scenario === 'unverifiable' ? [{ id: 'C-1', decision: 'unverifiable', reason: '호출부 확인 불가' }] : scenario === 'duplicate' ? [{ id: 'C-1', decision: 'rejected', reason: '방어 존재' }, { id: 'C-1', decision: 'confirmed', reason: '충돌' }] : [], resolutions: [] } };
+    const result = await review(model, 'test', snapshot(), readPolicy(), context, null, [], [], [], [], 'full');
+    assert.equal(result.state, 'partial', scenario); assert.equal(result.findings.length, 0, scenario);
+  }
+});
+
+test('incremental rename anchors and exclusions use the original full-PR old path', async () => {
+  const { selectDiffEntries } = await import('../dist/workspace.js');
+  const canonical = 'R100\0original.ts\0current.ts\0D\0removed.ts\0';
+  const incremental = 'R100\0middle.ts\0current.ts\0M\0unchanged.ts\0';
+  assert.deepEqual(selectDiffEntries(canonical, incremental), [{ oldPath: 'original.ts', path: 'current.ts' }]);
+  assert.deepEqual(selectDiffEntries('R100\0.env\0public.txt\0', null), []);
+  assert.deepEqual(selectDiffEntries('R100\0private/a.ts\0src/a.ts\0', null, ['private/**']), []);
+});
+
+test('a validated rename retains stable IDs and a prior dismissal', () => {
+  const previous = [finding({ id: 'CRB-0007', path: 'middle.ts', oldPath: 'original.ts', status: 'dismissed' })];
+  const result = reconcile([finding({ existingId: 'CRB-0007', path: 'current.ts', oldPath: 'original.ts' })], previous, [], true);
+  assert.equal(result.findings.length, 1); assert.equal(result.findings[0].id, 'CRB-0007'); assert.equal(result.findings[0].status, 'dismissed');
+});
