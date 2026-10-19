@@ -8,6 +8,11 @@ const env = parseEnv(await readFile('.env', 'utf8'));
 const controller = `http://127.0.0.1:${env.CONTROLLER_PORT || 18092}`;
 const n8n = `http://127.0.0.1:${env.N8N_PORT || 5688}`;
 const request = (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(10000) });
+// A CLI restart returns before n8n has registered its published webhooks.
+for (let i = 0; i < 30; i++) {
+  try { if ((await request(`${n8n}/webhook/review-wakeup`, { method: 'POST' })).status === 403) break; } catch {}
+  await setTimeout(1000);
+}
 assert.equal((await request(`${controller}/healthz`)).status, 200);
 assert.equal((await request(`${n8n}/healthz`)).status, 200);
 assert.equal((await request(`${controller}/internal/tick`, { method: 'POST' })).status, 401);
