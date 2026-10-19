@@ -7,6 +7,7 @@ import { safePath, Sha, type Snapshot } from './contracts.js';
 import { globMatch, readPolicy, policyVersion, type Policy } from './policy.js';
 import { parsePatch, type ReviewContext } from './review.js';
 import type { Platform } from './platform.js';
+import { redact } from './redact.js';
 
 const defaults = ['**/node_modules/**', '**/dist/**', '**/build/**', '**/vendor/**', '**/generated/**', '**/*.min.js', '**/*.map', '**/*.lock', '**/package-lock.json', '**/pnpm-lock.yaml', '**/yarn.lock'];
 const control = /(^|\/)(?:\.git|\.codex|\.claude|\.cursor|\.mcp\.json)(?:\/|$)|(^|\/)AGENTS(?:\.override)?\.md$|(^|\/)(?:\.env(?:\..*)?|id_rsa|id_ed25519)$|\.(pem|key|p12|pfx)$/i;
@@ -27,7 +28,7 @@ export async function exportSnapshot(repo: string, sha: string, out: string, pri
     if (item.size > 200000 || total + item.size > 12 * 1024 * 1024 || Object.keys(files).length >= 1500) { excluded.push(item.path); limited = true; continue; }
     const bytes = await git(repo, ['cat-file', 'blob', item.blob]);
     if (bytes.includes(0)) { excluded.push(item.path); continue; }
-    const value = bytes.toString('utf8');
+    const value = redact(bytes.toString('utf8'));
     files[item.path] = value; total += bytes.length;
     const dest = join(out, item.path); await mkdir(dirname(dest), { recursive: true, mode: 0o700 }); await writeFile(dest, value, { mode: 0o444 });
   }
@@ -68,15 +69,24 @@ export class Workspaces {
       const status = names[i++]!, oldPath = names[i++]!;
       const path = /^[RC]/.test(status) ? names[i++]! : oldPath;
       if (!safePath(path) || !safePath(oldPath)) continue;
-      const patch = (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--ignore-submodules=all', '--unified=3', diffBase, snapshot.headSha, '--', oldPath, path])).toString('utf8');
-      diff[path] = { oldPath, patch, lines: parsePatch(patch) };
+      // Select incrementally, but anchor comments against the provider's complete PR diff.
+      const patch = (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--ignore-submodules=all', '--unified=3', snapshot.baseSha, snapshot.headSha, '--', oldPath, path])).toString('utf8');
+      diff[path] = { oldPath, patch: redact(patch), lines: parsePatch(patch), oldLines: parsePatch(patch, 'LEFT') };
     }
     const allNames = (await git(cache, ['diff', '--no-ext-diff', '--name-only', '-z', snapshot.baseSha, snapshot.headSha])).toString('utf8').split('\0').filter(safePath);
     const sourceDir = join(this.root, 'jobs', id, 'source');
     await rm(join(this.root, 'jobs', id), { recursive: true, force: true });
     const exported = await exportSnapshot(cache, snapshot.headSha, sourceDir, [...Object.keys(diff), ...allNames], policy.exclude);
-    const context: ReviewContext = { ...exported, sourceDir, diff };
-    for (const path of Object.keys(diff)) if (!(path in context.files)) { delete diff[path]; if (!context.excluded.includes(path)) context.excluded.push(path); }
+    const baseFiles: Record<string, string> = Object.create(null);
+    for (const [path, entry] of Object.entries(diff)) {
+      if (control.test(path) || [...defaults, ...policy.exclude].some(p => globMatch(p, path))) { delete diff[path]; if (!exported.excluded.includes(path)) exported.excluded.push(path); continue; }
+      try {
+        const old = await git(cache, ['show', `${snapshot.baseSha}:${entry.oldPath}`]);
+        if (old.length <= 200000 && !old.includes(0)) { baseFiles[entry.oldPath] = redact(old.toString('utf8')); const dest = join(this.root, 'jobs', id, 'base', entry.oldPath); await mkdir(dirname(dest), { recursive: true }); await writeFile(dest, baseFiles[entry.oldPath]!, { mode: 0o444 }); }
+      } catch { /* added file has no base version */ }
+      if (!(path in exported.files) && !(entry.oldPath in baseFiles)) { delete diff[path]; exported.excluded.push(path); exported.limited = true; }
+    }
+    const context: ReviewContext = { ...exported, baseFiles, sourceDir, diff };
     const bytes = Object.values(diff).reduce((n, d) => n + Buffer.byteLength(d.patch), 0);
     if (bytes > 150000) {
       let used = 0; for (const path of Object.keys(diff)) { used += Buffer.byteLength(diff[path]!.patch); if (used > 150000) { context.excluded.push(path); delete diff[path]; } }

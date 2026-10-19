@@ -20,3 +20,13 @@
   real diff/evidence validation, conservative finding lifecycle and isolated subprocess
   adapter implemented. Real local Git and subprocess boundary tests pass; no model
   inference claimed by fixture tests. A live account check remains pending setup.
+- Unit 4: PostgreSQL durable admission, single global lease, restart fencing, debounced
+  work, marker-based publication reconciliation, authorized commands and approved-only
+  repository learning connected to HTTP ingress/controller/runner. Real PostgreSQL and
+  signed-HTTP-to-publication integration passes (external model/provider responses are fixtures).
+- Ruling: disable Codex shell and unrelated tools, expose only a bounded read-only MCP
+  source server. This makes repository script execution unavailable rather than relying
+  only on prompting. Pinned MCP 1.32.1 maintenance SDK remains security-supported and
+  is covered by a real stdio handshake/tool test.
+- Ruling: deleted code uses LEFT-side native refs; incremental selection uses canonical
+  full-PR hunks for comment positioning. Historical findings retain their observed SHA.

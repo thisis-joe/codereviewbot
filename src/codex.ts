@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, writeFile, readFile, rm, realpath } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { AnalysisSchema, VerificationSchema, AnswerSchema } from './contracts.js';
 import { execute } from './process.js';
@@ -19,7 +20,12 @@ export class Codex implements Model {
     const schemaFile = join(dir, 'schema.json'), output = join(dir, 'answer.json');
     await writeFile(schemaFile, JSON.stringify(z.toJSONSchema(schema, { unrepresentable: 'any' })), { mode: 0o600 });
     try {
-      await execute(this.binary, ['exec', '--sandbox', 'read-only', '--ignore-user-config', '--ignore-rules', '--ephemeral', '--skip-git-repo-check', '--json', '--output-schema', schemaFile, '-o', output, '-C', dir,
+      await execute(this.binary, ['exec', '--sandbox', 'read-only', '--ignore-user-config', '--ignore-rules', '--ephemeral', '--skip-git-repo-check', '--json',
+        ...['shell_tool', 'multi_agent', 'apps', 'hooks', 'browser_use', 'computer_use', 'view_image', 'image_generation'].flatMap(feature => ['--disable', feature]),
+        '-c', 'web_search="disabled"',
+        '-c', 'mcp_servers.review_source.command="node"', '-c', `mcp_servers.review_source.args=${JSON.stringify([fileURLToPath(new URL('./source-mcp.js', import.meta.url)), source])}`,
+        '-c', 'mcp_servers.review_source.required=true',
+        '--output-schema', schemaFile, '-o', output, '-C', dir,
         ...(this.model ? ['--model', this.model] : []), '-'], {
         cwd: dir, input: prompt, timeoutMs,
         env: { PATH: process.env.PATH, HOME: this.home, CODEX_HOME: this.home, LANG: 'C.UTF-8', ...(process.env.CODEX_API_KEY ? { CODEX_API_KEY: process.env.CODEX_API_KEY } : {}) },

@@ -3,7 +3,7 @@ import type { RepositoryConfig } from './config.js';
 import { Sha, type Snapshot, type Target, type Check, type Candidate } from './contracts.js';
 
 export interface RemoteComment { id: string; body: string; author: string; url: string; discussionId?: string }
-export interface InlineInput { path: string; oldPath: string; line: number; body: string; suggestion: Candidate['suggestion'] }
+export interface InlineInput { path: string; oldPath: string; line: number; side?: 'LEFT' | 'RIGHT'; body: string; suggestion: Candidate['suggestion'] }
 export class Platform {
   readonly api: ApiClient;
   readonly root: string;
@@ -52,11 +52,11 @@ export class Platform {
   }
   async inline(s: Snapshot, value: InlineInput): Promise<unknown> {
     if (this.config.platform === 'github') {
-      return this.api.request(`${this.root}/pulls/${s.number}/comments`, 'POST', { commit_id: s.headSha, path: value.path, line: value.suggestion?.endLine ?? value.line, side: 'RIGHT', body: value.body,
+      return this.api.request(`${this.root}/pulls/${s.number}/comments`, 'POST', { commit_id: s.headSha, path: value.path, line: value.suggestion?.endLine ?? value.line, side: value.side ?? 'RIGHT', body: value.body,
         ...(value.suggestion && value.suggestion.startLine !== value.suggestion.endLine ? { start_line: value.suggestion.startLine, start_side: 'RIGHT' } : {}) });
     }
     return this.api.request(`${this.root}/merge_requests/${s.number}/discussions`, 'POST', { body: value.body,
-      position: { position_type: 'text', base_sha: s.baseSha, start_sha: s.startSha, head_sha: s.headSha, old_path: value.oldPath, new_path: value.path, new_line: value.line } });
+      position: { position_type: 'text', base_sha: s.baseSha, start_sha: s.startSha, head_sha: s.headSha, old_path: value.oldPath, new_path: value.path, ...(value.side === 'LEFT' ? { old_line: value.line } : { new_line: value.line }) } });
   }
   async reply(number: number, body: string, parentId: string | null, discussionId: string | null): Promise<unknown> {
     if (this.config.platform === 'github' && parentId) return this.api.request(`${this.root}/pulls/${number}/comments/${encodeURIComponent(parentId)}/replies`, 'POST', { body });

@@ -9,12 +9,12 @@ export function safePath(path: string): boolean {
 }
 export const Path = z.string().refine(safePath, 'unsafe repository path');
 const text = z.string().min(1).max(6000);
-export const EvidenceSchema = z.strictObject({ path: Path, line: z.int().positive(), reason: text });
+export const EvidenceSchema = z.strictObject({ path: Path, line: z.int().positive(), side: z.enum(['LEFT', 'RIGHT']).default('RIGHT'), reason: text });
 export const SuggestionSchema = z.strictObject({ startLine: z.int().positive(), endLine: z.int().positive(), replacement: z.string().max(12000) });
 export const CandidateSchema = z.strictObject({
   id: z.string().regex(/^C-\d+$/), existingId: z.string().regex(/^CRB-\d+$/).nullable(),
   severity: z.enum(['P0', 'P1', 'P2', 'P3']), category: z.enum(categories), path: Path,
-  line: z.int().positive(), symbol: text, title: z.string().min(1).max(160),
+  line: z.int().positive(), side: z.enum(['LEFT', 'RIGHT']).default('RIGHT'), symbol: text, title: z.string().min(1).max(160),
   problem: text, condition: text, impact: text, evidence: z.array(EvidenceSchema).min(1).max(12),
   fix: text, test: text, ruleId: z.string().max(120).nullable(), suggestion: SuggestionSchema.nullable(),
 });
@@ -46,7 +46,7 @@ export type Analysis = z.infer<typeof AnalysisSchema>;
 export type Check = z.infer<typeof CheckSchema>;
 export type Flow = z.infer<typeof FlowSchema>;
 export type FindingStatus = 'new' | 'open' | 'fixed' | 'dismissed' | 'unverified';
-export type Finding = Omit<Candidate, 'id'> & { id: string; status: FindingStatus; fingerprint?: string };
+export type Finding = Omit<Candidate, 'id'> & { id: string; status: FindingStatus; fingerprint?: string; oldPath?: string; observedHeadSha?: string; observedBaseSha?: string };
 export interface Target { platform: 'github' | 'gitlab'; instance: string; repository: string; number: number }
 export interface Snapshot extends Target {
   baseSha: string; headSha: string; startSha: string; previousSha: string | null;

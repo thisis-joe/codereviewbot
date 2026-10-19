@@ -8,13 +8,13 @@ export function plain(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/([\\`*_[\]{}()#+.!|~-])/g, '\\$1').replace(/@/g, '@\u200b').replace(/[\r\n]+/g, ' ');
 }
-export function codeLink(s: Snapshot, path: string, line?: number): string {
+export function codeLink(s: Snapshot, path: string, line?: number, side = 'RIGHT'): string {
   const u = new URL(s.webUrl);
   const repo = s.platform === 'github' ? u.pathname.split('/pull/')[0]! : u.pathname.split('/-/merge_requests/')[0]!;
-  return `${u.origin}${repo}/${s.platform === 'github' ? 'blob' : '-/blob'}/${s.headSha}/${path.split('/').map(encodeURIComponent).join('/')}${line ? `#L${line}` : ''}`;
+  return `${u.origin}${repo}/${s.platform === 'github' ? 'blob' : '-/blob'}/${side === 'LEFT' ? s.baseSha : s.headSha}/${path.split('/').map(encodeURIComponent).join('/')}${line ? `#L${line}` : ''}`;
 }
-function ref(s: Snapshot, path: string, line?: number): string {
-  return `[${plain(path)}${line ? `:${line}` : ''}](${codeLink(s, path, line)})`;
+function ref(s: Snapshot, path: string, line?: number, side = 'RIGHT'): string {
+  return `[${plain(path)}${line ? `:${line}` : ''}](${codeLink(s, path, line, side)})`;
 }
 function list(values: string[]): string { return values.length ? values.map(x => `- ${plain(x)}`).join('\n') : '없음'; }
 function verdict(r: Report): string {
@@ -33,7 +33,7 @@ function flowDiagram(flow: Flow | null): string {
 }
 export function renderReport(r: Report): string {
   const findings = [...r.findings].sort((a, b) => a.severity.localeCompare(b.severity) || a.path.localeCompare(b.path) || a.line - b.line || a.id.localeCompare(b.id));
-  const rows = findings.map(f => `| ${f.id} | ${f.severity} | ${f.category} | ${findingStatus[f.status]} | ${plain(f.title)} | ${ref(r.snapshot, f.path, f.line)} |`);
+  const rows = findings.map(f => `| ${f.id} | ${f.severity} | ${f.category} | ${findingStatus[f.status]} | ${plain(f.title)} | ${ref({ ...r.snapshot, headSha: f.observedHeadSha ?? r.snapshot.headSha, baseSha: f.observedBaseSha ?? r.snapshot.baseSha }, f.side === 'LEFT' ? f.oldPath ?? f.path : f.path, f.line, f.side)} |`);
   const groups = r.changes.map(c => `| ${plain(c.name)} | ${c.files.map(f => ref(r.snapshot, f)).join(', ')} | ${plain(`${c.description} / ${c.impact}`)} |`);
   const checks = checkNames.map(name => {
     const items = r.checks.filter(c => c.name === name || (name === 'CI·정적 검사' && !checkNames.includes(c.name as typeof checkNames[number])));
@@ -69,7 +69,7 @@ export function renderFinding(f: Finding, s: Snapshot): string {
   }
   return [`<!-- codereviewbot:finding:v1:${f.id} -->`, `### [${f.severity}][${f.category}] ${plain(f.title)} · ${f.id}`, '',
     '**문제**', plain(f.problem), '', '**발생 조건**', plain(f.condition), '', '**영향**', plain(f.impact), '',
-    '**근거**', ...f.evidence.map(e => `- ${ref(s, e.path, e.line)}: ${plain(e.reason)}`), '',
+    '**근거**', ...f.evidence.map(e => `- ${ref(s, e.path, e.line, e.side)}: ${plain(e.reason)}`), '',
     '**수정 방향**', plain(f.fix), '', '**추천 검증**', plain(f.test), '', '**코드 제안**', suggestion].join('\n');
 }
 export function renderAnswer(a: { answer: string; evidence: string[]; next: string }, marker: string): string {

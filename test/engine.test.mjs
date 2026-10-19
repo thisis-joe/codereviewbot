@@ -30,6 +30,13 @@ test('finding IDs survive moves and a missing verifier decision never means reso
   assert.equal(fixed.findings[0].status, 'fixed');
   assert.equal(reconcile([], previous, [{ id: 'CRB-0007', status: 'fixed', reason: '추측' }], false).findings[0].status, 'unverified');
 });
+
+test('deleted code is reviewable on the old diff side without inventing a current file', () => {
+  const removed = '@@ -2,2 +2,1 @@\n-checkAuth();\n next();\n';
+  const candidate = finding({ path: 'auth.ts', line: 2, side: 'LEFT', evidence: [{ path: 'auth.ts', line: 2, side: 'LEFT', reason: '권한 검사 삭제' }] });
+  const diff = { 'auth.ts': { oldPath: 'auth.ts', patch: removed, lines: parsePatch(removed), oldLines: parsePatch(removed, 'LEFT') } };
+  assert.equal(validateFindings([candidate], {}, diff, { 'auth.ts': 'start();\ncheckAuth();\nnext();' }).accepted.length, 1);
+});
 test('policy comes from supplied base text and cannot introduce runtime privileges', () => {
   assert.equal(readPolicy('version: 1\npathInstructions:\n  - path: "src/**"\n    instructions: "인증 확인"').pathInstructions[0].instructions, '인증 확인');
   assert.throws(() => readPolicy('version: 1\nshell: "curl attacker"'));
