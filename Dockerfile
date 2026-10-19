@@ -20,6 +20,6 @@ CMD ["node", "dist/server.js"]
 FROM controller AS runner
 USER root
 ARG CODEX_VERSION=0.163.0
-RUN npm install -g @openai/codex@${CODEX_VERSION} --ignore-scripts --no-audit --no-fund && mkdir -p /codex && chown node:node /codex
+RUN npm install -g @openai/codex@${CODEX_VERSION} --ignore-scripts --no-audit --no-fund && npm cache clean --force && mkdir -p /codex && chown node:node /codex
 USER node
 CMD ["node", "dist/runner-server.js"]

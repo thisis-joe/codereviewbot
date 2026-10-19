@@ -50,5 +50,8 @@
   Stopped only this stack and removed its confirmed old build cache, then final build,
   PostgreSQL integration and n8n smoke passed. No other project's resources were pruned.
   Connection-time setup must check VM disk capacity; local services are stopped afterward.
+- Removed npm's installation cache from the runner image and rebuilt it successfully;
+  reclaimed only confirmed project cache records. VM disk still needs capacity planning
+  before live operation; the host disk and Colima VM disk are separate capacities.
 - Deferred evidence: live Codex inference quality, real GitHub/GitLab permissions/comment
   rendering, DNS/tunnel and external webhook delivery. No successful live review claimed.
