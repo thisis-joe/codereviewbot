@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   result jsonb,
   diff jsonb,
   max_inline integer NOT NULL DEFAULT 5,
+  command_result jsonb,
   error text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -39,5 +40,4 @@ CREATE TABLE IF NOT EXISTS feedback (
   source_key text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE feedback ADD COLUMN IF NOT EXISTS source_key text;
 CREATE UNIQUE INDEX IF NOT EXISTS feedback_source ON feedback(source_key);

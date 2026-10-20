@@ -85,3 +85,10 @@ test('provider CI mapping keeps skipped and neutral separate from tests that pas
   const gl = new Platform({ ...repo, instance, platform: 'gitlab' }, async () => 'token');
   assert.equal((await gl.checks(snap))[0].status, 'skipped');
 });
+
+test('GitHub comment reads retain reply ancestry for single-question thread answers', async t => {
+  const server = createServer((req, res) => { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify([{ id: 3, in_reply_to_id: 1, body: 'question', user: { login: 'reviewbot[bot]' }, html_url: 'https://github.com/joe/demo/pull/1#discussion_r3' }])); });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
+  const provider = new Platform({ ...repo, instance: `http://127.0.0.1:${server.address().port}` }, async () => 'token');
+  assert.equal((await provider.inlineComments(1))[0].parentId, '1');
+});

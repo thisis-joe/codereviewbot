@@ -2,7 +2,8 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { RepositoryConfig } from './config.js';
 import type { Target } from './contracts.js';
 
-export interface Comment { id: string; body: string; author: string; parentId: string | null; discussionId: string | null }
+export interface Comment { id: string; body: string; author: string; parentId: string | null; discussionId: string | null; surface: 'issue' | 'review' | 'note' }
+export function commentKey(comment: Comment): string { return `${comment.surface}-${comment.id}`; }
 export interface Event { kind: 'review' | 'ci' | 'command' | 'closed'; target: Target; deliveryId: string; headSha?: string; comment?: Comment }
 export interface Authenticated { repo: RepositoryConfig; deliveryId: string; event: string; body: any }
 export function equal(a: string, b: string): boolean {
@@ -50,7 +51,7 @@ export function normalize(input: Authenticated): Event[] {
     if (['issue_comment', 'pull_request_review_comment'].includes(event) && b.action === 'created' && (b.issue?.pull_request || b.pull_request)) {
       const c = b.comment;
       if (!c || c.user?.type === 'Bot' || c.user?.login === r.botLogin || c.body?.length > 8000) return [];
-      return output('command', b.issue?.number ?? b.pull_request?.number, { comment: { id: String(c.id), body: String(c.body ?? ''), author: c.user?.login ?? '', parentId: c.in_reply_to_id ? String(c.in_reply_to_id) : null, discussionId: null } });
+      return output('command', b.issue?.number ?? b.pull_request?.number, { comment: { id: String(c.id), body: String(c.body ?? ''), author: c.user?.login ?? '', parentId: c.in_reply_to_id ? String(c.in_reply_to_id) : null, discussionId: null, surface: event === 'issue_comment' ? 'issue' : 'review' } });
     }
   } else {
     const a = b.object_attributes;
@@ -60,7 +61,7 @@ export function normalize(input: Authenticated): Event[] {
     }
     if (b.object_kind === 'pipeline' && ['success', 'failed', 'canceled'].includes(a?.status)) return output('ci', b.merge_request?.iid, { headSha: a.sha });
     if (b.object_kind === 'note' && a?.noteable_type === 'MergeRequest' && (!a.action || a.action === 'create') && b.user?.username !== r.botLogin && a.note?.length <= 8000) {
-      return output('command', b.merge_request?.iid, { comment: { id: String(a.id), body: a.note ?? '', author: b.user?.username ?? '', parentId: null, discussionId: a.discussion_id ?? null } });
+      return output('command', b.merge_request?.iid, { comment: { id: String(a.id), body: a.note ?? '', author: b.user?.username ?? '', parentId: null, discussionId: a.discussion_id ?? null, surface: 'note' } });
     }
   }
   return [];

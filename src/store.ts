@@ -1,12 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { Pool, PoolClient } from 'pg';
-import type { Report, Target } from './contracts.js';
+import type { Report, Target, Snapshot, ChangeQuestion } from './contracts.js';
 import type { Event } from './webhooks.js';
 import type { DiffMetadata } from './review.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
-export interface Job { id: string; target_key: string; kind: 'review' | 'ci' | 'command'; body: Event & { force?: boolean }; state: string; owner: string; attempts: number; result: Report | null; diff: Record<string, DiffMetadata> | null; max_inline: number }
+export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[] }
+export interface Job { id: string; target_key: string; kind: 'review' | 'ci' | 'command'; body: Event & { force?: boolean }; state: string; owner: string; attempts: number; result: Report | null; diff: Record<string, DiffMetadata> | null; max_inline: number; command_result?: CommandResult | null }
 export class Store {
   constructor(readonly pool: Pool) {}
   async migrate(): Promise<void> {
@@ -58,6 +59,18 @@ export class Store {
   }
   async getJob(id: string): Promise<Job | null> { return (await this.pool.query('SELECT * FROM jobs WHERE id=$1', [id])).rows[0] ?? null; }
   async getTarget(t: Target): Promise<{ paused: boolean; report: Report | null } | null> { return (await this.pool.query('SELECT * FROM targets WHERE key=$1', [targetKey(t)])).rows[0] ?? null; }
+  async saveCommandResult(id: string, owner: string, result: CommandResult): Promise<void> {
+    const saved = await this.pool.query("UPDATE jobs SET command_result=$3,updated_at=now() WHERE id=$1 AND owner=$2 AND kind='command' AND state='running' AND lease_until>now() AND command_result IS NULL", [id, owner, result]);
+    if (!saved.rowCount) { await this.assertLease(id, owner); throw new Error('Command result is already immutable'); }
+  }
+  async learningBatches(t: Snapshot): Promise<CommandResult[]> {
+    const rows = await this.pool.query("SELECT command_result FROM jobs WHERE target_key=$1 AND kind='command' AND command_result->'questions' IS NOT NULL AND command_result->'snapshot'->>'headSha'=$2 AND command_result->'snapshot'->>'baseSha'=$3 AND command_result->'snapshot'->>'startSha'=$4 ORDER BY created_at LIMIT 6", [targetKey(t), t.headSha, t.baseSha, t.startSha]);
+    return rows.rows.map(row => row.command_result);
+  }
+  async questionHistory(t: Snapshot): Promise<ChangeQuestion[]> {
+    const rows = await this.pool.query("SELECT DISTINCT entry.question FROM jobs j CROSS JOIN LATERAL jsonb_array_elements(j.result->'questions') AS entry(question) WHERE j.target_key=$1 AND j.kind<>'command' AND j.result->>'state' IN ('completed','partial') AND j.result->'snapshot'->>'headSha'=$2 AND j.result->'snapshot'->>'baseSha'=$3 AND j.result->'snapshot'->>'startSha'=$4", [targetKey(t), t.headSha, t.baseSha, t.startSha]);
+    return rows.rows.map(row => row.question);
+  }
   async saveResult(id: string, owner: string, report: Report, diff: Record<string, DiffMetadata>, maxInline: number): Promise<void> {
     await this.transaction(async c => {
       const row = await c.query("UPDATE jobs SET result=$3,diff=$4,max_inline=$5,state='ready',owner=NULL,lease_until=NULL,attempts=0,updated_at=now() WHERE id=$1 AND owner=$2 AND state='running' AND lease_until>now() RETURNING target_key", [id, owner, report, diff, maxInline]);
@@ -78,16 +91,14 @@ export class Store {
       const row = await c.query('SELECT report FROM targets WHERE key=$1 FOR UPDATE', [targetKey(t)]);
       const report = row.rows[0]?.report as Report | null; const finding = report?.findings.find(f => f.id === id);
       if (!report || !finding) return false;
-      finding.status = 'dismissed'; report.delta.dismissed = [...new Set([...report.delta.dismissed, id])];
-      for (const group of ['added', 'retained', 'fixed', 'unverified'] as const) report.delta[group] = report.delta[group].filter(value => value !== id);
+      finding.status = 'dismissed';
       await c.query('UPDATE targets SET report=$2,updated_at=now() WHERE key=$1', [targetKey(t), report]);
       // A command can run before a saved result is published. Keep that result in sync.
       const ready = await c.query("SELECT id,result FROM jobs WHERE target_key=$1 AND state='ready' FOR UPDATE", [targetKey(t)]);
       for (const row of ready.rows) {
         const pending = row.result as Report | null, item = pending?.findings.find(f => f.id === id);
         if (!pending || !item) continue;
-        item.status = 'dismissed'; pending.delta.dismissed = [...new Set([...pending.delta.dismissed, id])];
-        for (const group of ['added', 'retained', 'fixed', 'unverified'] as const) pending.delta[group] = pending.delta[group].filter(value => value !== id);
+        item.status = 'dismissed';
         await c.query('UPDATE jobs SET result=$2,updated_at=now() WHERE id=$1', [row.id, pending]);
       }
       return true;

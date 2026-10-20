@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AnalysisSchema, analysisJsonSchema } from '../dist/contracts.js';
+import { z } from 'zod';
+import { AnalysisSchema } from '../dist/contracts.js';
 import { renderReport, renderFinding, renderAnswer } from '../dist/render.js';
 import { analysis, snapshot, finding, report } from './fixtures.mjs';
 
@@ -8,11 +9,11 @@ test('model cannot introduce renderer fields or invalid code locations', () => {
   assert.equal(AnalysisSchema.safeParse(analysis({ findings: [finding()] })).success, true);
   assert.equal(AnalysisSchema.safeParse({ ...analysis(), verdict: 'safe' }).success, false);
   assert.equal(AnalysisSchema.safeParse(analysis({ findings: [{ ...finding(), line: 0 }] })).success, false);
-  assert.equal(analysisJsonSchema.additionalProperties, false);
+  assert.equal(z.toJSONSchema(AnalysisSchema, { unrepresentable: 'any' }).additionalProperties, false);
 });
 
 test('all lifecycle outcomes retain four concise report sections', () => {
-  for (const state of ['running', 'completed', 'partial', 'failed', 'paused']) {
+  for (const state of ['completed', 'partial', 'failed']) {
     const text = renderReport(report({ state }));
     assert.deepEqual([...text.matchAll(/^### (\d)\. (.+)$/gm)].map(m => m[2]),
       ['변경 요약', '발견 사항', '검증·주의사항', '변경 이해 질문']);
@@ -59,9 +60,8 @@ test('report presents learning questions with snapshot links and actionable chec
   assert.doesNotMatch(text, /흐름도:|해당 없음|새 지적: 없음|제외 파일: 없음|적용 규칙:|\| 검토 항목 \||양식 버전:/);
 });
 
-test('legacy and failed reports cannot manufacture or reuse learning questions', () => {
-  assert.match(renderReport(report({ questions: undefined })), /질문.*이전 리뷰|이전 리뷰.*질문/);
-  const failed = renderReport(report({ state: 'failed', questions: undefined }));
+test('failed reports cannot manufacture or reuse learning questions', () => {
+  const failed = renderReport(report({ state: 'failed' }));
   assert.match(failed, /질문.*생성하지 못|생성하지 못.*질문/);
   assert.doesNotMatch(failed, /^\d+\. /m);
 });

@@ -1,8 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { renderReport, renderFinding } from '../dist/render.js';
+import { renderReport, renderFinding, renderQuestionBatch, renderGrade } from '../dist/render.js';
 import { report, finding } from '../test/fixtures.mjs';
-const value = report({ findings: [finding({ id:'CRB-0001' })], changes:[{name:'결제 재시도',files:['src/pay.ts'],description:'실패한 결제 요청 재시도 추가',impact:'결제 승인·주문 저장'}], delta:{added:['CRB-0001'],retained:[],fixed:[],dismissed:[],unverified:[]}, limitations:['출력 양식을 보여주기 위한 테스트 예시입니다. 실제 저장소의 검토 결과가 아닙니다.'] });
+const value = report({ findings: [finding({ id:'CRB-0001' })], limitations:['출력 양식을 보여주기 위한 테스트 예시입니다. 실제 저장소의 검토 결과가 아닙니다.'] });
 await mkdir('.local',{recursive:true});
 await writeFile('.local/demo-report.md',renderReport(value)+'\n');
 await writeFile('.local/demo-inline.md',renderFinding(value.findings[0],value.snapshot)+'\n');
-console.log('Created .local/demo-report.md and .local/demo-inline.md (fixtures, no model calls).');
+const questions = value.questions.map((q, i) => ({ ...q, question: ['pay의 멱등 키 보관 기간은 어떤 실패 복구 범위에 맞춰야 하나요?', 'charge 호출을 DB 트랜잭션으로만 보호할 수 없는 이유를 설명해 보세요.', 'pay의 동시 재시도를 어떻게 원자적으로 처리할 수 있나요?'][i], options: i ? [] : [{ id: 'A', text: '외부 승인과 재시도의 보장 기간에 맞춘다.' }, { id: 'B', text: '응답을 받자마자 삭제한다.' }] }));
+await writeFile('.local/demo-learning.md', '# 댓글 학습 흐름 예시\n\nFixture 예시이며 실제 모델 평가가 아닙니다.\n\n' + renderQuestionBatch(questions,value.snapshot,'issue-demo-more') + '\n\n---\n\n' + renderGrade(questions[0],value.snapshot,{verdict:'correct',explanation:'재시도의 보장 기간을 고려한다는 답이 맞습니다.',expectedAnswer:'같은 논리 요청의 재시도와 외부 승인의 멱등 보장 기간을 고려해 키를 유지해야 합니다.',optionExplanations:[{id:'A',explanation:'키가 유지되는 동안 동일 요청을 식별할 수 있습니다.'},{id:'B',explanation:'이후 재시도가 새 요청으로 처리될 수 있습니다.'}],evidence:[{path:'src/pay.ts',line:2,side:'RIGHT',reason:'외부 결제 승인 흐름'}]},'issue-demo-answer')+'\n');
+console.log('Created .local/demo-report.md, .local/demo-inline.md and .local/demo-learning.md (fixtures, no model calls).');

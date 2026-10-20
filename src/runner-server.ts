@@ -6,7 +6,7 @@ import { equal } from './webhooks.js';
 
 if ((process.env.RUNNER_TOKEN?.length ?? 0) < 32) throw new Error('RUNNER_TOKEN must contain at least 32 characters');
 const model = new Codex(process.env.DATA_ROOT ?? '/data', process.env.CODEX_HOME ?? '/codex', process.env.CODEX_BINARY ?? 'codex', process.env.CODEX_MODEL ?? '');
-const Input = z.strictObject({ phase: z.enum(['review','verify','answer']), prompt: z.string().min(1).max(500000), workspaceId: z.string().uuid(), timeoutMs: z.int().min(1).max(600000) });
+const Input = z.strictObject({ phase: z.enum(['review','verify','answer','questions','grade']), prompt: z.string().min(1).max(500000), workspaceId: z.string().uuid(), timeoutMs: z.int().min(1).max(600000) });
 let busy = false;
 const server = createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/healthz') { send(res, 200, { ok: true, busy }); return; }

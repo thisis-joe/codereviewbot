@@ -23,12 +23,12 @@ test('finding IDs survive moves and a missing verifier decision never means reso
   const previous = [finding({ id: 'CRB-0007', status: 'open' })];
   const current = [finding({ existingId: 'CRB-0007', line: 8 })];
   const result = reconcile(current, previous, [], true);
-  assert.equal(result.findings[0].id, 'CRB-0007'); assert.deepEqual(result.delta.retained, ['CRB-0007']);
+  assert.equal(result[0].id, 'CRB-0007'); assert.equal(result[0].status, 'open');
   const missing = reconcile([], previous, [], true);
-  assert.equal(missing.findings[0].status, 'unverified');
+  assert.equal(missing[0].status, 'unverified');
   const fixed = reconcile([], previous, [{ id: 'CRB-0007', status: 'fixed', reason: '멱등 키 확인' }], true);
-  assert.equal(fixed.findings[0].status, 'fixed');
-  assert.equal(reconcile([], previous, [{ id: 'CRB-0007', status: 'fixed', reason: '추측' }], false).findings[0].status, 'unverified');
+  assert.equal(fixed[0].status, 'fixed');
+  assert.equal(reconcile([], previous, [{ id: 'CRB-0007', status: 'fixed', reason: '추측' }], false)[0].status, 'unverified');
 });
 
 test('deleted code is reviewable on the old diff side without inventing a current file', () => {
@@ -91,7 +91,7 @@ test('incremental rename anchors and exclusions use the original full-PR old pat
 test('a validated rename retains stable IDs and a prior dismissal', () => {
   const previous = [finding({ id: 'CRB-0007', path: 'middle.ts', oldPath: 'original.ts', status: 'dismissed' })];
   const result = reconcile([finding({ existingId: 'CRB-0007', path: 'current.ts', oldPath: 'original.ts' })], previous, [], true);
-  assert.equal(result.findings.length, 1); assert.equal(result.findings[0].id, 'CRB-0007'); assert.equal(result.findings[0].status, 'dismissed');
+  assert.equal(result.length, 1); assert.equal(result[0].id, 'CRB-0007'); assert.equal(result[0].status, 'dismissed');
 });
 
 test('review publishes independently checked change questions and refuses duplicate or unrelated anchors', async () => {

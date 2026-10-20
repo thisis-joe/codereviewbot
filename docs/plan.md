@@ -15,8 +15,7 @@ one review at a time, 10 minute review budget. No automatic commits/approvals/me
    Remove duplicate change tables, empty diagrams/lists and long audit inventories from output.
    Generate 3–10 varied questions about the actual diff, independently check them, validate
    unique text and real diff/source anchors, and publish questions without answers.
-   Failed/in-progress/legacy reports show an explicit unavailable message, never fabricated
-   questions. Upgrade question-less legacy caches while retaining the same summary marker.
+   Failed reports show an explicit unavailable message, never fabricated questions.
    Pure renames may use readable source anchors. Changes without any usable text source
    return an explicit partial/unavailable result, preserve unresolved findings, and do not
    retry inference solely to invent three questions. Preserve skipped/neutral CI disclosures.
@@ -31,6 +30,18 @@ one review at a time, 10 minute review budget. No automatic commits/approvals/me
    feedback records with explicit maintainer approval before policy learning.
 6. Runnable Compose, n8n workflows, setup/operations documentation, recovery,
    fixtures/evaluation, meaningful unit + real PostgreSQL/HTTP/CLI-boundary integration tests.
+7. Interactive technical learning: revision-bound Q IDs; 3–10 optional multiple-choice
+   or open-ended questions, answer grading with correct/partial/incorrect/unverifiable
+   results, problem explanations and every option explained. Confirm real source evidence
+   before a conclusive grade; accept reasonable design alternatives. Natural replies in
+   one-question owned threads, explicit Q ID in ambiguous threads. `더 알아보자` and
+   `/reviewbot questions` generate 3–10 deeper questions tied to this change, excluding
+   prior questions. Same-ref report history and persisted extra batches survive replacement
+   and failed full reviews. Five extra requests per target/ref triple, two-minute calls,
+   bounded prompts/comments with honest compaction or an unavailable notice.
+   Save immutable command responses under the job lease before writes. Reconcile owned
+   surface-qualified markers on unknown outcomes. Preserve native reply roots/discussions;
+   GitHub general comments use a linked new comment. No live integration activation.
 
 ## Work units and verification
 
@@ -41,6 +52,7 @@ one review at a time, 10 minute review budget. No automatic commits/approvals/me
 | 3 | codex/review-engine | isolated snapshots, two passes, evidence/diff validation, incremental state |
 | 4 | codex/durable-workflows | PostgreSQL leases, replay-safe publishing, commands, n8n HTTP end-to-end |
 | 5 | codex/local-operations | images, Compose, setup, docs, real DB integration and final review |
+| 6 | codex/interactive-learning | question IDs, technical follow-ups, grading, history, thread/retry and bounded input/output checks |
 
 Each branch builds on the preceding feature branch. Work-unit commits stay separate;
 do not merge or push main. Tests: `npm test`, `npm run test:integration`, Compose config/build

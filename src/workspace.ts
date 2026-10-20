@@ -67,12 +67,12 @@ export class Workspaces {
       try { const text = (await git(cache, ['show', `${snapshot.startSha}:${path}`])).toString('utf8'); if (text.length <= 12000) guidelines.push(`${path}\n${text}`); } catch { /* optional */ }
     }
     snapshot.policyVersion = policyVersion(policy, guidelines, learnings);
-    let mode: 'full' | 'incremental' = 'full';
+    let mode: 'full' | 'incremental' = 'full', previousSha: string | null = null;
     if (previous && previous.baseSha === snapshot.baseSha && previous.startSha === snapshot.startSha && previous.policyVersion === snapshot.policyVersion) {
       const ancestry = await execute('git', ['-C', cache, 'merge-base', '--is-ancestor', previous.headSha, snapshot.headSha], { env: gitEnv(), allowFailure: true });
-      if (ancestry.code === 0) { mode = 'incremental'; snapshot.previousSha = previous.headSha; }
+      if (ancestry.code === 0) { mode = 'incremental'; previousSha = previous.headSha; }
     }
-    const diffBase = mode === 'incremental' ? snapshot.previousSha! : snapshot.baseSha;
+    const diffBase = previousSha ?? snapshot.baseSha;
     const names = (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--name-status', '-z', '-M', snapshot.baseSha, snapshot.headSha])).toString('utf8');
     const incremental = mode === 'incremental' ? (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--name-status', '-z', '-M', diffBase, snapshot.headSha])).toString('utf8') : null;
     const denied = diffEntries(names).filter(e => blocked(e.path, policy.exclude) || blocked(e.oldPath, policy.exclude)).flatMap(e => [e.oldPath, e.path]);
@@ -108,7 +108,6 @@ export class Workspaces {
       let used = 0; for (const path of Object.keys(diff)) { used += Buffer.byteLength(diff[path]!.patch); if (used > 150000) { context.excluded.push(path); delete diff[path]; } }
       context.limited = true;
     }
-    await writeFile(join(this.root, 'jobs', id, 'context.json'), JSON.stringify({ snapshot, mode, excluded: context.excluded }), { mode: 0o600 });
     return { context, policy, guidelines, mode };
   }
   async cleanup(olderThanMs = 7 * 86400000): Promise<void> {

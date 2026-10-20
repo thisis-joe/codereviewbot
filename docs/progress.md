@@ -73,3 +73,41 @@
   40 unit tests, 4 real PostgreSQL/HTTP integration tests and git diff --check passed;
   demo regenerated. No account/model connection or service activation; Docker images
   must be rebuilt from this source before the later live connection step.
+- Interactive-learning scope: user requested answer grading/problem or per-option explanations,
+  then `더 알아보자` to request further questions for technical learning about this change.
+  Branch codex/interactive-learning from 49b52447e3a4c3f829af093124a7494a2e434263; initially clean.
+  Existing no-Jira feature-branch ruling applies. Account/auth/tunnel activation remains deferred.
+- RED reproduced missing trigger/answer commands, choice constraints, revision-bound IDs,
+  question/grade runner schemas and durable command storage; implemented bounded contracts,
+  read-only source-grounded learning phases, native replies and immutable response-before-write.
+- Real PostgreSQL plus signed HTTP test exercises duplicate delivery, an accepted remote
+  write whose response is lost, controller restart, grade of a persisted extra question,
+  stale revision rejection and bot-loop exclusion. Boundaries use provider/model fixtures.
+- Fresh independent review identified reply ancestry, failed/replaced same-ref report history,
+  oversized accumulated prompts and GitHub numeric comment namespaces. Regression tests first
+  reproduced each gap; fixes preserve same-ref question history, namespace events/comments,
+  resolve root/child/discussion identity and bound prompts without dropping prior question text.
+  Malformed commands show usage; learner answers retain the full admitted 8,000-character body.
+- Final re-review found the near-60k reply-link boundary; reproduced a valid 59,988-character
+  grade whose request link overflowed, reserved caller headroom and passed the regression.
+  Independent revalidation reports no remaining P1/P2 blockers in offline scope.
+- Final interactive-learning verification: 63 unit tests, 7 real PostgreSQL/HTTP integration
+  tests, Compose validation, demo and diff checks passed; dependency audit has 0 findings.
+  Both images built; the final controller was rebuilt after the rendering-only fix. A real
+  temporary runner container passed auth, questions/grade HTTP phases, isolated subprocess
+  and strict-output schema checks with a fixture CLI. No actual model/account quality claimed.
+- Colima's existing 20 GiB disk filled during image verification. Removed only the confirmed
+  current build's private compile caches and CLI cache/new runner image after its smoke test;
+  no other project images, caches, containers or volumes were removed. Final controller image
+  retained, runner must be rebuilt after capacity planning before live connection. Services
+  remain stopped. Disk was approximately 591 MiB free after final controller verification.
+- Interactive-learning implementation completed in c9de00d on codex/interactive-learning.
+  PR preparation targets a separate Draft PR based on codex/concise-review-questions
+  (existing Draft PR #1). Publication of this new branch remains pending; no merge,
+  live account/model connection, webhook/tunnel or service activation performed.
+- Simplification (user decision, 2026-10-20): removed renderer-invisible report fields
+  (`flow`, `changes`, `rules`, `delta`, candidate `ruleId`), unused `analysisJsonSchema`,
+  `Snapshot.previousSha`, the unread `context.json` write and never-produced `running`/`paused`
+  report states. Removed pre-deployment compatibility paths: question-less report upgrade,
+  surface-less comment keys and additive `ALTER TABLE` statements. 63 unit and 7 real
+  PostgreSQL/HTTP integration tests passed; demo regenerated.

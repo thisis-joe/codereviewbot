@@ -3,7 +3,7 @@ import type { RepositoryConfig } from './config.js';
 import { Sha, type Snapshot, type Target, type Check, type Candidate } from './contracts.js';
 import type { DiffPosition } from './review.js';
 
-export interface RemoteComment { id: string; body: string; author: string; url: string; discussionId?: string }
+export interface RemoteComment { id: string; body: string; author: string; url: string; discussionId?: string; parentId?: string; surface: 'issue' | 'review' | 'note' }
 export interface InlineInput { path: string; oldPath: string; line: number; side?: 'LEFT' | 'RIGHT'; coordinates?: DiffPosition; body: string; suggestion: Candidate['suggestion'] }
 export class Platform {
   readonly api: ApiClient;
@@ -29,7 +29,7 @@ export class Platform {
     const web = new URL(webUrl), allowed = new URL(this.config.instance);
     const expectedHost = allowed.hostname === 'api.github.com' ? 'github.com' : allowed.hostname;
     if (web.protocol !== 'https:' || web.hostname !== expectedHost) throw new Error('Unexpected PR/MR web URL');
-    return { ...this.target(number), baseSha, headSha, startSha, previousSha: null, policyVersion: 'default', title: String(pr.title ?? '').slice(0, 500), description: String((gh ? pr.body : pr.description) ?? '').slice(0, 20000), webUrl };
+    return { ...this.target(number), baseSha, headSha, startSha, policyVersion: 'default', title: String(pr.title ?? '').slice(0, 500), description: String((gh ? pr.body : pr.description) ?? '').slice(0, 20000), webUrl };
   }
   async openNumbers(): Promise<number[]> {
     const gh = this.config.platform === 'github';
@@ -38,12 +38,12 @@ export class Platform {
   async comments(number: number): Promise<RemoteComment[]> {
     const gh = this.config.platform === 'github';
     const values = await this.api.pages(`${this.root}/${gh ? 'issues' : 'merge_requests'}/${number}/${gh ? 'comments' : 'notes'}`);
-    return values.map(c => ({ id: String(c.id), body: String(c.body ?? ''), author: String(gh ? c.user?.login : c.author?.username), url: c.html_url ?? '', discussionId: c.discussion_id }));
+    return values.map(c => ({ id: String(c.id), body: String(c.body ?? ''), author: String(gh ? c.user?.login : c.author?.username), url: c.html_url ?? '', discussionId: c.discussion_id, surface: gh ? 'issue' : 'note' }));
   }
   async inlineComments(number: number): Promise<RemoteComment[]> {
-    if (this.config.platform === 'github') return (await this.api.pages(`${this.root}/pulls/${number}/comments`)).map(c => ({ id: String(c.id), body: String(c.body ?? ''), author: String(c.user?.login), url: c.html_url ?? '' }));
+    if (this.config.platform === 'github') return (await this.api.pages(`${this.root}/pulls/${number}/comments`)).map(c => ({ id: String(c.id), body: String(c.body ?? ''), author: String(c.user?.login), url: c.html_url ?? '', parentId: c.in_reply_to_id ? String(c.in_reply_to_id) : undefined, surface: 'review' }));
     const discussions = await this.api.pages(`${this.root}/merge_requests/${number}/discussions`);
-    return discussions.flatMap(d => (d.notes ?? []).map((n: any) => ({ id: String(n.id), body: String(n.body ?? ''), author: String(n.author?.username), url: '', discussionId: String(d.id) })));
+    return discussions.flatMap(d => (d.notes ?? []).map((n: any) => ({ id: String(n.id), body: String(n.body ?? ''), author: String(n.author?.username), url: '', discussionId: String(d.id), surface: 'note' })));
   }
   owned(c: RemoteComment): boolean { return c.author === this.config.botLogin; }
   async comment(number: number, body: string, id?: string): Promise<unknown> {
