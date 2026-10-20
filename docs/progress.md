@@ -105,3 +105,9 @@
   PR preparation targets a separate Draft PR based on codex/concise-review-questions
   (existing Draft PR #1). Publication of this new branch remains pending; no merge,
   live account/model connection, webhook/tunnel or service activation performed.
+- Simplification (user decision, 2026-10-20): removed renderer-invisible report fields
+  (`flow`, `changes`, `rules`, `delta`, candidate `ruleId`), unused `analysisJsonSchema`,
+  `Snapshot.previousSha`, the unread `context.json` write and never-produced `running`/`paused`
+  report states. Removed pre-deployment compatibility paths: question-less report upgrade,
+  surface-less comment keys and additive `ALTER TABLE` statements. 63 unit and 7 real
+  PostgreSQL/HTTP integration tests passed; demo regenerated.
