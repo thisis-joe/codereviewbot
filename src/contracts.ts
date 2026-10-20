@@ -23,14 +23,25 @@ export const CheckSchema = z.strictObject({
   status: z.enum(['clear', 'found', 'not_run', 'pending', 'unavailable', 'not_applicable', 'passed', 'failed', 'skipped', 'neutral']),
   detail: z.string().max(6000), url: z.string().url().nullable(),
 });
+// Every question is multiple choice with exactly four options so answers stay one letter.
+export const optionIds = ['A', 'B', 'C', 'D'] as const;
+const inOrder = (v: { id: string }[]) => v.map(o => o.id).join('') === optionIds.join('');
+// The answer key is fixed when the question is written so grading stays consistent; it never appears in comments.
+export const AnswerKeySchema = z.strictObject({
+  answer: z.enum(optionIds), explanation: z.string().trim().min(1).max(1500),
+  options: z.array(z.strictObject({ id: z.enum(optionIds), explanation: z.string().trim().min(1).max(500) })).length(4).refine(inOrder, 'Explain options A–D in order'),
+});
 export const ChangeQuestionSchema = z.strictObject({
   question: z.string().trim().min(1).max(500), path: Path, line: z.int().positive(),
-  side: z.enum(['LEFT', 'RIGHT']).default('RIGHT'),
-  options: z.array(z.strictObject({ id: z.enum(['A', 'B', 'C', 'D', 'E']), text: z.string().trim().min(1).max(300) })).max(5).default([])
-    .refine(v => v.length !== 1 && new Set(v.map(o => o.id)).size === v.length && new Set(v.map(o => o.text.normalize('NFKC').replace(/\s+/g, '').toLowerCase())).size === v.length, 'Use zero or 2–5 distinct options'),
+  side: z.enum(['LEFT', 'RIGHT']).default('RIGHT'), level: z.enum(['basic', 'advanced']),
+  options: z.array(z.strictObject({ id: z.enum(optionIds), text: z.string().trim().min(1).max(300) })).length(4)
+    .refine(v => inOrder(v) && new Set(v.map(o => o.text.normalize('NFKC').replace(/\s+/g, '').toLowerCase())).size === v.length, 'Use four distinct options A–D in order'),
+  key: AnswerKeySchema,
 });
 export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10);
-export const QuestionBatchSchema = z.strictObject({ questions: ChangeQuestionsSchema });
+// Each /reviewbot morequestion batch is fixed at five questions.
+export const QUESTION_BATCH_SIZE = 5;
+export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
 export const GradeSchema = z.strictObject({
   verdict: z.enum(['correct', 'partial', 'incorrect', 'unverifiable']),
   explanation: z.string().trim().min(1).max(2000), expectedAnswer: z.string().trim().min(1).max(2000),
@@ -54,7 +65,12 @@ export const AnswerSchema = z.strictObject({ answer: text, evidence: z.array(tex
 export type Candidate = z.infer<typeof CandidateSchema>;
 export type Analysis = z.infer<typeof AnalysisSchema>;
 export type Check = z.infer<typeof CheckSchema>;
-export type ChangeQuestion = z.infer<typeof ChangeQuestionSchema>;
+// Questions stored before answer keys and levels existed lack both, so readers must treat them as optional.
+export type ChangeQuestion = Omit<z.infer<typeof ChangeQuestionSchema>, 'level' | 'key'> & Partial<Pick<z.infer<typeof ChangeQuestionSchema>, 'level' | 'key'>>;
+export type Verdict = Grade['verdict'];
+export function withoutKeys<T extends { questions?: ChangeQuestion[] } | null | undefined>(value: T): T {
+  return value && value.questions ? { ...value, questions: value.questions.map(({ key: _, ...q }) => q) } : value;
+}
 export type FindingStatus = 'new' | 'open' | 'fixed' | 'dismissed' | 'unverified';
 export type Finding = Omit<Candidate, 'id'> & { id: string; status: FindingStatus; fingerprint?: string; oldPath?: string; observedHeadSha?: string; observedBaseSha?: string };
 export interface Target { platform: 'github' | 'gitlab'; instance: string; repository: string; number: number }

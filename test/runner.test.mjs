@@ -29,10 +29,10 @@ test('isolated CLI validates question generation and grading against their own s
   const root = await mkdtemp(join(tmpdir(), 'crb-learning-cli-')); t.after(() => rm(root, { recursive: true, force: true }));
   const id = '33333333-3333-4333-8333-333333333333'; await mkdir(join(root, 'jobs', id, 'source'), { recursive: true });
   const binary = join(root, 'fake-codex');
-  for (const [phase, value] of [['questions', { questions: analysis().questions }], ['grade', { verdict: 'partial', explanation: '누락된 경계 조건이 있습니다.', expectedAnswer: '동시 요청도 다뤄야 합니다.', optionExplanations: [], evidence: [] }]]) {
+  for (const [phase, value] of [['questions', { questions: [...analysis().questions, ...analysis().questions.slice(0, 2).map(q => ({ ...q, question: q.question + ' (심화)' }))] }], ['grade', { verdict: 'partial', explanation: '누락된 경계 조건이 있습니다.', expectedAnswer: '동시 요청도 다뤄야 합니다.', optionExplanations: [], evidence: [] }]]) {
     await writeFile(binary, `#!/usr/bin/env node\nimport fs from 'node:fs';\nconst args=process.argv.slice(2);\nconst schema=JSON.parse(fs.readFileSync(args[args.indexOf('--output-schema')+1]));\nif(!schema.properties.${phase === 'questions' ? 'questions' : 'verdict'}) process.exit(42);\nfs.writeFileSync(args[args.indexOf('-o')+1], ${JSON.stringify(JSON.stringify(value))});\n`, { mode: 0o755 });
     const result = await new Codex(root, join(root, 'auth'), binary).run(phase, 'read pinned code', id, 5000);
-    assert.equal(phase === 'questions' ? result.questions.length : result.verdict, phase === 'questions' ? 3 : 'partial');
+    assert.equal(phase === 'questions' ? result.questions.length : result.verdict, phase === 'questions' ? 5 : 'partial');
   }
 });
 

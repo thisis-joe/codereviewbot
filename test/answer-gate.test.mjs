@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { answerGate, requiredQuestions, syncAnswerGate, GATE_CONTEXT } from '../dist/answer-gate.js';
 import { questionId } from '../dist/learning.js';
 import { Platform } from '../dist/platform.js';
-import { report, snapshot } from './fixtures.mjs';
+import { report, snapshot, choices, answerKey } from './fixtures.mjs';
 
 const gated = (o = {}) => report({ requireAnswers: true, ...o });
 const ids = r => r.questions.map(q => questionId(r.snapshot, q));
@@ -15,7 +15,7 @@ test('the gate is off unless the repository policy requires answers', () => {
 
 test('every visible question must be answered, whatever the grade', () => {
   const r = gated(), all = ids(r);
-  assert.deepEqual(answerGate(r, new Set()), { state: 'pending', description: `질문 답변 0/3 · /reviewbot answer Q-ID 내 답변` });
+  assert.deepEqual(answerGate(r, new Set()), { state: 'pending', description: `질문 답변 0/3 · /reviewbot answer Q번호 보기` });
   assert.match(answerGate(r, new Set(all.slice(0, 2))).description, /2\/3/);
   assert.equal(answerGate(r, new Set(all)).state, 'success');
   assert.equal(answerGate(r, new Set(['Q-ffffffffffff', ...all.slice(1)])).state, 'pending');
@@ -27,7 +27,7 @@ test('failed reviews block and reviews without possible questions pass', () => {
 });
 
 test('a shortened report only requires the questions it shows', () => {
-  const questions = Array.from({ length: 10 }, (_, i) => ({ question: `pay 변경 질문 ${i}: 재시도 시 어떤 조건이 유지되나요?`, path: 'src/pay.ts', line: 2, side: 'RIGHT', options: [] }));
+  const questions = Array.from({ length: 10 }, (_, i) => ({ question: `pay 변경 질문 ${i}: 재시도 시 어떤 조건이 유지되나요?`, path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() }));
   const long = gated({ summary: '요약 '.repeat(25000), questions });
   assert.equal(requiredQuestions(gated({ questions })).length, 10);
   assert.equal(requiredQuestions(long).length, 3);

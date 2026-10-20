@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { Pool, PoolClient } from 'pg';
-import type { Report, Target, Snapshot, ChangeQuestion } from './contracts.js';
+import type { Report, Target, Snapshot, ChangeQuestion, Verdict } from './contracts.js';
 import type { Event } from './webhooks.js';
 import type { DiffMetadata } from './review.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
-export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; answered?: string }
+export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; start?: number; answered?: string; grades?: { id: string; verdict: Verdict }[] }
 export interface Job { id: string; target_key: string; kind: 'review' | 'ci' | 'command'; body: Event & { force?: boolean }; state: string; owner: string; attempts: number; result: Report | null; diff: Record<string, DiffMetadata> | null; max_inline: number; command_result?: CommandResult | null }
 export class Store {
   constructor(readonly pool: Pool) {}
@@ -72,16 +72,29 @@ export class Store {
     return rows.rows.map(row => row.question);
   }
   async answeredQuestions(t: Snapshot): Promise<Set<string>> {
-    // Only graded answers whose reply was published count toward the merge gate.
-    const rows = await this.pool.query("SELECT DISTINCT command_result->>'answered' AS id FROM jobs WHERE target_key=$1 AND kind='command' AND state='completed' AND command_result->>'answered' IS NOT NULL AND command_result->'snapshot'->>'headSha'=$2 AND command_result->'snapshot'->>'baseSha'=$3 AND command_result->'snapshot'->>'startSha'=$4", [targetKey(t), t.headSha, t.baseSha, t.startSha]);
-    return new Set(rows.rows.map(row => row.id));
+    return new Set((await this.answerResults(t)).keys());
   }
-  async saveResult(id: string, owner: string, report: Report, diff: Record<string, DiffMetadata>, maxInline: number): Promise<void> {
+  // Only graded answers whose reply was published count; the latest grade per question wins.
+  async answerResults(t: Snapshot): Promise<Map<string, Verdict | null>> {
+    const rows = await this.pool.query("SELECT command_result->>'answered' AS id, command_result->'grades' AS grades FROM jobs WHERE target_key=$1 AND kind='command' AND state='completed' AND (command_result->>'answered' IS NOT NULL OR command_result->'grades' IS NOT NULL) AND command_result->'snapshot'->>'headSha'=$2 AND command_result->'snapshot'->>'baseSha'=$3 AND command_result->'snapshot'->>'startSha'=$4 ORDER BY created_at, id", [targetKey(t), t.headSha, t.baseSha, t.startSha]);
+    const results = new Map<string, Verdict | null>();
+    for (const row of rows.rows) {
+      if (Array.isArray(row.grades)) for (const g of row.grades) results.set(g.id, g.verdict);
+      else if (row.id && !results.has(row.id)) results.set(row.id, null);
+    }
+    return results;
+  }
+  async saveResult(id: string, owner: string, report: Report, diff: Record<string, DiffMetadata>, maxInline: number, reviewSeconds: number | null = null): Promise<void> {
     await this.transaction(async c => {
-      const row = await c.query("UPDATE jobs SET result=$3,diff=$4,max_inline=$5,state='ready',owner=NULL,lease_until=NULL,attempts=0,updated_at=now() WHERE id=$1 AND owner=$2 AND state='running' AND lease_until>now() RETURNING target_key", [id, owner, report, diff, maxInline]);
+      const row = await c.query("UPDATE jobs SET result=$3,diff=$4,max_inline=$5,review_seconds=$6,state='ready',owner=NULL,lease_until=NULL,attempts=0,updated_at=now() WHERE id=$1 AND owner=$2 AND state='running' AND lease_until>now() RETURNING target_key", [id, owner, report, diff, maxInline, reviewSeconds]);
       if (!row.rows[0]) throw new Error('Job lease lost');
       await c.query('UPDATE targets SET report=$2,updated_at=now() WHERE key=$1', [row.rows[0].target_key, report]);
     });
+  }
+  /** Median of the latest model reviews in this mode, falling back to any mode, then to a fixed guess. */
+  async reviewEstimate(mode: 'full' | 'incremental'): Promise<{ minutes: number; measured: boolean }> {
+    const median = async (sameMode: boolean) => (await this.pool.query("SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY review_seconds) AS seconds FROM (SELECT review_seconds FROM jobs WHERE kind='review' AND review_seconds IS NOT NULL AND (NOT $1::boolean OR result->>'mode'=$2) ORDER BY updated_at DESC LIMIT 20) recent", [sameMode, mode])).rows[0]?.seconds as number | null;
+    return estimateMinutes(await median(true) ?? await median(false));
   }
   async complete(id: string, owner: string): Promise<void> {
     if (!(await this.pool.query("UPDATE jobs SET state='completed',owner=NULL,lease_until=NULL,updated_at=now() WHERE id=$1 AND owner=$2 AND state IN ('running','publishing') AND lease_until>now()", [id, owner])).rowCount) throw new Error('Job lease lost');
@@ -127,4 +140,8 @@ export class Store {
     const rows = (await this.pool.query('SELECT state,count(*)::int AS count FROM jobs GROUP BY state')).rows;
     return { failed: rows.find(r => r.state === 'failed')?.count ?? 0, queued: rows.filter(r => ['queued', 'ready'].includes(r.state)).reduce((n, r) => n + r.count, 0) };
   }
+}
+// Rounded up so the notice rarely promises less time than the review takes.
+export function estimateMinutes(seconds: number | null): { minutes: number; measured: boolean } {
+  return seconds == null ? { minutes: 5, measured: false } : { minutes: Math.max(1, Math.ceil(seconds / 60)), measured: true };
 }

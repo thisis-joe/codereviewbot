@@ -56,7 +56,7 @@ test('learning responses survive restart, remain target-scoped and reject expire
   const store = new Store(pool); await store.migrate(); await store.migrate();
   await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
   const target = snapshot();
-  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '더 알아보자', surface: 'issue', parentId: null, discussionId: null } });
+  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '/reviewbot morequestion', surface: 'issue', parentId: null, discussionId: null } });
   const job = await store.claim();
   const response = { snapshot: target, body: 'saved questions', questions: report().questions };
   assert.equal(typeof store.saveCommandResult, 'function', 'learning needs durable responses before external effects');
@@ -107,4 +107,29 @@ test('only completed graded answers on the same revision and target count toward
   await answer(snapshot({ headSha: 'c'.repeat(40) }), 'a5', 'Q-000000000003');
   await answer(snapshot({ number: 2 }), 'a6', 'Q-000000000004');
   assert.deepEqual([...await store.answeredQuestions(snapshot())], ['Q-000000000001']);
+  // Newer replies record verdicts for several questions at once; the latest grade per question wins.
+  const graded = async (deliveryId, grades) => {
+    const id = await store.enqueue({ kind: 'command', target: snapshot(), deliveryId, comment: { id: deliveryId, author: 'joe', body: 'answer', surface: 'issue', parentId: null, discussionId: null } });
+    const job = await store.claim(); await store.saveCommandResult(id, job.owner, { snapshot: snapshot(), body: 'graded', grades }); await store.complete(id, job.owner);
+  };
+  await graded('g1', [{ id: 'Q-000000000002', verdict: 'incorrect' }, { id: 'Q-000000000005', verdict: 'correct' }]);
+  await graded('g2', [{ id: 'Q-000000000002', verdict: 'correct' }]);
+  assert.deepEqual([...await store.answerResults(snapshot())], [['Q-000000000001', null], ['Q-000000000002', 'correct'], ['Q-000000000005', 'correct']]);
+  assert.deepEqual([...await store.answeredQuestions(snapshot())].sort(), ['Q-000000000001', 'Q-000000000002', 'Q-000000000005']);
+});
+
+test('the start-of-review estimate uses recorded model review times for the same mode', async t => {
+  const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
+  const store = new Store(pool); await store.migrate();
+  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  assert.deepEqual(await store.reviewEstimate('full'), { minutes: 5, measured: false });
+  for (const [i, seconds] of [200, 250, 400].entries()) {
+    const target = snapshot({ number: 10 + i });
+    await store.enqueue({ kind: 'review', target, deliveryId: `estimate-${i}`, headSha: target.headSha });
+    const claimed = await store.claim();
+    await store.saveResult(claimed.id, claimed.owner, report({ snapshot: target, mode: 'full' }), {}, 5, seconds);
+    const publishing = await store.claim(); await store.complete(publishing.id, publishing.owner);
+  }
+  assert.deepEqual(await store.reviewEstimate('full'), { minutes: 5, measured: true });
+  assert.deepEqual(await store.reviewEstimate('incremental'), { minutes: 5, measured: true }, 'falls back to other modes before guessing');
 });
