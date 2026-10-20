@@ -11,6 +11,8 @@ import { renderAnswer } from './render.js';
 import { redact } from './redact.js';
 import { handleLearning } from './learning-command.js';
 import { commentKey } from './webhooks.js';
+import { syncAnswerGate } from './answer-gate.js';
+import { sameRevision } from './learning.js';
 
 export class Controller {
   active: Promise<void> | null = null;
@@ -36,9 +38,17 @@ export class Controller {
       if (job.state === 'publishing') {
         if (!job.result) throw new Error('Missing review result');
         await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease);
+        await this.syncGate(platform, job.result);
         await this.store.complete(job.id, job.owner); return;
       }
-      if (job.kind === 'command') { await this.command(job, platform, lease); await this.store.complete(job.id, job.owner); return; }
+      if (job.kind === 'command') {
+        await this.command(job, platform, lease); await this.store.complete(job.id, job.owner);
+        if ((await this.store.getJob(job.id))?.command_result?.answered) {
+          const report = (await this.store.getTarget(job.body.target))?.report;
+          if (report) await this.syncGate(platform, report);
+        }
+        return;
+      }
       snap = await platform.snapshot(job.body.target.number);
       snap.title = redact(snap.title); snap.description = redact(snap.description);
       previous = (await this.store.getTarget(snap))?.report ?? null;
@@ -57,7 +67,7 @@ export class Controller {
       const result = await review(this.model, job.id, snap, prepared.policy, prepared.context, previous, checks, prepared.guidelines, issues, learnings, prepared.mode);
       await lease(); const live = await platform.snapshot(snap.number);
       if (live.headSha !== snap.headSha || live.baseSha !== snap.baseSha || live.startSha !== snap.startSha) throw new Superseded('Review snapshot changed');
-      await this.store.saveResult(job.id, job.owner, result, Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), prepared.policy.maxInlineComments);
+      await this.store.saveResult(job.id, job.owner, { ...result, requireAnswers: prepared.policy.requireAnswers === true }, Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), prepared.policy.maxInlineComments);
     } catch (error) {
       if (error instanceof Superseded || (error instanceof HttpError && error.status === 410)) await this.store.supersede(job.id, job.owner);
       else if (snap && job.state !== 'publishing' && job.attempts >= 3) {
@@ -128,6 +138,11 @@ export class Controller {
     if (answeredSnapshot && (latest.headSha !== answeredSnapshot.headSha || latest.baseSha !== answeredSnapshot.baseSha || latest.startSha !== answeredSnapshot.startSha)) throw new Error('Answer snapshot changed; retry against latest code');
     await platform.reply(target.number, renderAnswer({ answer: redact(answer), evidence: evidence.map(redact), next: redact(next) }, key), comment.parentId, comment.discussionId);
   }
+  // Gate failures (e.g. a missing status permission) must not block publishing; recovery retries every minute.
+  private async syncGate(platform: Platform, report: Report): Promise<void> {
+    try { await syncAnswerGate(platform, this.store, report); }
+    catch { console.error(JSON.stringify({ repository: platform.config.repository, number: report.snapshot.number, error: 'answer_gate_failed' })); }
+  }
   private async enqueueFromCommand(job: Job, platform: Platform, force: boolean): Promise<void> {
     const snap = await platform.snapshot(job.body.target.number);
     await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: snap.headSha, deliveryId: `${job.id}:review` }, 0, force);
@@ -139,6 +154,7 @@ export class Controller {
         try {
           for (const number of await platform.openNumbers()) {
             const snap = await platform.snapshot(number); const state = await this.store.getTarget(snap);
+            if (state?.report && sameRevision(state.report.snapshot, snap)) await this.syncGate(platform, state.report);
             if (state?.paused) continue;
             const prior = state?.report?.snapshot;
             if (!prior || !reviewed(state?.report) || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:${snap.headSha}:${snap.startSha}:${snap.baseSha}` }, this.debounceMs);
