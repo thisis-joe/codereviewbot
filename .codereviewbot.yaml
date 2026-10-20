@@ -1,0 +1,12 @@
+version: 1
+maxInlineComments: 5
+exclude:
+  - "dist/**"
+  - "node_modules/**"
+pathInstructions:
+  - path: "src/webhooks.ts"
+    instructions: "원문 서명 검증, 재전송 방지, 허용 저장소 확인이 모델이나 댓글 데이터로 우회되지 않는지 검토한다."
+  - path: "src/store.ts"
+    instructions: "작업 재선점·응답 유실·프로세스 종료 후 중복 효과와 만료된 lease의 쓰기를 검토한다."
+  - path: "src/render.ts"
+    instructions: "양식 순서와 고정 상태값을 유지하고 미실행·확인 불가를 통과로 표시하지 않는지 검토한다."

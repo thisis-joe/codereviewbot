@@ -1,0 +1,9 @@
+.git
+node_modules
+dist
+.env*
+.local
+.superpowers
+*.log
+test
+docs

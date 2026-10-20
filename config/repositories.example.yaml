@@ -1,0 +1,20 @@
+version: 1
+repositories:
+  - platform: github
+    instance: https://api.github.com
+    repository: thisis-joe/codereviewbot
+    botLogin: codereviewbot[bot]
+    webhookSecretEnv: GITHUB_WEBHOOK_SECRET
+    webhookAuth: hmac
+    # Recommended: set tokenEnv to "", configure a GitHub App in .env.
+    # For a dedicated bot PAT, set tokenEnv and botLogin to that bot's identity.
+    tokenEnv: GITHUB_TOKEN
+    enabled: false
+  - platform: gitlab
+    instance: https://gitlab.com
+    repository: your-group/your-project
+    botLogin: your-reviewbot-user
+    webhookSecretEnv: GITLAB_WEBHOOK_SECRET
+    webhookAuth: signing
+    tokenEnv: GITLAB_TOKEN
+    enabled: false
