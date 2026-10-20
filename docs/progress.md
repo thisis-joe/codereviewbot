@@ -111,3 +111,8 @@
   report states. Removed pre-deployment compatibility paths: question-less report upgrade,
   surface-less comment keys and additive `ALTER TABLE` statements. 63 unit and 7 real
   PostgreSQL/HTTP integration tests passed; demo regenerated.
+- Readiness re-check (2026-10-20) found the folded migration regressed the existing local
+  Compose database: its jobs table predates `command_result`, and a disposable copy confirmed
+  the column stayed missing. Restored the idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`;
+  the copy then gained the column, a repeated run was a no-op, and 63 unit plus 7 real
+  PostgreSQL/HTTP integration tests passed. The original volume was mounted read-only.
