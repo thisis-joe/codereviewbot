@@ -9,7 +9,7 @@ curl --fail http://localhost:18092/healthz
 ```
 
 `/internal/health`는 `.env`의 INTERNAL_TOKEN에 대한 Bearer 인증이 필요하다. 작업 수·실패 수·현재 실행 여부를 제공한다.
-로그에는 작업 ID·단계·분류된 실패 원인만 남긴다. Codex 원문 대화나 Git 자격 증명을 출력하지 않는다.
+로그에는 작업 ID·단계·분류된 실패 원인만 남긴다. 모델 원문 대화나 Git 자격 증명을 출력하지 않는다.
 
 ## 중복과 장애
 
@@ -28,8 +28,8 @@ curl --fail http://localhost:18092/healthz
 
 ## 데이터와 백업
 
-`database`에는 작업·보고서·피드백과 별도 n8n DB가 있고, `codex-auth`에는 봇 전용 인증이 있다.
-`.env`, n8n encryption key, DB dump, Codex 전용 인증과 터널 자격 증명을 각각 보호해 백업한다.
+`database`에는 작업·보고서·피드백과 별도 n8n DB가 있고, `codex-auth`·`claude-auth`에는 봇 전용 모델 인증이 있다.
+`.env`, n8n encryption key, DB dump, 모델 전용 인증과 터널 자격 증명을 각각 보호해 백업한다.
 원문 Git 캐시는 컨트롤러 전용 볼륨이며 실행기에 공유하지 않는다. 소스 스냅샷은 7일 후 복구 작업에서 정리한다.
 작업·중복 방지·피드백 메타데이터는 자동 삭제하지 않는다. 운영 용량을 관찰하고 명시적 보존 정책을 정한 뒤 정리한다.
 

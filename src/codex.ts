@@ -8,16 +8,24 @@ import { execute } from './process.js';
 import type { Model, ModelPhase } from './review.js';
 import { redact } from './redact.js';
 
+export const phaseSchemas = { review: AnalysisSchema, verify: VerificationSchema, answer: AnswerSchema, questions: QuestionBatchSchema, grade: GradeSchema };
+export const sourceServer = fileURLToPath(new URL('./source-mcp.js', import.meta.url));
+export async function workspaceSource(dataRoot: string, id: string): Promise<string> {
+  if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid workspace ID');
+  const source = await realpath(join(dataRoot, 'jobs', id, 'source'));
+  const root = await realpath(join(dataRoot, 'jobs'));
+  if (!source.startsWith(root + sep)) throw new Error('Workspace escaped root');
+  return source;
+}
+
 export class Codex implements Model {
-  constructor(readonly root: string, readonly home: string, readonly binary = 'codex', readonly model = '') {}
+  // baseUrl points the built-in OpenAI provider at an OpenAI-compatible proxy; it then authenticates with CODEX_API_KEY.
+  constructor(readonly root: string, readonly home: string, readonly binary = 'codex', readonly model = '', readonly baseUrl = '') {}
   async run(phase: ModelPhase, prompt: string, id: string, timeoutMs = 600000): Promise<unknown> {
-    if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid workspace ID');
-    const source = await realpath(join(this.root, 'jobs', id, 'source'));
-    const root = await realpath(join(this.root, 'jobs'));
-    if (!source.startsWith(root + sep)) throw new Error('Workspace escaped root');
+    const source = await workspaceSource(this.root, id);
     const dir = await mkdtemp(join(tmpdir(), 'codereviewbot-run-'));
     await mkdir(this.home, { recursive: true, mode: 0o700 });
-    const schema = { review: AnalysisSchema, verify: VerificationSchema, answer: AnswerSchema, questions: QuestionBatchSchema, grade: GradeSchema }[phase];
+    const schema = phaseSchemas[phase];
     const schemaFile = join(dir, 'schema.json'), output = join(dir, 'answer.json');
     await writeFile(schemaFile, JSON.stringify(z.toJSONSchema(schema, { unrepresentable: 'any' })), { mode: 0o600 });
     try {
@@ -25,8 +33,9 @@ export class Codex implements Model {
         ...['shell_tool', 'multi_agent', 'apps', 'hooks', 'browser_use', 'computer_use', 'view_image', 'image_generation'].flatMap(feature => ['--disable', feature]),
         '-c', 'web_search="disabled"',
         '-c', 'approval_policy="never"',
-        '-c', 'mcp_servers.review_source.command="node"', '-c', `mcp_servers.review_source.args=${JSON.stringify([fileURLToPath(new URL('./source-mcp.js', import.meta.url)), source])}`,
+        '-c', 'mcp_servers.review_source.command="node"', '-c', `mcp_servers.review_source.args=${JSON.stringify([sourceServer, source])}`,
         '-c', 'mcp_servers.review_source.required=true',
+        ...(this.baseUrl ? ['-c', `openai_base_url=${JSON.stringify(this.baseUrl)}`] : []),
         '--output-schema', schemaFile, '-o', output, '-C', dir,
         ...(this.model ? ['--model', this.model] : []), '-'], {
         cwd: dir, input: redact(prompt), timeoutMs,

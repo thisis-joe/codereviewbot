@@ -3,7 +3,21 @@
 실제 연결·인증은 아직 수행하지 않는다. 아래 절차는 운영자가 연결할 때 사용한다.
 토큰과 개인 키는 `.env` 또는 `.local/secrets`에만 넣고 커밋하지 않는다.
 
-## 1. Codex 전용 로그인
+## 1. 리뷰 엔진 선택과 로그인
+
+`.env`의 `MODEL_PROVIDER`로 엔진을 고른다. `codex`(기본값) 또는 `claude`.
+엔진마다 계정 로그인과 API 키 중 하나를 쓴다. API 키는 `*_BASE_URL`로 호환 프록시(예: GMS)를 지정할 수 있다.
+값을 바꾼 뒤 `docker compose up -d --force-recreate runner`로 다시 읽는다. 실행기 로그의 `provider`로 적용 여부를 확인한다.
+
+| 엔진 | 계정 로그인 | API 키 | 프록시 주소 |
+|---|---|---|---|
+| `codex` | `codex login --device-auth` (`codex-auth` 볼륨) | `CODEX_API_KEY` | `CODEX_BASE_URL` (`/v1` 포함, OpenAI 호환) |
+| `claude` | `CLAUDE_CODE_OAUTH_TOKEN` 또는 `claude auth login` (`claude-auth` 볼륨) | `ANTHROPIC_API_KEY` (Bearer 방식 프록시는 `ANTHROPIC_AUTH_TOKEN`) | `ANTHROPIC_BASE_URL` (`/v1` 제외, Anthropic 호환) |
+
+어느 방식이든 검토 코드는 해당 모델 제공자(또는 프록시)로 전송된다.
+인증 만료·사용량 제한은 실패로 기록한다. 다른 엔진이나 유료 API로 자동 전환하지 않는다.
+
+### Codex 계정
 
 실행기 전용 `codex-auth` 볼륨을 사용한다. 호스트의 전체 Codex 디렉터리를 마운트하지 않는다.
 
@@ -13,8 +27,41 @@ docker compose exec runner codex login status
 ```
 
 브라우저에서 기기 코드를 승인한다. device auth가 비활성화된 계정이면 ChatGPT 보안 설정 또는 조직 정책을 먼저 확인한다.
-이 로그인은 ChatGPT/Codex 사용량을 사용하며, 로컬 CLI 실행도 검토 코드를 OpenAI에 전송한다.
-인증 만료·사용량 제한은 실패로 기록한다. 유료 API로 자동 전환하지 않는다.
+이 로그인은 ChatGPT/Codex 사용량을 사용한다.
+
+### Claude 계정
+
+Claude 구독 계정이 있는 컴퓨터에서 장기 토큰을 만들고 `.env`의 `CLAUDE_CODE_OAUTH_TOKEN`에 넣는다.
+
+```sh
+claude setup-token
+```
+
+호스트에 Claude Code가 없으면 실행기 안에서 로그인해도 된다. 인증은 `claude-auth` 볼륨에만 저장된다.
+
+```sh
+docker compose exec runner claude auth login
+docker compose exec runner claude auth status
+```
+
+### API 게이트웨이로 전환 (예: SSAFY GMS)
+
+계정 로그인에서 기관이 발급한 API 키로 바꿀 때는 `.env`만 고친다. 주소와 모델 이름은 게이트웨이 문서의 값을 그대로 쓴다.
+
+1. 계정 인증을 지운다. `CLAUDE_CODE_OAUTH_TOKEN`을 비우고, 실행기 안에서 로그인했다면 `docker compose exec runner claude auth logout`을 실행한다. 남아 있으면 어느 인증이 쓰였는지 헷갈린다.
+2. 게이트웨이가 제공하는 API 형식에 맞춰 설정한다.
+   - Anthropic Messages 형식: `MODEL_PROVIDER=claude`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`. 게이트웨이가 `Authorization: Bearer`를 요구하면 `ANTHROPIC_AUTH_TOKEN`에 넣는다.
+   - OpenAI Responses 형식: `MODEL_PROVIDER=codex`, `CODEX_BASE_URL`(`/v1` 포함), `CODEX_API_KEY`.
+3. `CLAUDE_MODEL` 또는 `CODEX_MODEL`에 게이트웨이가 허용하는 모델 이름을 넣는다.
+4. `docker compose up -d --force-recreate runner` 후 테스트 MR로 확인한다.
+
+Chat Completions 형식만 제공하는 게이트웨이는 두 CLI 모두 직접 호출할 수 없다. 이 경우 별도 어댑터가 필요하다.
+
+### Claude 실행 제한
+
+Claude Code CLI는 `-p` 비대화 모드로 실행한다. 내장 도구(`--tools ""`)와 사용자 설정·슬래시 명령·세션 저장을 끄고,
+`--strict-mcp-config`로 스냅샷 읽기·검색 MCP 도구만 연결한다. 목록에 없는 도구는 `--permission-mode dontAsk`로 묻지 않고 거부한다.
+결과는 `--json-schema`의 구조화 출력으로만 받고, 실행기에서 같은 스키마로 다시 검증한다.
 
 ## 2. GitHub
 
@@ -86,4 +133,4 @@ docker compose --profile tunnel up -d
 설정 변경 후 `docker compose up -d --force-recreate controller`로 환경을 다시 읽는다.
 테스트 PR/MR에서 결함 생성 → 댓글 위치·양식 확인 → 수정 → 지적 상태 갱신을 양쪽 플랫폼에서 확인한다.
 같은 이벤트를 재전송하고 연속 푸시·force push·권한 없는 댓글·일시정지·재개도 검증한다.
-Codex 모델의 실제 탐지 품질은 이 실연동 검증과 평가 데이터로 측정한다.
+선택한 모델의 실제 탐지 품질은 이 실연동 검증과 평가 데이터로 측정한다.

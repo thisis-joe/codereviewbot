@@ -32,12 +32,22 @@ services:
     environment:
       TZ: ${TZ:-Asia/Seoul}
       RUNNER_TOKEN: ${RUNNER_TOKEN:?Run setup}
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-codex}
       CODEX_HOME: /codex
       CODEX_MODEL: ${CODEX_MODEL:-}
+      CODEX_API_KEY: ${CODEX_API_KEY:-}
+      CODEX_BASE_URL: ${CODEX_BASE_URL:-}
+      CLAUDE_CONFIG_DIR: /claude
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
       DATA_ROOT: /data
     volumes:
       - snapshots:/data/jobs:ro
       - codex-auth:/codex
+      - claude-auth:/claude
     tmpfs: ["/tmp:rw,nosuid,size=256m"]
     networks: [runner-rpc, runner-egress]
     cpus: 2
@@ -144,6 +154,7 @@ volumes:
   snapshots:
   git-cache:
   codex-auth:
+  claude-auth:
   n8n-state:
 networks:
   control: { internal: true }

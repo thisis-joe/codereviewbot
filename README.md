@@ -4,7 +4,7 @@
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](README.en.md)
 
 **GitHub PR과 GitLab MR을 자동으로 리뷰하는 개인 서버용 봇입니다.**
-n8n과 Codex CLI로 동작하며, 버그·보안·회귀·팀 규칙을 검토해 항상 같은 양식의 한국어 보고서와 인라인 댓글을 남깁니다.
+n8n과 Codex CLI 또는 Claude Code CLI로 동작하며, 버그·보안·회귀·팀 규칙을 검토해 항상 같은 양식의 한국어 보고서와 인라인 댓글을 남깁니다.
 리뷰가 끝나면 변경 내용을 이해했는지 확인하는 질문을 내고, 댓글로 답하면 채점과 해설을 돌려줍니다.
 
 > [!NOTE]
@@ -44,20 +44,20 @@ flowchart LR
   Tunnel --> API[웹훅 인증·DB 저장]
   API --> N8N[n8n 작업 깨우기]
   N8N --> Queue[PostgreSQL 작업 선점]
-  Queue --> Review[코드 준비·Codex 분석·2차 검증]
+  Queue --> Review[코드 준비·모델 분석·2차 검증]
   Review --> Publish[SHA 재확인·댓글 대조·게시]
 ```
 
 1. GitHub·GitLab 웹훅이 들어오면 서명을 확인하고 작업을 DB에 저장합니다.
 2. n8n이 10초마다 다음 작업을 깨우고, 1분마다 놓친 변경과 CI 갱신을 확인합니다.
-3. 컨트롤러가 코드 스냅샷을 준비하고, 격리된 실행기에서 Codex가 분석과 2차 검증을 합니다.
+3. 컨트롤러가 코드 스냅샷을 준비하고, 격리된 실행기에서 선택한 모델(Codex 또는 Claude)이 분석과 2차 검증을 합니다.
 4. 게시 직전에 최신 커밋 SHA를 다시 확인합니다. 그 사이 새 푸시가 있으면 결과를 버리고 다시 리뷰합니다.
 5. 요약 댓글 하나를 계속 갱신하고, 지적 ID는 다음 리뷰에서도 유지합니다.
 
 | 서비스 | 역할 |
 |---|---|
 | `controller` | 웹훅 인증, 작업 큐, Git 캐시·스냅샷 준비, 플랫폼 API 호출과 댓글 게시 |
-| `runner` | Codex CLI 실행. 고정 스냅샷 읽기·검색 도구만 쓰며 Git 쓰기 권한이 없습니다. |
+| `runner` | Codex CLI 또는 Claude Code CLI 실행 (`MODEL_PROVIDER`로 선택, 계정 로그인 또는 API 키). 고정 스냅샷 읽기·검색 도구만 쓰며 Git 쓰기 권한이 없습니다. |
 | `postgres` | 보고서, 작업 상태, 웹훅 중복 제거, 질문·답변 이력 |
 | `n8n` | 주기적인 dispatch·recovery 호출. 리뷰 로직은 컨트롤러에 있습니다. |
 | `tunnel` | 선택 사항. Cloudflare Tunnel로 웹훅 경로만 외부에 노출합니다. |
@@ -267,7 +267,7 @@ pathInstructions:
 
 ## 안전 설계
 
-- Codex의 셸·브라우저·다른 앱·하위 에이전트 도구를 끄고, 고정 스냅샷 읽기·검색 도구만 제공합니다.
+- 모델 CLI의 셸·브라우저·다른 앱·하위 에이전트 등 내장 도구를 끄고, 고정 스냅샷 읽기·검색 도구만 제공합니다.
 - 실행기는 호스트 홈 폴더, Docker 소켓, Git 캐시에 접근하지 못합니다. Git 쓰기 권한은 컨트롤러에만 있습니다.
 - 리뷰 대상 프로젝트의 코드, 테스트, 설치 스크립트를 실행하지 않습니다.
 - PR 설명, 이슈, 코드 주석 안의 지시문은 데이터로만 취급합니다.
@@ -290,7 +290,7 @@ docs/         구현 계약, 작업 기록, 연결·운영 가이드
 
 | 문서 | 내용 |
 |---|---|
-| [연결 가이드](docs/connections.md) | Codex 로그인, GitHub·GitLab, Cloudflare Tunnel 연결 |
+| [연결 가이드](docs/connections.md) | 리뷰 엔진(Codex·Claude) 로그인과 API 키, GitHub·GitLab, Cloudflare Tunnel 연결 |
 | [운영 가이드](docs/operations.md) | 상태 확인, 장애 복구, 데이터 백업 |
 | [구현 계약](docs/plan.md) | 범위, 출력 계약, 완료 기준 |
 | [작업 기록](docs/progress.md) | 진행 내역과 검증 결과 |

@@ -4,7 +4,7 @@
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](README.en.md)
 
 **A self-hosted bot that automatically reviews GitHub pull requests and GitLab merge requests.**
-It runs on n8n and the Codex CLI, checks changes for bugs, security issues, regressions and team rules, and posts a Korean report and inline comments in a fixed format.
+It runs on n8n and the Codex CLI or Claude Code CLI, checks changes for bugs, security issues, regressions and team rules, and posts a Korean report and inline comments in a fixed format.
 After each review it asks questions about the change; reply in a comment and it grades your answer and explains it.
 
 > [!NOTE]
@@ -45,20 +45,20 @@ flowchart LR
   Tunnel --> API[Verify webhook, store in DB]
   API --> N8N[n8n wakes jobs]
   N8N --> Queue[Claim job in PostgreSQL]
-  Queue --> Review[Prepare code, Codex analysis, verification]
+  Queue --> Review[Prepare code, model analysis, verification]
   Review --> Publish[Recheck SHA, match comments, publish]
 ```
 
 1. A GitHub or GitLab webhook arrives; its signature is verified and the job is stored in the database.
 2. n8n wakes the next job every 10 seconds and checks for missed changes and CI updates every minute.
-3. The controller prepares a code snapshot, and Codex runs the analysis and verification in an isolated runner.
+3. The controller prepares a code snapshot, and the selected model (Codex or Claude) runs the analysis and verification in an isolated runner.
 4. Right before publishing, the latest commit SHA is checked again. If a new push arrived, the result is dropped and the change is reviewed again.
 5. A single summary comment is updated in place, and finding IDs are kept across reviews.
 
 | Service | Role |
 |---|---|
 | `controller` | Webhook auth, job queue, Git cache and snapshots, platform API calls and comment publishing |
-| `runner` | Runs the Codex CLI. Uses only read/search tools on a fixed snapshot; has no Git write access. |
+| `runner` | Runs the Codex CLI or Claude Code CLI (chosen with `MODEL_PROVIDER`; account login or API key). Uses only read/search tools on a fixed snapshot; has no Git write access. |
 | `postgres` | Reports, job state, webhook deduplication, question and answer history |
 | `n8n` | Periodic dispatch and recovery calls. Review logic lives in the controller. |
 | `tunnel` | Optional. Exposes only the webhook path through Cloudflare Tunnel. |
@@ -268,7 +268,7 @@ pathInstructions:
 
 ## Safety
 
-- Codex's shell, browser, other-app and sub-agent tools are turned off; only read/search tools on a fixed snapshot are provided.
+- The model CLI's built-in tools (shell, browser, other apps, sub-agents) are turned off; only read/search tools on a fixed snapshot are provided.
 - The runner cannot reach the host home folder, the Docker socket or the Git cache. Only the controller has Git write credentials.
 - The reviewed project's code, tests and install scripts are never run.
 - Instructions inside PR descriptions, issues and code comments are treated as data only.
@@ -291,7 +291,7 @@ docs/         implementation contract, progress log, connection and operations g
 
 | Document | Contents |
 |---|---|
-| [Connection guide](docs/connections.md) | Codex login, GitHub and GitLab, Cloudflare Tunnel (Korean) |
+| [Connection guide](docs/connections.md) | Review engine (Codex/Claude) login and API keys, GitHub and GitLab, Cloudflare Tunnel (Korean) |
 | [Operations guide](docs/operations.md) | Health checks, recovery, backups (Korean) |
 | [Implementation contract](docs/plan.md) | Scope, output contract, acceptance criteria |
 | [Progress log](docs/progress.md) | Work history and verification results |
