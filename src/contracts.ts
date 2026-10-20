@@ -67,6 +67,8 @@ export interface Report extends Omit<Analysis, 'findings' | 'resolutions' | 'que
   mode: 'full' | 'incremental'; findings: Finding[]; reviewedFiles: string[]; excludedFiles: string[];
   questions: ChangeQuestion[];
   questionsUnavailableReason?: string;
+  // Copied from the base-branch policy so publishing and grading can update the merge gate.
+  requireAnswers?: boolean;
 }
 export function reviewed(report: Report | null | undefined): report is Report {
   return report?.state === 'completed' || report?.state === 'partial';

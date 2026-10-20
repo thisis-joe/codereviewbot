@@ -90,3 +90,21 @@ test('question history preserves earlier same-revision report questions without 
   assert.ok(!history.some(q => q.question.startsWith('2:')));
   assert.equal((await store.questionHistory(snapshot({ number: 2 }))).length, 0);
 });
+
+test('only completed graded answers on the same revision and target count toward the merge gate', async t => {
+  const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end()); const store = new Store(pool); await store.migrate();
+  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  const answer = async (target, deliveryId, answered, complete = true) => {
+    const id = await store.enqueue({ kind: 'command', target, deliveryId, comment: { id: deliveryId, author: 'joe', body: 'answer', surface: 'issue', parentId: null, discussionId: null } }, 0);
+    const job = await store.claim(); assert.equal(job.id, id);
+    await store.saveCommandResult(id, job.owner, { snapshot: target, body: 'graded', ...(answered ? { answered } : {}) });
+    if (complete) await store.complete(id, job.owner); else await store.fail(job, 'reply lost');
+  };
+  await answer(snapshot(), 'a1', 'Q-000000000001');
+  await answer(snapshot(), 'a2', 'Q-000000000001');
+  await answer(snapshot(), 'a3', 'Q-000000000002', false);
+  await answer(snapshot(), 'a4', undefined);
+  await answer(snapshot({ headSha: 'c'.repeat(40) }), 'a5', 'Q-000000000003');
+  await answer(snapshot({ number: 2 }), 'a6', 'Q-000000000004');
+  assert.deepEqual([...await store.answeredQuestions(snapshot())], ['Q-000000000001']);
+});

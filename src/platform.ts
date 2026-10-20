@@ -2,6 +2,7 @@ import { ApiClient, HttpError, type TokenSource } from './http-client.js';
 import type { RepositoryConfig } from './config.js';
 import { Sha, type Snapshot, type Target, type Check, type Candidate } from './contracts.js';
 import type { DiffPosition } from './review.js';
+import { GATE_CONTEXT, type GateStatus } from './answer-gate.js';
 
 export interface RemoteComment { id: string; body: string; author: string; url: string; discussionId?: string; parentId?: string; surface: 'issue' | 'review' | 'note' }
 export interface InlineInput { path: string; oldPath: string; line: number; side?: 'LEFT' | 'RIGHT'; coordinates?: DiffPosition; body: string; suggestion: Candidate['suggestion'] }
@@ -94,10 +95,10 @@ export class Platform {
         }
         const legacy = await this.api.request(`${this.root}/commits/${s.headSha}/status`);
         const seen = new Set<string>();
-        for (const c of legacy.statuses ?? []) if (!seen.has(c.context)) { seen.add(c.context); result.push({ name: `CI: ${c.context}`, status: c.state === 'success' ? 'passed' : c.state === 'pending' ? 'pending' : 'failed', detail: String(c.description ?? '').slice(0, 5500), url: c.target_url ?? null }); }
+        for (const c of legacy.statuses ?? []) if (c.context !== GATE_CONTEXT && !seen.has(c.context)) { seen.add(c.context); result.push({ name: `CI: ${c.context}`, status: c.state === 'success' ? 'passed' : c.state === 'pending' ? 'pending' : 'failed', detail: String(c.description ?? '').slice(0, 5500), url: c.target_url ?? null }); }
       } else {
         const pipelines = await this.api.pages(`${this.root}/merge_requests/${s.number}/pipelines`);
-        const latest = pipelines.find(p => p.sha === s.headSha);
+        const latest = pipelines.find(p => p.sha === s.headSha && p.source !== 'external');
         if (latest) {
           const jobs = await this.api.pages(`${this.root}/pipelines/${Number(latest.id)}/jobs?include_retried=false`);
           for (const job of jobs) {
@@ -113,6 +114,26 @@ export class Platform {
     } catch { result.push({ name: 'CI·정적 검사', status: 'unavailable', detail: '검사 결과 조회 실패. 권한 또는 API 상태를 확인하세요.', url: null }); }
     if (!result.length) result.push({ name: 'CI·정적 검사', status: 'not_run', detail: '이 커밋의 CI·정적 검사 결과 없음. 로컬 검사 미실행.', url: null });
     return result;
+  }
+  async gateStatus(s: Snapshot): Promise<{ state: string; description: string } | null> {
+    if (this.config.platform === 'github') {
+      const combined = await this.api.request(`${this.root}/commits/${s.headSha}/status`);
+      const status = (combined.statuses ?? []).find((c: any) => c.context === GATE_CONTEXT);
+      return status ? { state: String(status.state), description: String(status.description ?? '') } : null;
+    }
+    const statuses = await this.api.pages(`${this.root}/repository/commits/${s.headSha}/statuses?name=${encodeURIComponent(GATE_CONTEXT)}&all=true`);
+    const status = statuses.sort((a, b) => Number(b.id) - Number(a.id))[0];
+    return status ? { state: String(status.status), description: String(status.description ?? '') } : null;
+  }
+  async setGateStatus(s: Snapshot, gate: GateStatus): Promise<void> {
+    if (this.config.platform === 'github') {
+      await this.api.request(`${this.root}/statuses/${s.headSha}`, 'POST', { state: gate.state, context: GATE_CONTEXT, description: gate.description.slice(0, 140), target_url: s.webUrl }); return;
+    }
+    // Attach to the MR's own pipeline so the status does not create a separate pipeline that hides CI jobs.
+    const pipeline = (await this.api.pages(`${this.root}/merge_requests/${s.number}/pipelines`)).find(p => p.sha === s.headSha && p.source !== 'external');
+    try {
+      await this.api.request(`${this.root}/statuses/${s.headSha}`, 'POST', { state: gate.state, name: GATE_CONTEXT, description: gate.description.slice(0, 255), target_url: s.webUrl, ...(pipeline ? { pipeline_id: Number(pipeline.id) } : {}) });
+    } catch (e) { if (!(e instanceof HttpError && e.status === 400)) throw e; /* GitLab rejects repeating the same state; the requirement is unchanged. */ }
   }
   async linkedIssues(description: string): Promise<string[]> {
     const ids = [...new Set([...description.matchAll(/(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi)].map(m => m[1]!))].slice(0, 5);

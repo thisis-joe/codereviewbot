@@ -6,7 +6,7 @@ import type { Event } from './webhooks.js';
 import type { DiffMetadata } from './review.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
-export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[] }
+export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; answered?: string }
 export interface Job { id: string; target_key: string; kind: 'review' | 'ci' | 'command'; body: Event & { force?: boolean }; state: string; owner: string; attempts: number; result: Report | null; diff: Record<string, DiffMetadata> | null; max_inline: number; command_result?: CommandResult | null }
 export class Store {
   constructor(readonly pool: Pool) {}
@@ -70,6 +70,11 @@ export class Store {
   async questionHistory(t: Snapshot): Promise<ChangeQuestion[]> {
     const rows = await this.pool.query("SELECT DISTINCT entry.question FROM jobs j CROSS JOIN LATERAL jsonb_array_elements(j.result->'questions') AS entry(question) WHERE j.target_key=$1 AND j.kind<>'command' AND j.result->>'state' IN ('completed','partial') AND j.result->'snapshot'->>'headSha'=$2 AND j.result->'snapshot'->>'baseSha'=$3 AND j.result->'snapshot'->>'startSha'=$4", [targetKey(t), t.headSha, t.baseSha, t.startSha]);
     return rows.rows.map(row => row.question);
+  }
+  async answeredQuestions(t: Snapshot): Promise<Set<string>> {
+    // Only graded answers whose reply was published count toward the merge gate.
+    const rows = await this.pool.query("SELECT DISTINCT command_result->>'answered' AS id FROM jobs WHERE target_key=$1 AND kind='command' AND state='completed' AND command_result->>'answered' IS NOT NULL AND command_result->'snapshot'->>'headSha'=$2 AND command_result->'snapshot'->>'baseSha'=$3 AND command_result->'snapshot'->>'startSha'=$4", [targetKey(t), t.headSha, t.baseSha, t.startSha]);
+    return new Set(rows.rows.map(row => row.id));
   }
   async saveResult(id: string, owner: string, report: Report, diff: Record<string, DiffMetadata>, maxInline: number): Promise<void> {
     await this.transaction(async c => {

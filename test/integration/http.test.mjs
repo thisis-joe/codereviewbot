@@ -12,15 +12,16 @@ if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required'
 test('signed HTTP admission, database work, two-pass result and replay-safe publication work end to end', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
-  const comments = [], inline = [];
+  const comments = [], inline = [], statuses = [];
   const config = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', botLogin: 'bot', webhookSecretEnv: 'HOOK_SECRET', webhookAuth: 'hmac', tokenEnv: 'TOKEN', enabled: true };
   const platform = { config, target: n => ({ ...snapshot(), number: n }), snapshot: async () => snapshot(), checks: async () => [], linkedIssues: async () => [], permission: async () => 'write',
     comments: async () => comments, inlineComments: async () => inline, owned: c => c.author === 'bot',
     comment: async (n, body, id) => { const existing = comments.find(c => c.id === id); if (existing) existing.body = body; else comments.push({ id: '1', body, author: 'bot' }); },
     inline: async (s, value) => { inline.push({ id: '2', body: value.body, author: 'bot' }); },
+    gateStatus: async () => statuses.at(-1) ?? null, setGateStatus: async (s, gate) => { statuses.push(gate); },
   };
   const patch = '@@ -1,2 +1,2 @@\n function pay() {\n+charge();\n';
-  const workspaces = { prepare: async () => ({ policy: { version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5 }, guidelines: [], mode: 'full', context: { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/snapshots/source' } }), cleanup: async () => {} };
+  const workspaces = { prepare: async () => ({ policy: { version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5, requireAnswers: true }, guidelines: [], mode: 'full', context: { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/snapshots/source' } }), cleanup: async () => {} };
   const checks = ['정확성·신뢰성','보안','성능','호환성','테스트','팀 규칙·요구사항'].map(name => ({ name, status: 'clear', detail: '관련 코드 검토', url: null }));
   const model = { run: async phase => phase === 'review' ? analysis({ checks, findings: [finding({ line: 2, evidence: [{ path: 'src/pay.ts', line: 2, reason: '승인 호출' }] })] }) : { questions: changeQuestions(), decisions: [{ id: 'C-1', decision: 'confirmed', reason: '재시도 흐름 확인' }], resolutions: [] } };
   const controller = new Controller(store, [platform], workspaces, model, 0);
@@ -39,6 +40,9 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   assert.equal((await store.health()).queued,0);
   assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
   assert.match(comments[0].body, /### 4\. 변경 이해 질문/);
+  // The base-branch policy reaches the published merge gate.
+  assert.equal((await store.getTarget(snapshot())).report.requireAnswers, true);
+  assert.deepEqual(statuses.map(s => s.state), ['pending']); assert.match(statuses[0].description, /0\/3/);
   platform.openNumbers = async () => [1];
   // Ordinary CI refreshes keep questions without inference; failed full runs clear old questions.
   model.run = async () => { throw new Error('inference unavailable'); };

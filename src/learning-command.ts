@@ -45,7 +45,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
   }
   if (!response) {
     const state = await store.getTarget(target), report = state?.report;
-    let body = '', questions: ChangeQuestion[] | undefined;
+    let body = '', questions: ChangeQuestion[] | undefined, answered: string | undefined;
     const batches = (await store.learningBatches(snap)).filter(b => sameRevision(b.snapshot, snap));
     const current = report && hasChangeQuestions(report) && sameRevision(report.snapshot, snap) ? report.questions : [];
     const prior = [...new Map([...current, ...await store.questionHistory(snap), ...batches.flatMap(b => b.questions ?? [])].map(q => [questionId(snap, q), q])).values()];
@@ -87,7 +87,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
                 const ids = (chosen.options ?? []).map(o => o.id), actual = grade.optionExplanations.map(o => o.id);
                 if (ids.length !== actual.length || new Set(actual).size !== actual.length || ids.some(id => !actual.includes(id))) throw new Error('모든 보기의 해설이 필요합니다.');
                 if ((grade.verdict !== 'unverifiable' && !grade.evidence.length) || grade.evidence.some(e => !readable(e, context))) throw new Error('채점 코드 근거가 유효하지 않습니다.');
-                body = renderGrade(chosen, snap, grade, key);
+                body = renderGrade(chosen, snap, grade, key); answered = command.id;
                 if (payload.truncated) body += '\n\n입력 한도로 일부 정책 자료를 축약했습니다.';
               }
             }
@@ -98,7 +98,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
     if (!body) throw new Error('Unsupported learning command');
     await lease(); const latest = await platform.snapshot(target.number);
     if (!sameRevision(snap, latest)) throw new Error('Learning snapshot changed; retry against latest code');
-    response = { snapshot: snap, body: redact(body) + sourceLink(all, comment, snap), ...(questions ? { questions } : {}) };
+    response = { snapshot: snap, body: redact(body) + sourceLink(all, comment, snap), ...(questions ? { questions } : {}), ...(answered ? { answered } : {}) };
     if (response.body.length > 60000) throw new Error('Learning response exceeds comment budget');
     await store.saveCommandResult(job.id, job.owner, response);
   }

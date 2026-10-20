@@ -6,6 +6,7 @@ import { Store } from '../../dist/store.js';
 import { Controller } from '../../dist/controller.js';
 import { application } from '../../dist/application.js';
 import { report, snapshot } from '../fixtures.mjs';
+import { questionId } from '../../dist/learning.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
 test('signed learning webhooks generate, resume, grade and reconcile lost replies through real PostgreSQL', async t => {
@@ -55,4 +56,47 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   await submit('102', `/reviewbot answer ${id} A`); await tick();
   assert.equal(calls.length, 3); assert.match(replies[3].body, /최신 리뷰/);
   await submit('103', '더 알아보자', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
+});
+
+test('answering every published question, right or wrong, clears the merge gate', async t => {
+  const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const seeded = report({ requireAnswers: true });
+  await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha }, 0);
+  const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, seeded, {}, 0);
+  const config = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', botLogin: 'bot', webhookSecretEnv: 'HOOK_SECRET', webhookAuth: 'hmac', tokenEnv: 'TOKEN', enabled: true };
+  const comments = [], statuses = [];
+  const platform = { config, snapshot: async () => snapshot(), permission: async () => 'write', comments: async () => comments, inlineComments: async () => [], owned: c => c.author === 'bot',
+    comment: async (n, body, id) => { const existing = comments.find(c => c.id === id); if (existing) existing.body = body; else comments.push({ id: `bot-${comments.length}`, body, author: 'bot', surface: 'issue' }); },
+    reply: async (n, body) => { comments.push({ id: `bot-${comments.length}`, body, author: 'bot', surface: 'issue' }); },
+    gateStatus: async () => statuses.at(-1) ?? null, setGateStatus: async (s, gate) => { statuses.push(gate); } };
+  const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
+  const verdicts = ['incorrect', 'unverifiable', 'correct']; let graded = 0;
+  const model = { run: async () => ({ verdict: verdicts[graded++ % 3], explanation: '설명', expectedAnswer: '권장 답변', optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '외부 결제 승인' }] }) };
+  const controller = new Controller(store, [platform], workspaces, model, 0);
+  const server = application(controller, [config], { INTERNAL_TOKEN: 'internal-test-secret', HOOK_SECRET: 'hook-test-secret' });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const tick = async () => { assert.equal((await fetch(base + '/internal/tick', { method: 'POST', headers: { authorization: 'Bearer internal-test-secret' } })).status, 202); await controller.active; };
+  const submit = async (id, body) => {
+    const raw = JSON.stringify({ action: 'created', repository: { full_name: 'joe/demo' }, issue: { number: 1, pull_request: {} }, comment: { id, body, user: { login: 'joe', type: 'User' } } });
+    comments.push({ id, body, surface: 'issue', author: 'joe', url: '' });
+    const headers = { 'content-type': 'application/json', 'x-github-event': 'issue_comment', 'x-github-delivery': `d-${id}`, 'x-hub-signature-256': 'sha256=' + createHmac('sha256', 'hook-test-secret').update(raw).digest('hex') };
+    assert.equal((await fetch(base + '/webhooks/github', { method: 'POST', headers, body: raw })).status, 202);
+    await tick();
+  };
+  await tick();
+  assert.deepEqual(statuses.map(s => s.description), ['질문 답변 0/3 · /reviewbot answer Q-ID 내 답변']);
+  const ids = seeded.questions.map(q => questionId(seeded.snapshot, q));
+  await submit('200', `/reviewbot answer ${ids[0]} 모르겠습니다`);
+  await submit('201', `/reviewbot answer ${ids[0]} 다시 답합니다`);
+  await submit('202', `/reviewbot answer ${ids[1]} 키를 재사용합니다`);
+  assert.equal(statuses.at(-1).state, 'pending'); assert.match(statuses.at(-1).description, /2\/3/);
+  await submit('203', `/reviewbot answer ${ids[2]} 트랜잭션으로 묶습니다`);
+  assert.equal(statuses.at(-1).state, 'success');
+  assert.deepEqual(statuses.map(s => s.description.match(/\d\/3|모두/)[0]), ['0/3', '1/3', '2/3', '모두']);
+  // Periodic recovery re-syncs the gate but does not repost an unchanged status.
+  platform.openNumbers = async () => [1]; platform.target = number => ({ ...snapshot(), number }); platform.checks = async () => []; workspaces.cleanup = async () => {};
+  await controller.recover();
+  assert.equal(statuses.length, 4);
 });

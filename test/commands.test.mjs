@@ -39,6 +39,14 @@ test('grading a choice answer explains every option and stays in the originating
   assert.ok(h.data.saved.body.includes('외부 승인'));
 });
 
+test('only a published grade records the answered question for the merge gate', async () => {
+  const r = report(), id = questionId(r.snapshot, r.questions[0]);
+  const graded = learningHarness(`/reviewbot answer ${id} 같은 키를 씁니다.`, { report: r, output: { verdict: 'incorrect', explanation: '설명', expectedAnswer: '키 재사용', optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: 'charge 호출' }] } });
+  await graded.run(); assert.equal(graded.data.saved.answered, id);
+  const more = learningHarness('더 알아보자'); await more.run(); assert.equal(more.data.saved.answered, undefined);
+  const unknown = learningHarness('/reviewbot answer Q-ffffffffffff B'); await unknown.run(); assert.equal(unknown.data.saved.answered, undefined);
+});
+
 test('a plain reply to a single owned question is graded and unrelated comments are ignored', async () => {
   const r = report(), id = questionId(r.snapshot, r.questions[0]);
   const h = learningHarness('키를 다시 생성합니다.', { report: r, comment: { discussionId: 'discussion1' }, remote: [{ id: 'root1', author: 'bot', discussionId: 'discussion1', body: `<!-- codereviewbot:question:${id} -->` }], output: { verdict: 'incorrect', explanation: '재시도에는 같은 키가 필요합니다.', expectedAnswer: '키 재사용', optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: 'charge 호출' }] } });

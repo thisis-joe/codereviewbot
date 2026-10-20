@@ -7,6 +7,8 @@ const PolicySchema = z.strictObject({
   pathInstructions: z.array(z.strictObject({ path: z.string().min(1).max(300), instructions: z.string().min(1).max(4000) })).max(50).default([]),
   exclude: z.array(z.string().min(1).max(300)).max(100).default([]),
   maxInlineComments: z.int().min(0).max(20).default(5),
+  // Optional without a default so existing policy versions (and cached reviews) stay unchanged.
+  requireAnswers: z.boolean().optional(),
 });
 export type Policy = z.infer<typeof PolicySchema>;
 export function readPolicy(raw?: string): Policy { return PolicySchema.parse(raw ? parse(raw, { maxAliasCount: 0 }) : {}); }
