@@ -21,6 +21,7 @@ docker compose exec runner codex login status
 권장 방식은 전용 GitHub App이다.
 
 - Repository permissions: Contents read, Pull requests write, Issues read, Checks read, Commit statuses read, Metadata read.
+  `requireAnswers: true`를 쓰는 저장소가 있으면 Commit statuses를 **write**로 올린다.
 - 댓글 명령 사용자 권한 조회에 필요한 접근 권한도 테스트한다. App에서 조회가 불가능하면 해당 명령은 fail-closed로 동작한다.
 - Events: Pull request, Issue comment, Pull request review comment, Check run, Check suite, Workflow run.
 - Webhook URL: `https://codereviewbot.thisis-joe.com/webhooks/github`
@@ -48,6 +49,15 @@ node scripts/install-secret.mjs github-app.pem /absolute/path/to/downloaded-key.
 - 권장 인증: GitLab이 생성한 signing token을 `GITLAB_WEBHOOK_SECRET`에 저장하고 `webhookAuth: signing` 사용.
 - 구버전에서만 `webhookAuth: secret`을 명시하고 같은 secret을 양쪽에 설정한다. 잘못된 서명을 legacy 인증으로 자동 우회하지 않는다.
 - `enabled: true`로 변경한다.
+
+## 답변 완료 후 머지 (선택)
+
+`.codereviewbot.yaml`에 `requireAnswers: true`를 넣으면 봇이 head 커밋에 `codereviewbot/questions` 상태를 남긴다.
+봇은 상태만 남기며, 실제 차단은 저장소 설정에서 켠다.
+
+- GitHub: App 권한 Commit statuses를 write로 올린다. Branch protection 또는 Ruleset에서 `codereviewbot/questions`를 필수 상태 검사로 지정한다. 비공개 저장소의 branch protection은 유료 플랜이 필요할 수 있다.
+- GitLab: 봇 토큰이 Developer 이상이어야 commit status를 쓸 수 있다. Merge request 설정에서 "Pipelines must succeed"를 켠다. 상태는 MR 파이프라인에 붙이며, 파이프라인이 없으면 GitLab이 외부 파이프라인을 만든다. 실연동 검증 전이므로 첫 MR에서 동작을 확인한다.
+- 일시정지(`/reviewbot pause`) 중에는 새 커밋에 상태가 생기지 않아 머지가 막힌다. 급한 경우 관리자가 저장소의 보호 규칙 우회 권한을 사용한다.
 
 ## 4. Cloudflare Tunnel
 

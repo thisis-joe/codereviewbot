@@ -34,6 +34,7 @@ After each review it asks questions about the change; reply in a comment and it 
 | CI results | Reads GitHub Checks and commit statuses, and GitLab pipelines and failure logs. |
 | Change questions | Each review includes 3–10 questions about the change, with code links. |
 | Answer grading | Reply with a question ID to get a grade and explanation. Comment `더 알아보자` ("tell me more") for deeper questions. |
+| Merge after answering | Optional. Posts a commit status so a PR can be merged only after every question is answered. |
 | Repository rules | Team rules can be proposed; only rules approved by a maintainer are used in later reviews. |
 
 ## How it works
@@ -217,6 +218,23 @@ They cover how the technique works, design choices, failure recovery, concurrenc
 - 3–10 questions at a time, up to 5 requests per code version across the whole PR/MR
 - Question generation and grading each take at most 2 minutes
 
+### Merge only after every question is answered (optional)
+
+Add `requireAnswers: true` to `.codereviewbot.yaml` and the bot posts a `codereviewbot/questions` status on the PR's latest commit.
+When a repository admin makes that status a required check, the merge button stays blocked until every review question is answered.
+
+| Situation | Status |
+|---|---|
+| Some questions are unanswered | Pending · `질문 답변 1/3` (1 of 3 answered) |
+| Every question shown in the report is answered (correct, incorrect or undecided all count) | Success |
+| No questions could be made, e.g. only binary files changed | Success |
+| Review failed | Pending · request again with `/reviewbot full` |
+
+- An answer counts once its grading reply is posted. A wrong answer still counts, since it gets an explanation.
+- Deeper questions from `더 알아보자` are not required.
+- A new push starts over with the new review's questions.
+- See the [connection guide](docs/connections.md) (Korean) for setup.
+
 <details>
 <summary>Where replies go and how questions are kept</summary>
 
@@ -236,6 +254,7 @@ Put `.codereviewbot.yaml` on the target branch of the reviewed repository to adj
 ```yaml
 version: 1
 maxInlineComments: 5
+requireAnswers: false   # true: merge only after every question is answered
 exclude: ["generated/**"]
 pathInstructions:
   - path: "src/controllers/**"

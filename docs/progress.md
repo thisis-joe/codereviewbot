@@ -116,3 +116,11 @@
   the column stayed missing. Restored the idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`;
   the copy then gained the column, a repeated run was a no-op, and 63 unit plus 7 real
   PostgreSQL/HTTP integration tests passed. The original volume was mounted read-only.
+- Answer merge gate (user decision, 2026-10-20): opt-in `requireAnswers` policy posts a
+  `codereviewbot/questions` commit status (GitHub status API; GitLab commit status attached
+  to the MR pipeline). Pending until every question visible in the published report has a
+  published grade of any verdict; success when no question can exist; pending on failed
+  reviews. Synced after publication, after graded answers and on each recovery pass, only
+  when changed; gate errors never block publication. The bot's own status is excluded from
+  CI results. 70 unit and 9 real PostgreSQL/HTTP integration tests passed. Live GitHub
+  branch protection and GitLab "Pipelines must succeed" behaviour remain unverified.
