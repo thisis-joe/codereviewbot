@@ -20,8 +20,8 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   const platform = { config, snapshot: async () => ({ ...snap }), permission: async () => 'write', comments: async () => comments.filter(c => c.surface !== 'review'), inlineComments: async () => comments.filter(c => c.surface === 'review'), owned: c => c.author === 'bot',
     reply: async (number, body, parent, discussion) => { replies.push({ body, parent, discussion }); comments.push({ id: `bot-${replies.length}`, surface: parent ? 'review' : 'issue', parentId: parent ?? undefined, body, author: 'bot', url: '' }); if (loseReply) { loseReply = false; throw new Error('response lost after remote write'); } } };
   const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
-  const questions = ['pay에서 같은 멱등 키를 사용하는 이유는 무엇인가요?', 'charge가 성공한 뒤 저장이 실패하면 어떤 복구 전략을 적용하나요?', '동시 pay 요청에 대한 멱등 기록은 어떻게 원자적으로 저장하나요?'].map((question, i) => ({ question, path: 'src/pay.ts', line: 2, side: 'RIGHT', options: i ? [] : [{ id: 'A', text: '중복 요청 식별' }, { id: 'B', text: '호출마다 새 승인' }] }));
-  const model = { run: async (phase, prompt) => { calls.push({ phase, prompt }); return phase === 'questions' ? { questions } : { verdict: 'correct', explanation: '동일 요청을 식별한다는 답이 맞습니다.', expectedAnswer: '외부 승인 재시도에서 같은 키를 재사용해 중복 부작용을 방지합니다.', optionExplanations: [{ id: 'A', explanation: '같은 논리 요청을 식별합니다.' }, { id: 'B', explanation: '새 승인은 중복 결제를 만들 수 있습니다.' }], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '외부 결제 승인' }] }; } };
+  const questions = ['pay에서 같은 멱등 키를 사용하는 이유는 무엇인가요?', 'charge가 성공한 뒤 저장이 실패하면 어떤 복구 전략을 적용하나요?', '동시 pay 요청에 대한 멱등 기록은 어떻게 원자적으로 저장하나요?', 'pay 재시도 간격은 어떤 기준으로 정하나요?', 'charge 타임아웃 뒤 상태 조회는 왜 필요한가요?'].map((question, i) => ({ question, path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'advanced', options: (i ? ['보기 A', '보기 B', '보기 C', '보기 D'] : ['중복 요청 식별', '호출마다 새 승인', '승인 생략', '재시도 금지']).map((text, n) => ({ id: 'ABCD'[n], text })), key: { answer: 'A', explanation: '같은 키로 같은 요청을 식별합니다.', options: [...'ABCD'].map(id => ({ id, explanation: `${id} 해설` })) } }));
+  const model = { run: async (phase, prompt) => { calls.push({ phase, prompt }); return phase === 'questions' ? { questions } : { verdict: 'correct', explanation: '동일 요청을 식별한다는 답이 맞습니다.', expectedAnswer: '외부 승인 재시도에서 같은 키를 재사용해 중복 부작용을 방지합니다.', optionExplanations: [{ id: 'A', explanation: '같은 논리 요청을 식별합니다.' }, { id: 'B', explanation: '새 승인은 중복 결제를 만들 수 있습니다.' }, { id: 'C', explanation: '승인을 생략할 수 없습니다.' }, { id: 'D', explanation: '재시도 자체는 필요합니다.' }], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '외부 결제 승인' }] }; } };
   let controller = new Controller(store, [platform], workspaces, model);
   // The HTTP application and signature verification remain real; only provider/model boundaries are fixtures.
   let server;
@@ -34,28 +34,28 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
     assert.equal((await fetch(base + '/webhooks/github', { method: 'POST', headers, body: raw })).status, 202);
   };
   const tick = async () => { assert.equal((await fetch(base + '/internal/tick', { method: 'POST', headers: { authorization: 'Bearer internal-test-secret' } })).status, 202); await controller.active; };
-  await submit('100', '더 알아보자'); await submit('100', '더 알아보자'); await tick();
+  await submit('100', '/reviewbot morequestion'); await submit('100', '/reviewbot morequestion'); await tick();
   assert.equal(calls.length, 1); assert.equal(replies.length, 1);
   const saved = (await pool.query("SELECT * FROM jobs WHERE kind='command'")).rows;
-  assert.equal(saved.length, 1); assert.equal(saved[0].state, 'queued'); assert.equal(saved[0].command_result.questions.length, 3);
+  assert.equal(saved.length, 1); assert.equal(saved[0].state, 'queued'); assert.equal(saved[0].command_result.questions.length, 5);
   assert.ok(saved[0].command_result.body.includes('[요청 댓글](https://github.com/joe/demo/pull/1#issuecomment-100)'));
   await pool.query('UPDATE jobs SET due_at=now() WHERE id=$1', [saved[0].id]);
   await new Promise(resolve => server.close(resolve)); controller = new Controller(new Store(pool), [platform], workspaces, model); base = await start();
   await tick(); assert.equal(replies.length, 1); assert.equal(calls.length, 1); assert.equal((await store.getJob(saved[0].id)).state, 'completed');
   const id = replies[0].body.match(/codereviewbot:question:(Q-[a-f0-9]{12})/)[1];
-  await submit('101', `/reviewbot answer ${id} A`); await tick();
+  await submit('101', `/reviewbot answer ${id} A 같은 요청을 식별합니다`); await tick();
   assert.equal(calls[1].phase, 'grade'); assert.equal(replies.length, 2); assert.match(replies[1].body, /정답/);
-  assert.match(replies[1].body, /A\. 중복 요청 식별/); assert.match(replies[1].body, /B\. 호출마다 새 승인/);
+  assert.match(replies[1].body, /\*\*A\.\*\* 중복 요청 식별 \(내 답·정답\)/); assert.match(replies[1].body, /\*\*B\.\*\* 호출마다 새 승인/);
   assert.equal(replies[1].parent, null); assert.equal((await store.learningBatches(snapshot())).length, 1);
   // Same numeric ID in the other GitHub comment resource is a different command.
-  await submit('100', `/reviewbot answer ${id} A`, 'review-collision', false, 'review'); await tick();
+  await submit('100', `/reviewbot answer ${id} A 같은 요청을 식별합니다`, 'review-collision', false, 'review'); await tick();
   assert.equal(calls.length, 3); assert.equal(replies[2].parent, '50');
   assert.ok(replies[2].body.includes('codereviewbot:reply:review-100'));
   assert.ok(replies[2].body.includes('[요청 댓글](https://github.com/joe/demo/pull/1#discussion_r100)'));
   snap = snapshot({ headSha: 'c'.repeat(40) });
-  await submit('102', `/reviewbot answer ${id} A`); await tick();
+  await submit('102', `/reviewbot answer ${id} A 같은 요청을 식별합니다`); await tick();
   assert.equal(calls.length, 3); assert.match(replies[3].body, /최신 리뷰/);
-  await submit('103', '더 알아보자', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
+  await submit('103', '/reviewbot morequestion', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
 });
 
 test('answering every published question, right or wrong, clears the merge gate', async t => {
@@ -86,13 +86,13 @@ test('answering every published question, right or wrong, clears the merge gate'
     await tick();
   };
   await tick();
-  assert.deepEqual(statuses.map(s => s.description), ['질문 답변 0/3 · /reviewbot answer Q-ID 내 답변']);
+  assert.deepEqual(statuses.map(s => s.description), ['질문 답변 0/3 · /reviewbot answer Q번호 보기']);
   const ids = seeded.questions.map(q => questionId(seeded.snapshot, q));
-  await submit('200', `/reviewbot answer ${ids[0]} 모르겠습니다`);
-  await submit('201', `/reviewbot answer ${ids[0]} 다시 답합니다`);
-  await submit('202', `/reviewbot answer ${ids[1]} 키를 재사용합니다`);
+  await submit('200', `/reviewbot answer ${ids[0]} A`);
+  await submit('201', `/reviewbot answer ${ids[0]} B`);
+  await submit('202', `/reviewbot answer ${ids[1]} C`);
   assert.equal(statuses.at(-1).state, 'pending'); assert.match(statuses.at(-1).description, /2\/3/);
-  await submit('203', `/reviewbot answer ${ids[2]} 트랜잭션으로 묶습니다`);
+  await submit('203', `/reviewbot answer ${ids[2]} B`);
   assert.equal(statuses.at(-1).state, 'success');
   assert.deepEqual(statuses.map(s => s.description.match(/\d\/3|모두/)[0]), ['0/3', '1/3', '2/3', '모두']);
   // Periodic recovery re-syncs the gate but does not repost an unchanged status.

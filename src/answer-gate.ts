@@ -18,7 +18,7 @@ export function answerGate(report: Report, answered: Set<string>): GateStatus | 
   const done = required.filter(id => answered.has(id)).length;
   return done === required.length
     ? { state: 'success', description: `질문 ${required.length}개에 모두 답했습니다.` }
-    : { state: 'pending', description: `질문 답변 ${done}/${required.length} · /reviewbot answer Q-ID 내 답변` };
+    : { state: 'pending', description: `질문 답변 ${done}/${required.length} · /reviewbot answer Q번호 보기` };
 }
 export async function syncAnswerGate(platform: Platform, store: Store, report: Report): Promise<void> {
   const gate = answerGate(report, report.requireAnswers ? await store.answeredQuestions(report.snapshot) : new Set());

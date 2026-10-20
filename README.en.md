@@ -33,7 +33,7 @@ After each review it asks questions about the change; reply in a comment and it 
 | Fixed format | Reports always have the same four sections. The renderer, not the AI, decides the structure. |
 | CI results | Reads GitHub Checks and commit statuses, and GitLab pipelines and failure logs. |
 | Change questions | Each review includes 3–10 questions about the change, with code links. |
-| Answer grading | Reply with a question ID to get a grade and explanation. Comment `더 알아보자` ("tell me more") for deeper questions. |
+| Answer grading | Answer with a number and option, like `/reviewbot answer Q1 B`, to get a grade and explanation. `/reviewbot morequestion` adds five deeper questions. |
 | Merge after answering | Optional. Posts a commit status so a PR can be merged only after every question is answered. |
 | Repository rules | Team rules can be proposed; only rules approved by a maintainer are used in later reviews. |
 
@@ -53,7 +53,7 @@ flowchart LR
 2. n8n wakes the next job every 10 seconds and checks for missed changes and CI updates every minute.
 3. The controller prepares a code snapshot, and the selected model (Codex or Claude) runs the analysis and verification in an isolated runner.
 4. Right before publishing, the latest commit SHA is checked again. If a new push arrived, the result is dropped and the change is reviewed again.
-5. A single summary comment is updated in place, and finding IDs are kept across reviews.
+5. When a review starts, the summary comment first shows `리뷰 중` (in review) with an estimated duration (median of recent reviews), then is replaced by the result. The previous result stays collapsed meanwhile. Finding IDs are kept across reviews.
 
 | Service | Role |
 |---|---|
@@ -114,13 +114,14 @@ The top line shows the verdict, state, review mode and commit link. Four section
 | 1. 변경 요약 (Summary) | Purpose and key behavior of the change |
 | 2. 발견 사항 (Findings) | Table of ID, severity, status, description and location |
 | 3. 검증·주의사항 (Checks & caveats) | CI results, recommended checks, review limits |
-| 4. 변경 이해 질문 (Questions) | 3–10 questions about this change |
+| 4. 변경 이해 질문 (Questions) | 3–10 four-option questions (Q1, Q2 …) tagged basic/advanced, with grades once answered |
+| 명령어 (Commands) | Table of command, meaning, description and example |
 
 <details>
 <summary>Show a sample report</summary>
 
 ```markdown
-## CodeReviewBot 리뷰
+### CodeReviewBot 리뷰
 
 **수정 필요** · 완료 · 전체 · bbbbbbbb
 
@@ -130,25 +131,39 @@ The top line shows the verdict, state, review mode and commit link. Four section
 ### 2. 발견 사항
 | ID       | 심각도 | 상태      | 내용           | 위치          |
 |----------|--------|-----------|----------------|---------------|
-| CRB-0001 | P1     | 새로 발견 | 중복 결제 가능 | src/pay.ts:4  |
+| CRB-0001 | 높음   | 새로 발견 | 중복 결제 가능 | src/pay.ts:4  |
 
 ### 3. 검증·주의사항
 - 로컬 테스트: 미실행
 - CI: 확인된 실행 결과 없음
 
 ### 4. 변경 이해 질문
-1. Q-8b4a5a63851e 이번 pay 재시도 변경에서 중복 승인을 막으려면 어떤 조건을 유지해야 하나요?
-2. Q-58e45222f8cc charge 호출이 성공하고 주문 저장이 실패하면 재시도 결과는 어떻게 달라지나요?
-3. Q-adadb09d5f52 이 결제 흐름에서 멱등 키와 트랜잭션은 각각 어떤 실패를 다루나요?
 
-답변: /reviewbot answer Q-ID 내 답변 · 심화 질문: 더 알아보자
+보기 하나를 골라 `/reviewbot answer Q1 B`로 답하세요. 여러 개는 `/reviewbot answer Q1 B Q2 C` · 답변 1/3
+
+**Q1. [기본] 이번 pay 재시도 변경에서 중복 승인을 막으려면 어떤 조건을 유지해야 하나요?** — src/pay.ts:2 · ✅ 정답\
+&nbsp;&nbsp;&nbsp;&nbsp;**A.** 재시도마다 새 멱등 키를 만든다\
+&nbsp;&nbsp;&nbsp;&nbsp;**B.** 첫 요청의 멱등 키를 재시도에 그대로 전달한다\
+&nbsp;&nbsp;&nbsp;&nbsp;**C.** 승인 응답을 받기 전에 주문을 저장한다\
+&nbsp;&nbsp;&nbsp;&nbsp;**D.** 재시도 간격을 늘려 동시 요청을 피한다
+
+**Q2. [심화] charge 호출이 성공하고 주문 저장이 실패하면 재시도 결과는 어떻게 달라지나요?** — src/pay.ts:2\
+&nbsp;&nbsp;&nbsp;&nbsp;**A.** ...
+
+#### 명령어
+
+| 명령어 | 뜻 | 설명 | 사용 예시 |
+|---|---|---|---|
+| `/reviewbot answer` | 답변 | 질문 번호와 보기(A~D)로 답하면 채점·해설, 여러 개를 한 번에 답할 수 있음 | `/reviewbot answer Q1 B Q2 C` |
+| `/reviewbot morequestion` | 심화 질문 | 이미 나온 질문을 빼고 더 깊은 질문 5개 | `/reviewbot morequestion` |
+| ... | | | |
 ```
 
 </details>
 
 ### Inline comments
 
-Inline comments show severity, category and ID, then follow this order. A code suggestion is added only when there is one.
+Severity is shown as `치명` (critical), `높음` (high), `보통` (medium) or `낮음` (low). Inline comments show severity, category and ID, then follow this order. A code suggestion is added only when there is one.
 
 **Problem → Trigger condition → Impact → Evidence → Fix direction → Recommended check**
 
@@ -183,11 +198,11 @@ Control the bot with PR/MR comments. Requires Write (GitHub) or Developer (GitLa
 | `/reviewbot review` | Review the latest change |
 | `/reviewbot full` | Full re-review |
 | `/reviewbot pause` · `resume` | Pause · resume automatic reviews |
-| `/reviewbot explain CRB-0001` | Recheck and explain a finding |
-| `/reviewbot dismiss CRB-0001 reason` | Dismiss a finding in this PR/MR, with a reason |
+| `/reviewbot explain` | Recheck and explain findings: the one whose thread you reply in, or every open finding from a plain comment. Add an ID such as `CRB-0001` to pick one |
+| `/reviewbot dismiss reason` | Reply in a finding thread to dismiss it in this PR/MR with a reason. From a plain comment use `/reviewbot dismiss CRB-0001 reason` |
 | `@reviewbot question` or reply to a bot finding | Answer using code evidence |
-| `더 알아보자` · `/reviewbot questions` | Add 3–10 deeper questions |
-| `/reviewbot answer Q-ID your answer` or `Q-ID: your answer` | Grade and explain an answer |
+| `/reviewbot morequestion` | Add five deeper questions |
+| `/reviewbot answer Q1 B` · `/reviewbot answer Q1 B Q2 C` | Grade and explain answers by question number and option, several at once |
 | `/reviewbot learn rule` | Propose a repository rule |
 | `/reviewbot approve UUID` · `reject UUID` | Approve · reject a rule (maintainers) |
 
@@ -198,24 +213,31 @@ Ordinary conversation and dismissals never become rules automatically.
 
 ### Answering a question
 
-Reply using the `Q-...` ID shown before each question. For multiple choice, write the option letter such as `A`; otherwise write your explanation.
+Every question has four options. Answer with the question number (`Q1`) and an option letter (`A`–`D`), optionally followed by your reasoning.
+Review questions are numbered `Q1`, `Q2`…; questions from `/reviewbot morequestion` are numbered separately as `심화1`, `심화2`… so the two never collide. Follow-up numbers continue across requests within one code revision (심화1–5, then 심화6–10). Hash IDs like `Q-0123456789ab` from older comments still work.
 
 ```text
-/reviewbot answer Q-0123456789ab B
+/reviewbot answer Q1 B
+/reviewbot answer Q1 B Q2 C Q3 A
+/reviewbot answer 심화1 B 심화2 C
 ```
+
+- Each review question is also posted as an inline thread on its code line; replying with just `B` there is graded.
+- The answer key is fixed when the question is written and never shown in comments. A bare option letter is graded from the key without a model call; added reasoning is assessed by the model, but the key alone decides right or wrong.
+- After grading, the summary comment marks the question (`✅ 정답`, `🟡 부분 정답`, `❌ 오답`, `⏸ 판정 보류`) and updates `답변 n/m`.
 
 The bot replies in this order:
 
-**Correct · Partially correct · Incorrect · Undecided → Answer assessment → Explanation → Per-option notes (multiple choice) → Code evidence**
+**Correct · Partially correct · Incorrect · Undecided → Answer assessment → Explanation → Per-option notes → Code evidence**
 
 Design questions accept any reasonable alternative. If the code evidence is not enough, the bot withholds a verdict.
 
 ### Getting deeper questions
 
-Comment `더 알아보자` ("tell me more") to get deeper questions, excluding ones already asked.
+Comment `/reviewbot morequestion` to get five deeper questions, excluding ones already asked, in the same format as review questions.
 They cover how the technique works, design choices, failure recovery, concurrency, performance and test strategy.
 
-- 3–10 questions at a time, up to 5 requests per code version across the whole PR/MR
+- 5 questions at a time, up to 5 requests per code version across the whole PR/MR
 - Question generation and grading each take at most 2 minutes
 
 ### Merge only after every question is answered (optional)
@@ -231,7 +253,7 @@ When a repository admin makes that status a required check, the merge button sta
 | Review failed | Pending · request again with `/reviewbot full` |
 
 - An answer counts once its grading reply is posted. A wrong answer still counts, since it gets an explanation.
-- Deeper questions from `더 알아보자` are not required.
+- Deeper questions from `/reviewbot morequestion` are not required.
 - A new push starts over with the new review's questions.
 - See the [connection guide](docs/connections.md) (Korean) for setup.
 
