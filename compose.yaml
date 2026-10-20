@@ -4,10 +4,12 @@ services:
     image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     restart: unless-stopped
     environment:
+      TZ: ${TZ:-Asia/Seoul}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/setup.mjs}
       BOT_DB_PASSWORD: ${BOT_DB_PASSWORD:?Run setup}
       N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?Run setup}
-    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=40"]
+    # initdb pins timezone in postgresql.conf, so the TZ env alone does not move an existing cluster.
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=40", "-c", "timezone=${TZ:-Asia/Seoul}", "-c", "log_timezone=${TZ:-Asia/Seoul}"]
     volumes:
       - database:/var/lib/postgresql/data
       - ./ops/init-db.sh:/docker-entrypoint-initdb.d/10-reviewbot.sh:ro
@@ -28,6 +30,7 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     environment:
+      TZ: ${TZ:-Asia/Seoul}
       RUNNER_TOKEN: ${RUNNER_TOKEN:?Run setup}
       CODEX_HOME: /codex
       CODEX_MODEL: ${CODEX_MODEL:-}
@@ -55,6 +58,7 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     environment:
+      TZ: ${TZ:-Asia/Seoul}
       DATABASE_URL: postgres://reviewbot:${BOT_DB_PASSWORD}@postgres:5432/reviewbot
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:?Run setup}
       RUNNER_TOKEN: ${RUNNER_TOKEN:?Run setup}
@@ -98,8 +102,8 @@ services:
       DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD}
       DB_POSTGRESDB_POOL_SIZE: 5
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Run setup}
-      GENERIC_TIMEZONE: Asia/Seoul
-      TZ: Asia/Seoul
+      GENERIC_TIMEZONE: ${TZ:-Asia/Seoul}
+      TZ: ${TZ:-Asia/Seoul}
       N8N_HOST: localhost
       N8N_PORT: 5678
       N8N_PROTOCOL: http
@@ -126,6 +130,8 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     command: ["tunnel", "--config", "/etc/cloudflared/config.yml", "--no-autoupdate", "run"]
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
     volumes:
       - ./.local/cloudflared.yml:/etc/cloudflared/config.yml:ro
       - ./.local/secrets/tunnel.json:/run/secrets/tunnel.json:ro
