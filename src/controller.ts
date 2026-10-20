@@ -3,7 +3,7 @@ import { Store, type Job } from './store.js';
 import { Platform } from './platform.js';
 import { Workspaces } from './workspace.js';
 import { review, type Model } from './review.js';
-import { emptyReport, hasQuestionResult, AnswerSchema, type Snapshot, type Report, type Target } from './contracts.js';
+import { emptyReport, reviewed, AnswerSchema, type Snapshot, type Report, type Target } from './contracts.js';
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
 import { parseCommand, type Command } from './commands.js';
@@ -43,14 +43,14 @@ export class Controller {
       snap.title = redact(snap.title); snap.description = redact(snap.description);
       previous = (await this.store.getTarget(snap))?.report ?? null;
       const checks = (await platform.checks(snap)).map(c => ({ ...c, detail: redact(c.detail) }));
-      if (job.kind === 'ci' && previous && hasQuestionResult(previous) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha) {
+      if (job.kind === 'ci' && reviewed(previous) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha) {
         const updated: Report = { ...previous, checks: [...previous.checks.filter(c => !c.name.startsWith('CI:') && c.name !== 'CI·정적 검사'), ...checks] };
         await this.store.saveResult(job.id, job.owner, updated, {}, 0); return;
       }
       const learnings = await this.store.learnings(snap);
-      const prepared = await this.workspaces.prepare(platform, snap, job.id, job.body.force || previous?.state !== 'completed' || !hasQuestionResult(previous) ? null : previous.snapshot, learnings);
+      const prepared = await this.workspaces.prepare(platform, snap, job.id, job.body.force || previous?.state !== 'completed' ? null : previous.snapshot, learnings);
       await lease();
-      if (!job.body.force && previous && hasQuestionResult(previous) && ['completed', 'partial'].includes(previous.state) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha && previous.snapshot.policyVersion === snap.policyVersion) {
+      if (!job.body.force && reviewed(previous) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha && previous.snapshot.policyVersion === snap.policyVersion) {
         await this.store.saveResult(job.id, job.owner, { ...previous, checks: [...previous.checks.filter(c => !c.name.startsWith('CI:') && c.name !== 'CI·정적 검사'), ...checks] }, {}, 0); return;
       }
       const issues = (await platform.linkedIssues(snap.description)).map(redact);
@@ -79,11 +79,11 @@ export class Controller {
     const usage = async (answer: string) => { await lease(); await platform.snapshot(job.body.target.number); await platform.reply(job.body.target.number, renderAnswer({ answer, evidence: [], next: '/reviewbot answer Q-ID 내 답변 · 더 알아보자' }, key), comment.parentId, comment.discussionId); };
     if (!command && /^\/reviewbot\b/i.test(normalized.trim())) { await usage('명령을 확인하세요. 답변은 /reviewbot answer Q-ID 내 답변 형식으로 작성하세요.'); return; }
     if (!command && (comment.parentId || comment.discussionId)) {
-      const ids = new Set(all.filter(c => platform.owned(c) && (!comment.surface || c.surface === comment.surface) && (c.id === comment.parentId || (comment.parentId && c.parentId === comment.parentId) || (comment.discussionId && c.discussionId === comment.discussionId))).flatMap(c => [...c.body.matchAll(/<!-- codereviewbot:question:(Q-[a-f0-9]{12}) -->/g)].map(m => m[1]!)));
+      const ids = new Set(all.filter(c => platform.owned(c) && c.surface === comment.surface && (c.id === comment.parentId || (comment.parentId && c.parentId === comment.parentId) || (comment.discussionId && c.discussionId === comment.discussionId))).flatMap(c => [...c.body.matchAll(/<!-- codereviewbot:question:(Q-[a-f0-9]{12}) -->/g)].map(m => m[1]!)));
       if (ids.size === 1) command = { action: 'answer', id: [...ids][0]!, text: comment.body.slice(0, 8000) };
       else if (ids.size > 1) { await usage('이 스레드에는 여러 질문이 있습니다. 답할 질문 ID를 명시하세요.'); return; }
     }
-    if (!command && (comment.parentId || comment.discussionId) && all.some(c => platform.owned(c) && (!comment.surface || c.surface === comment.surface) && c.body.includes('codereviewbot:finding:') && (c.id === comment.parentId || (comment.discussionId && c.discussionId === comment.discussionId)))) command = { action: 'ask', text: comment.body };
+    if (!command && (comment.parentId || comment.discussionId) && all.some(c => platform.owned(c) && c.surface === comment.surface && c.body.includes('codereviewbot:finding:') && (c.id === comment.parentId || (comment.discussionId && c.discussionId === comment.discussionId)))) command = { action: 'ask', text: comment.body };
     if (!command) return;
     await lease();
     if (command.action === 'questions' || command.action === 'answer') {
@@ -141,7 +141,7 @@ export class Controller {
             const snap = await platform.snapshot(number); const state = await this.store.getTarget(snap);
             if (state?.paused) continue;
             const prior = state?.report?.snapshot;
-            if (!prior || !hasQuestionResult(state?.report) || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:questions-v2:${snap.headSha}:${snap.startSha}:${snap.baseSha}` }, this.debounceMs);
+            if (!prior || !reviewed(state?.report) || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:${snap.headSha}:${snap.startSha}:${snap.baseSha}` }, this.debounceMs);
             else {
               const checks = (await platform.checks(snap)).map(c => ({ ...c, detail: redact(c.detail) }));
               const digest = createHash('sha256').update(JSON.stringify(checks)).digest('hex');

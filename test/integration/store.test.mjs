@@ -34,7 +34,7 @@ test('a newer source push supersedes a running review and paused repositories re
   await assert.rejects(() => store.assertLease(first.id, first.owner));
   await store.setPaused(target, true);
   assert.equal(await store.claim(), null);
-  await store.enqueue({ kind: 'command', target, deliveryId: 'd4', comment: { id: '4', body: '/reviewbot resume', author: 'joe', parentId: null, discussionId: null } }, 0);
+  await store.enqueue({ kind: 'command', target, deliveryId: 'd4', comment: { id: '4', body: '/reviewbot resume', author: 'joe', parentId: null, discussionId: null, surface: 'issue' } }, 0);
   assert.equal((await store.claim()).kind, 'command');
 });
 
@@ -56,7 +56,7 @@ test('learning responses survive restart, remain target-scoped and reject expire
   const store = new Store(pool); await store.migrate(); await store.migrate();
   await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
   const target = snapshot();
-  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '더 알아보자', parentId: null, discussionId: null } }, 0);
+  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '더 알아보자', surface: 'issue', parentId: null, discussionId: null } }, 0);
   const job = await store.claim();
   const response = { snapshot: target, body: 'saved questions', questions: report().questions };
   assert.equal(typeof store.saveCommandResult, 'function', 'learning needs durable responses before external effects');

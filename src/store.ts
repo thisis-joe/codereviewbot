@@ -91,16 +91,14 @@ export class Store {
       const row = await c.query('SELECT report FROM targets WHERE key=$1 FOR UPDATE', [targetKey(t)]);
       const report = row.rows[0]?.report as Report | null; const finding = report?.findings.find(f => f.id === id);
       if (!report || !finding) return false;
-      finding.status = 'dismissed'; report.delta.dismissed = [...new Set([...report.delta.dismissed, id])];
-      for (const group of ['added', 'retained', 'fixed', 'unverified'] as const) report.delta[group] = report.delta[group].filter(value => value !== id);
+      finding.status = 'dismissed';
       await c.query('UPDATE targets SET report=$2,updated_at=now() WHERE key=$1', [targetKey(t), report]);
       // A command can run before a saved result is published. Keep that result in sync.
       const ready = await c.query("SELECT id,result FROM jobs WHERE target_key=$1 AND state='ready' FOR UPDATE", [targetKey(t)]);
       for (const row of ready.rows) {
         const pending = row.result as Report | null, item = pending?.findings.find(f => f.id === id);
         if (!pending || !item) continue;
-        item.status = 'dismissed'; pending.delta.dismissed = [...new Set([...pending.delta.dismissed, id])];
-        for (const group of ['added', 'retained', 'fixed', 'unverified'] as const) pending.delta[group] = pending.delta[group].filter(value => value !== id);
+        item.status = 'dismissed';
         await c.query('UPDATE jobs SET result=$2,updated_at=now() WHERE id=$1', [row.id, pending]);
       }
       return true;

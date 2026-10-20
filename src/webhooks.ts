@@ -2,9 +2,8 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { RepositoryConfig } from './config.js';
 import type { Target } from './contracts.js';
 
-export interface Comment { id: string; body: string; author: string; parentId: string | null; discussionId: string | null; surface?: 'issue' | 'review' | 'note' }
-// Older queued events retain their original marker; newly admitted events always carry a surface.
-export function commentKey(comment: Comment): string { return comment.surface ? `${comment.surface}-${comment.id}` : comment.id; }
+export interface Comment { id: string; body: string; author: string; parentId: string | null; discussionId: string | null; surface: 'issue' | 'review' | 'note' }
+export function commentKey(comment: Comment): string { return `${comment.surface}-${comment.id}`; }
 export interface Event { kind: 'review' | 'ci' | 'command' | 'closed'; target: Target; deliveryId: string; headSha?: string; comment?: Comment }
 export interface Authenticated { repo: RepositoryConfig; deliveryId: string; event: string; body: any }
 export function equal(a: string, b: string): boolean {

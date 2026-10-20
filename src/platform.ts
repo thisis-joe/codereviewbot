@@ -3,7 +3,7 @@ import type { RepositoryConfig } from './config.js';
 import { Sha, type Snapshot, type Target, type Check, type Candidate } from './contracts.js';
 import type { DiffPosition } from './review.js';
 
-export interface RemoteComment { id: string; body: string; author: string; url: string; discussionId?: string; parentId?: string; surface?: 'issue' | 'review' | 'note' }
+export interface RemoteComment { id: string; body: string; author: string; url: string; discussionId?: string; parentId?: string; surface: 'issue' | 'review' | 'note' }
 export interface InlineInput { path: string; oldPath: string; line: number; side?: 'LEFT' | 'RIGHT'; coordinates?: DiffPosition; body: string; suggestion: Candidate['suggestion'] }
 export class Platform {
   readonly api: ApiClient;
@@ -29,7 +29,7 @@ export class Platform {
     const web = new URL(webUrl), allowed = new URL(this.config.instance);
     const expectedHost = allowed.hostname === 'api.github.com' ? 'github.com' : allowed.hostname;
     if (web.protocol !== 'https:' || web.hostname !== expectedHost) throw new Error('Unexpected PR/MR web URL');
-    return { ...this.target(number), baseSha, headSha, startSha, previousSha: null, policyVersion: 'default', title: String(pr.title ?? '').slice(0, 500), description: String((gh ? pr.body : pr.description) ?? '').slice(0, 20000), webUrl };
+    return { ...this.target(number), baseSha, headSha, startSha, policyVersion: 'default', title: String(pr.title ?? '').slice(0, 500), description: String((gh ? pr.body : pr.description) ?? '').slice(0, 20000), webUrl };
   }
   async openNumbers(): Promise<number[]> {
     const gh = this.config.platform === 'github';

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   result jsonb,
   diff jsonb,
   max_inline integer NOT NULL DEFAULT 5,
+  command_result jsonb,
   error text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -29,7 +30,6 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_job ON jobs ((1)) WHERE state IN ('running','publishing');
 CREATE INDEX IF NOT EXISTS jobs_due ON jobs (due_at) WHERE state IN ('queued','ready');
 CREATE INDEX IF NOT EXISTS jobs_target ON jobs (target_key, created_at DESC);
-ALTER TABLE jobs ADD COLUMN IF NOT EXISTS command_result jsonb;
 CREATE TABLE IF NOT EXISTS feedback (
   id uuid PRIMARY KEY,
   target_key text NOT NULL REFERENCES targets(key),
@@ -40,5 +40,4 @@ CREATE TABLE IF NOT EXISTS feedback (
   source_key text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE feedback ADD COLUMN IF NOT EXISTS source_key text;
 CREATE UNIQUE INDEX IF NOT EXISTS feedback_source ON feedback(source_key);

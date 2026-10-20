@@ -15,8 +15,7 @@ one review at a time, 10 minute review budget. No automatic commits/approvals/me
    Remove duplicate change tables, empty diagrams/lists and long audit inventories from output.
    Generate 3–10 varied questions about the actual diff, independently check them, validate
    unique text and real diff/source anchors, and publish questions without answers.
-   Failed/in-progress/legacy reports show an explicit unavailable message, never fabricated
-   questions. Upgrade question-less legacy caches while retaining the same summary marker.
+   Failed reports show an explicit unavailable message, never fabricated questions.
    Pure renames may use readable source anchors. Changes without any usable text source
    return an explicit partial/unavailable result, preserve unresolved findings, and do not
    retry inference solely to invent three questions. Preserve skipped/neutral CI disclosures.

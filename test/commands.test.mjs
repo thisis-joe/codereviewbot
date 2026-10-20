@@ -8,11 +8,11 @@ const context = () => ({ sourceDir: '/source', files: { 'src/pay.ts': 'function 
 const extraQuestions = () => ['pay의 멱등 키가 만료되면 어떤 문제가 생기며 어떻게 설계해야 하나요?', 'charge의 외부 부작용을 DB 트랜잭션만으로 되돌릴 수 없는 이유는 무엇인가요?', 'pay의 동시 재시도에서 멱등 키를 원자적으로 확보하는 방법을 설명하세요.'].map(question => ({ question, path: 'src/pay.ts', line: 2, side: 'RIGHT', options: [] }));
 function learningHarness(body, overrides = {}) {
   const data = { snap: snapshot(), report: report(), batches: [], saved: null, calls: [], replies: [], remote: [], ...overrides };
-  const job = { id: '10000000-0000-4000-8000-000000000001', owner: 'owner', kind: 'command', body: { target: snapshot(), comment: { id: 'human1', author: 'joe', body, parentId: null, discussionId: null, ...overrides.comment } } };
+  const job = { id: '10000000-0000-4000-8000-000000000001', owner: 'owner', kind: 'command', body: { target: snapshot(), comment: { id: 'human1', author: 'joe', body, parentId: null, discussionId: null, surface: 'issue', ...overrides.comment } } };
   const store = { getTarget: async () => ({ report: data.report }), learnings: async () => data.learnings ?? [], learningBatches: async () => data.batches, questionHistory: async () => data.history ?? [],
     saveCommandResult: async (id, owner, value) => { data.saved = value; } };
   const platform = { config: { botLogin: 'bot' }, permission: async () => data.permission ?? 'write', owned: c => c.author === 'bot',
-    comments: async () => data.remote, inlineComments: async () => [], snapshot: async () => ({ ...data.snap }),
+    comments: async () => data.remote.map(c => ({ surface: job.body.comment.surface, ...c })), inlineComments: async () => [], snapshot: async () => ({ ...data.snap }),
     reply: async (...args) => { data.replies.push(args); if (data.replyError) throw new Error('network lost'); } };
   const model = { run: async (phase, prompt) => { data.calls.push({ phase, prompt }); data.onModel?.(); return data.output ?? { questions: extraQuestions() }; } };
   const controller = new Controller(store, [], { prepare: async () => ({ context: data.context ?? context(), policy: data.policy ?? {} }) }, model);
@@ -165,7 +165,7 @@ test('a push during contextual answer generation prevents publishing obsolete co
   const workspaces = { prepare: async () => ({ context: { sourceDir: '/source' }, policy: {} }) };
   const model = { run: async () => { snap = { ...snap, headSha: 'c'.repeat(40) }; return { answer: 'old code advice', evidence: [], next: 'check code' }; } };
   const controller = new Controller(store, [], workspaces, model);
-  const job = { id: 'job', body: { target: snapshot(), comment: { id: 'q1', author: 'joe', body: '@reviewbot explain behavior', parentId: null, discussionId: null } } };
+  const job = { id: 'job', body: { target: snapshot(), comment: { id: 'q1', author: 'joe', body: '@reviewbot explain behavior', parentId: null, discussionId: null, surface: 'issue' } } };
   await assert.rejects(() => controller.command(job, platform, async () => {}), /Answer snapshot changed/);
   assert.equal(replies, 0);
 });

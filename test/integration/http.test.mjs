@@ -38,20 +38,8 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   assert.match(comments[0].body,/수정 필요/); assert.match(inline[0].body,/CRB-0001/);
   assert.equal((await store.health()).queued,0);
   assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
-  // A same-SHA report from the old format must be regenerated, then update the same comment.
-  await pool.query("UPDATE targets SET report=report-'questions'");
-  await store.enqueue({ kind: 'ci', target: snapshot(), deliveryId: 'legacy-ci', headSha: snapshot().headSha }, 0);
-  await tick(); await tick();
-  assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
-  assert.equal(comments.length, 1); assert.match(comments[0].body, /### 4\. 변경 이해 질문/);
-  // Recovery must upgrade an old report even if there is no new push or CI event.
+  assert.match(comments[0].body, /### 4\. 변경 이해 질문/);
   platform.openNumbers = async () => [1];
-  await pool.query("UPDATE targets SET report=report-'questions'");
-  await controller.recover();
-  const pending = await pool.query("SELECT kind FROM jobs WHERE state='queued'");
-  assert.equal(pending.rows[0].kind, 'review');
-  await tick(); await tick();
-  assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
   // Ordinary CI refreshes keep questions without inference; failed full runs clear old questions.
   model.run = async () => { throw new Error('inference unavailable'); };
   await store.enqueue({ kind: 'ci', target: snapshot(), deliveryId: 'ci-only', headSha: snapshot().headSha }, 0);
