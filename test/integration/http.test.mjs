@@ -24,7 +24,7 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   const workspaces = { prepare: async () => ({ policy: { version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5, requireAnswers: true }, guidelines: [], mode: 'full', context: { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/snapshots/source' } }), cleanup: async () => {} };
   const checks = ['정확성·신뢰성','보안','성능','호환성','테스트','팀 규칙·요구사항'].map(name => ({ name, status: 'clear', detail: '관련 코드 검토', url: null }));
   const model = { run: async phase => phase === 'review' ? analysis({ checks, findings: [finding({ line: 2, evidence: [{ path: 'src/pay.ts', line: 2, reason: '승인 호출' }] })] }) : { questions: changeQuestions(), decisions: [{ id: 'C-1', decision: 'confirmed', reason: '재시도 흐름 확인' }], resolutions: [] } };
-  const controller = new Controller(store, [platform], workspaces, model, 0);
+  const controller = new Controller(store, [platform], workspaces, model);
   const server = application(controller, [config], { INTERNAL_TOKEN: 'internal-test-secret', HOOK_SECRET: 'hook-test-secret' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -46,12 +46,12 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   platform.openNumbers = async () => [1];
   // Ordinary CI refreshes keep questions without inference; failed full runs clear old questions.
   model.run = async () => { throw new Error('inference unavailable'); };
-  await store.enqueue({ kind: 'ci', target: snapshot(), deliveryId: 'ci-only', headSha: snapshot().headSha }, 0);
+  await store.enqueue({ kind: 'ci', target: snapshot(), deliveryId: 'ci-only', headSha: snapshot().headSha });
   await tick(); await tick();
   assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
   const prepare = workspaces.prepare;
   workspaces.prepare = async (...args) => { const prepared = await prepare(...args); return { ...prepared, context: { ...prepared.context, files: {}, diff: {} } }; };
-  await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'no-source', headSha: snapshot().headSha }, 0, true);
+  await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'no-source', headSha: snapshot().headSha }, true);
   await tick(); await tick();
   const unavailable = (await store.getTarget(snapshot())).report;
   assert.equal(unavailable.state, 'partial'); assert.deepEqual(unavailable.questions, []);
@@ -61,7 +61,7 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   await tick(); await tick();
   assert.equal((await store.getTarget(snapshot())).report.questionsUnavailableReason, unavailable.questionsUnavailableReason);
   workspaces.prepare = prepare;
-  const failed = await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'failed-full', headSha: snapshot().headSha }, 0, true);
+  const failed = await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'failed-full', headSha: snapshot().headSha }, true);
   await pool.query('UPDATE jobs SET attempts=2 WHERE id=$1', [failed]);
   await tick(); await tick();
   const failedReport = (await store.getTarget(snapshot())).report;

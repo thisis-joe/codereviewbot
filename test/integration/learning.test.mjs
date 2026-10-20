@@ -12,7 +12,7 @@ if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required'
 test('signed learning webhooks generate, resume, grade and reconcile lost replies through real PostgreSQL', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
-  await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha }, 0);
+  await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha });
   const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, report(), {}, 0);
   const publishing = await store.claim(); await store.complete(publishing.id, publishing.owner);
   const config = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', botLogin: 'bot', webhookSecretEnv: 'HOOK_SECRET', webhookAuth: 'hmac', tokenEnv: 'TOKEN', enabled: true };
@@ -22,7 +22,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
   const questions = ['pay에서 같은 멱등 키를 사용하는 이유는 무엇인가요?', 'charge가 성공한 뒤 저장이 실패하면 어떤 복구 전략을 적용하나요?', '동시 pay 요청에 대한 멱등 기록은 어떻게 원자적으로 저장하나요?'].map((question, i) => ({ question, path: 'src/pay.ts', line: 2, side: 'RIGHT', options: i ? [] : [{ id: 'A', text: '중복 요청 식별' }, { id: 'B', text: '호출마다 새 승인' }] }));
   const model = { run: async (phase, prompt) => { calls.push({ phase, prompt }); return phase === 'questions' ? { questions } : { verdict: 'correct', explanation: '동일 요청을 식별한다는 답이 맞습니다.', expectedAnswer: '외부 승인 재시도에서 같은 키를 재사용해 중복 부작용을 방지합니다.', optionExplanations: [{ id: 'A', explanation: '같은 논리 요청을 식별합니다.' }, { id: 'B', explanation: '새 승인은 중복 결제를 만들 수 있습니다.' }], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '외부 결제 승인' }] }; } };
-  let controller = new Controller(store, [platform], workspaces, model, 0);
+  let controller = new Controller(store, [platform], workspaces, model);
   // The HTTP application and signature verification remain real; only provider/model boundaries are fixtures.
   let server;
   const start = async () => { server = application(controller, [config], { INTERNAL_TOKEN: 'internal-test-secret', HOOK_SECRET: 'hook-test-secret' }); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); return `http://127.0.0.1:${server.address().port}`; };
@@ -40,7 +40,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   assert.equal(saved.length, 1); assert.equal(saved[0].state, 'queued'); assert.equal(saved[0].command_result.questions.length, 3);
   assert.ok(saved[0].command_result.body.includes('[요청 댓글](https://github.com/joe/demo/pull/1#issuecomment-100)'));
   await pool.query('UPDATE jobs SET due_at=now() WHERE id=$1', [saved[0].id]);
-  await new Promise(resolve => server.close(resolve)); controller = new Controller(new Store(pool), [platform], workspaces, model, 0); base = await start();
+  await new Promise(resolve => server.close(resolve)); controller = new Controller(new Store(pool), [platform], workspaces, model); base = await start();
   await tick(); assert.equal(replies.length, 1); assert.equal(calls.length, 1); assert.equal((await store.getJob(saved[0].id)).state, 'completed');
   const id = replies[0].body.match(/codereviewbot:question:(Q-[a-f0-9]{12})/)[1];
   await submit('101', `/reviewbot answer ${id} A`); await tick();
@@ -62,7 +62,7 @@ test('answering every published question, right or wrong, clears the merge gate'
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
   const seeded = report({ requireAnswers: true });
-  await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha }, 0);
+  await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha });
   const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, seeded, {}, 0);
   const config = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', botLogin: 'bot', webhookSecretEnv: 'HOOK_SECRET', webhookAuth: 'hmac', tokenEnv: 'TOKEN', enabled: true };
   const comments = [], statuses = [];
@@ -73,7 +73,7 @@ test('answering every published question, right or wrong, clears the merge gate'
   const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
   const verdicts = ['incorrect', 'unverifiable', 'correct']; let graded = 0;
   const model = { run: async () => ({ verdict: verdicts[graded++ % 3], explanation: '설명', expectedAnswer: '권장 답변', optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '외부 결제 승인' }] }) };
-  const controller = new Controller(store, [platform], workspaces, model, 0);
+  const controller = new Controller(store, [platform], workspaces, model);
   const server = application(controller, [config], { INTERNAL_TOKEN: 'internal-test-secret', HOOK_SECRET: 'hook-test-secret' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;

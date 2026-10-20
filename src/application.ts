@@ -25,7 +25,7 @@ export function application(controller: Controller, repositories: RepositoryConf
         try { events = normalize(authenticate(webhook[1] as 'github' | 'gitlab', req.headers, raw, repositories, env)); }
         catch { send(res, 401, { error: 'Invalid webhook' }); return; }
         let admitted = 0;
-        for (const event of events) if (await controller.store.enqueue(event, controller.debounceMs)) admitted++;
+        for (const event of events) if (await controller.store.enqueue(event)) admitted++;
         send(res, 202, { admitted });
         if (admitted && env.N8N_WAKE_URL && env.INTERNAL_TOKEN) void fetch(env.N8N_WAKE_URL, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(3000), headers: { authorization: `Bearer ${env.INTERNAL_TOKEN}` } }).then(r => r.body?.cancel()).catch(() => {});
         return;

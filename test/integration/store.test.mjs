@@ -6,13 +6,13 @@ import { snapshot, report } from '../fixtures.mjs';
 
 const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('Set TEST_DATABASE_URL to a disposable PostgreSQL database');
-test('durable queue handles duplicate deliveries, debounce, exclusive leases and restart fencing', async t => {
+test('durable queue handles duplicate deliveries, immediate dispatch, exclusive leases and restart fencing', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate();
   await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
   const target = snapshot(); const event = { kind: 'review', target, deliveryId: 'd1', headSha: target.headSha };
-  const id = await store.enqueue(event, 0); assert.ok(id);
-  assert.equal(await store.enqueue(event, 0), null);
+  const id = await store.enqueue(event); assert.ok(id);
+  assert.equal(await store.enqueue(event), null);
   const [one, two] = await Promise.all([store.claim(), store.claim()]);
   const claimed = one ?? two; assert.ok(claimed); assert.equal([one, two].filter(Boolean).length, 1);
   await store.saveResult(claimed.id, claimed.owner, report(), {}, 5);
@@ -28,22 +28,22 @@ test('durable queue handles duplicate deliveries, debounce, exclusive leases and
 test('a newer source push supersedes a running review and paused repositories retain commands', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end()); const store = new Store(pool); await store.migrate();
   await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
-  const target = snapshot(); await store.enqueue({ kind: 'review', target, deliveryId: 'd2', headSha: 'b'.repeat(40) }, 0);
+  const target = snapshot(); await store.enqueue({ kind: 'review', target, deliveryId: 'd2', headSha: 'b'.repeat(40) });
   const first = await store.claim();
-  await store.enqueue({ kind: 'review', target, deliveryId: 'd3', headSha: 'c'.repeat(40) }, 0);
+  await store.enqueue({ kind: 'review', target, deliveryId: 'd3', headSha: 'c'.repeat(40) });
   await assert.rejects(() => store.assertLease(first.id, first.owner));
   await store.setPaused(target, true);
   assert.equal(await store.claim(), null);
-  await store.enqueue({ kind: 'command', target, deliveryId: 'd4', comment: { id: '4', body: '/reviewbot resume', author: 'joe', parentId: null, discussionId: null, surface: 'issue' } }, 0);
+  await store.enqueue({ kind: 'command', target, deliveryId: 'd4', comment: { id: '4', body: '/reviewbot resume', author: 'joe', parentId: null, discussionId: null, surface: 'issue' } });
   assert.equal((await store.claim()).kind, 'command');
 });
 
 test('CI completion during review is retained for refresh and dismissal cannot resurrect a ready finding', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
-  const target = snapshot(); await store.enqueue({ kind: 'review', target, deliveryId: 'review', headSha: target.headSha }, 0);
+  const target = snapshot(); await store.enqueue({ kind: 'review', target, deliveryId: 'review', headSha: target.headSha });
   const reviewing = await store.claim();
-  await store.enqueue({ kind: 'ci', target, deliveryId: 'ci-finished', headSha: target.headSha }, 0);
+  await store.enqueue({ kind: 'ci', target, deliveryId: 'ci-finished', headSha: target.headSha });
   await store.saveResult(reviewing.id, reviewing.owner, report({ findings: [{ ...(await import('../fixtures.mjs')).finding(), id: 'CRB-0001', status: 'new' }] }), {}, 5);
   assert.equal(await store.dismiss(target, 'CRB-0001'), true);
   const ready = await store.claim(); assert.equal(ready.state, 'publishing'); assert.equal(ready.result.findings[0].status, 'dismissed');
@@ -56,7 +56,7 @@ test('learning responses survive restart, remain target-scoped and reject expire
   const store = new Store(pool); await store.migrate(); await store.migrate();
   await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
   const target = snapshot();
-  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '더 알아보자', surface: 'issue', parentId: null, discussionId: null } }, 0);
+  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '더 알아보자', surface: 'issue', parentId: null, discussionId: null } });
   const job = await store.claim();
   const response = { snapshot: target, body: 'saved questions', questions: report().questions };
   assert.equal(typeof store.saveCommandResult, 'function', 'learning needs durable responses before external effects');
@@ -79,7 +79,7 @@ test('question history preserves earlier same-revision report questions without 
   await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
   for (let i = 0; i < 3; i++) {
     const snap = snapshot(i === 2 ? { headSha: 'c'.repeat(40) } : {});
-    await store.enqueue({ kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `history-${i}` }, 0, true);
+    await store.enqueue({ kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `history-${i}` }, true);
     const running = await store.claim();
     await store.saveResult(running.id, running.owner, report({ snapshot: snap, questions: report().questions.map(q => ({ ...q, question: `${i}: ${q.question}` })) }), {}, 0);
     const publishing = await store.claim(); await store.complete(publishing.id, publishing.owner);
@@ -95,7 +95,7 @@ test('only completed graded answers on the same revision and target count toward
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end()); const store = new Store(pool); await store.migrate();
   await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
   const answer = async (target, deliveryId, answered, complete = true) => {
-    const id = await store.enqueue({ kind: 'command', target, deliveryId, comment: { id: deliveryId, author: 'joe', body: 'answer', surface: 'issue', parentId: null, discussionId: null } }, 0);
+    const id = await store.enqueue({ kind: 'command', target, deliveryId, comment: { id: deliveryId, author: 'joe', body: 'answer', surface: 'issue', parentId: null, discussionId: null } });
     const job = await store.claim(); assert.equal(job.id, id);
     await store.saveCommandResult(id, job.owner, { snapshot: target, body: 'graded', ...(answered ? { answered } : {}) });
     if (complete) await store.complete(id, job.owner); else await store.fail(job, 'reply lost');

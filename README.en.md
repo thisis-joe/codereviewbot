@@ -28,7 +28,7 @@ After each review it asks questions about the change; reply in a comment and it 
 
 | Feature | Description |
 |---|---|
-| Automatic review | Batches pushes for 30 seconds, then reviews. The first run covers the whole change; later runs cover changed files and related code. |
+| Automatic review | Reviews each push right away. If a new push arrives before the previous review finishes, it reviews the latest commit instead. The first run covers the whole change; later runs cover changed files and related code. |
 | Second-pass verification | Every finding is verified again and checked against the real diff and code location before it is posted. |
 | Fixed format | Reports always have the same four sections. The renderer, not the AI, decides the structure. |
 | CI results | Reads GitHub Checks and commit statuses, and GitLab pipelines and failure logs. |
