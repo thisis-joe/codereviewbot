@@ -18,7 +18,7 @@ export class Controller {
   active: Promise<void> | null = null;
   reconciling = false;
   stopping = false;
-  constructor(readonly store: Store, readonly platforms: Platform[], readonly workspaces: Workspaces, readonly model: Model, readonly debounceMs = 30000) {}
+  constructor(readonly store: Store, readonly platforms: Platform[], readonly workspaces: Workspaces, readonly model: Model) {}
   platform(t: Target): Platform {
     const platform = this.platforms.find(p => p.config.platform === t.platform && p.config.instance === t.instance && p.config.repository === t.repository);
     if (!platform) throw new Error('Repository no longer allowed'); return platform;
@@ -145,7 +145,7 @@ export class Controller {
   }
   private async enqueueFromCommand(job: Job, platform: Platform, force: boolean): Promise<void> {
     const snap = await platform.snapshot(job.body.target.number);
-    await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: snap.headSha, deliveryId: `${job.id}:review` }, 0, force);
+    await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: snap.headSha, deliveryId: `${job.id}:review` }, force);
   }
   async recover(): Promise<void> {
     if (this.reconciling || this.stopping) return; this.reconciling = true;
@@ -157,11 +157,11 @@ export class Controller {
             if (state?.report && sameRevision(state.report.snapshot, snap)) await this.syncGate(platform, state.report);
             if (state?.paused) continue;
             const prior = state?.report?.snapshot;
-            if (!prior || !reviewed(state?.report) || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:${snap.headSha}:${snap.startSha}:${snap.baseSha}` }, this.debounceMs);
+            if (!prior || !reviewed(state?.report) || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:${snap.headSha}:${snap.startSha}:${snap.baseSha}` });
             else {
               const checks = (await platform.checks(snap)).map(c => ({ ...c, detail: redact(c.detail) }));
               const digest = createHash('sha256').update(JSON.stringify(checks)).digest('hex');
-              await this.store.enqueue({ kind: 'ci', target: platform.target(number), headSha: snap.headSha, deliveryId: `checks:${snap.headSha}:${digest}` }, 0);
+              await this.store.enqueue({ kind: 'ci', target: platform.target(number), headSha: snap.headSha, deliveryId: `checks:${snap.headSha}:${digest}` });
             }
           }
         } catch { console.error(JSON.stringify({ repository: platform.config.repository, error: 'recovery_fetch_failed' })); }

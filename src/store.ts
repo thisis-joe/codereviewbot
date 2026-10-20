@@ -18,7 +18,7 @@ export class Store {
     const c = await this.pool.connect(); try { await c.query('BEGIN'); const result = await fn(c); await c.query('COMMIT'); return result; }
     catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
   }
-  async enqueue(event: Event, debounceMs = 30000, force = false): Promise<string | null> {
+  async enqueue(event: Event, force = false): Promise<string | null> {
     const key = targetKey(event.target);
     return this.transaction(async c => {
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [key]);
@@ -29,14 +29,14 @@ export class Store {
       if (event.kind === 'review') {
         await c.query("UPDATE jobs SET state='superseded',owner=NULL,lease_until=NULL,updated_at=now() WHERE target_key=$1 AND kind<>'command' AND state IN ('running','ready','publishing') AND ($2::boolean OR coalesce(body->>'headSha','')<>$3)", [key, force, event.headSha ?? '']);
         const queued = await c.query("SELECT id FROM jobs WHERE target_key=$1 AND kind='review' AND state='queued' FOR UPDATE", [key]);
-        if (queued.rows[0]) { const id = queued.rows[0].id; await c.query("UPDATE jobs SET body=$2,due_at=now()+$3::double precision*interval '1 millisecond',updated_at=now() WHERE id=$1", [id, { ...event, force }, debounceMs]); return id; }
+        if (queued.rows[0]) { const id = queued.rows[0].id; await c.query('UPDATE jobs SET body=$2,updated_at=now() WHERE id=$1', [id, { ...event, force }]); return id; }
       }
       if (event.kind === 'ci') {
         const queued = await c.query("SELECT id FROM jobs WHERE target_key=$1 AND kind='ci' AND state='queued' FOR UPDATE", [key]);
         if (queued.rowCount) { await c.query('UPDATE jobs SET body=$2,updated_at=now() WHERE id=$1', [queued.rows[0].id, event]); return queued.rows[0].id; }
       }
       const id = randomUUID();
-      await c.query("INSERT INTO jobs(id,target_key,kind,body,state,due_at) VALUES($1,$2,$3,$4,'queued',now()+$5::double precision*interval '1 millisecond')", [id, key, event.kind, { ...event, force }, event.kind === 'review' ? debounceMs : 0]);
+      await c.query("INSERT INTO jobs(id,target_key,kind,body,state,due_at) VALUES($1,$2,$3,$4,'queued',now())", [id, key, event.kind, { ...event, force }]);
       return id;
     });
   }

@@ -1,11 +1,16 @@
 import { createServer } from 'node:http';
 import { z } from 'zod';
 import { Codex } from './codex.js';
+import { ClaudeCode } from './claude.js';
 import { readBody, send } from './application.js';
 import { equal } from './webhooks.js';
 
 if ((process.env.RUNNER_TOKEN?.length ?? 0) < 32) throw new Error('RUNNER_TOKEN must contain at least 32 characters');
-const model = new Codex(process.env.DATA_ROOT ?? '/data', process.env.CODEX_HOME ?? '/codex', process.env.CODEX_BINARY ?? 'codex', process.env.CODEX_MODEL ?? '');
+const provider = process.env.MODEL_PROVIDER || 'codex', data = process.env.DATA_ROOT ?? '/data';
+if (provider !== 'codex' && provider !== 'claude') throw new Error('MODEL_PROVIDER must be codex or claude');
+const model = provider === 'claude'
+  ? new ClaudeCode(data, process.env.CLAUDE_CONFIG_DIR ?? '/claude', process.env.CLAUDE_BINARY ?? 'claude', process.env.CLAUDE_MODEL ?? '')
+  : new Codex(data, process.env.CODEX_HOME ?? '/codex', process.env.CODEX_BINARY ?? 'codex', process.env.CODEX_MODEL ?? '', process.env.CODEX_BASE_URL ?? '');
 const Input = z.strictObject({ phase: z.enum(['review','verify','answer','questions','grade']), prompt: z.string().min(1).max(500000), workspaceId: z.string().uuid(), timeoutMs: z.int().min(1).max(600000) });
 let busy = false;
 const server = createServer(async (req, res) => {
@@ -16,8 +21,13 @@ const server = createServer(async (req, res) => {
   // Set before awaiting request data: concurrent callers cannot both acquire the runner.
   busy = true;
   try { const input = Input.parse(JSON.parse((await readBody(req, 2 * 1024 * 1024)).toString('utf8'))); send(res, 200, await model.run(input.phase, input.prompt, input.workspaceId, input.timeoutMs)); }
-  catch { send(res, 422, { error: 'Codex execution or structured output validation failed' }); }
+  catch (error) {
+    // Messages are our own; parser errors are classified because theirs can quote model output.
+    const reason = error instanceof z.ZodError ? 'structured output did not match the schema' : error instanceof SyntaxError ? 'invalid JSON output' : error instanceof Error ? error.message : 'unknown';
+    console.error(JSON.stringify({ service: 'runner', provider, error: reason.slice(0, 200) }));
+    send(res, 422, { error: `${provider} execution or structured output validation failed` });
+  }
   finally { busy = false; }
 });
 server.requestTimeout = 30000; server.headersTimeout = 10000;
-server.listen(Number(process.env.PORT ?? 8091), '0.0.0.0', () => console.log('{"service":"runner","ready":true}'));
+server.listen(Number(process.env.PORT ?? 8091), '0.0.0.0', () => console.log(JSON.stringify({ service: 'runner', ready: true, provider })));

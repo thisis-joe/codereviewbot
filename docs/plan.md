@@ -4,7 +4,7 @@ Accepted: 2026-10-19. Base: `9cc45cf1c7777c6e4f3a391dbfa8b58eeb3cd7ca`.
 
 Implement the accepted conversation plan: GitHub PR/GitLab MR review on this Mac mini,
 Colima/Compose, Cloudflare Tunnel at codereviewbot.thisis-joe.com, n8n orchestration,
-PostgreSQL durable work, isolated Codex CLI. Debounce 30s, latest snapshot only,
+PostgreSQL durable work, isolated Codex CLI. Each push is queued without delay, latest snapshot only,
 one review at a time, 10 minute review budget. No automatic commits/approvals/merges.
 
 ## Required behavior
@@ -19,7 +19,7 @@ one review at a time, 10 minute review budget. No automatic commits/approvals/me
    Pure renames may use readable source anchors. Changes without any usable text source
    return an explicit partial/unavailable result, preserve unresolved findings, and do not
    retry inference solely to invent three questions. Preserve skipped/neutral CI disclosures.
-2. Signed webhook admission and repository allowlist, durable inbox, debounce and
+2. Signed webhook admission and repository allowlist, durable inbox, immediate dispatch and
    leased work; normalize PR/MR and comment/CI events. Confirm live head before writes.
 3. Exact-snapshot code and context collection, base-branch policy, two-pass Codex
    review, validated lines/evidence, single-location suggestions, CI evidence and
