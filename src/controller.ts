@@ -7,7 +7,7 @@ import { emptyReport, reviewed, withoutKeys, AnswerSchema, type Snapshot, type R
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
 import { parseCommand, type Command } from './commands.js';
-import { renderAnswer, renderReport, renderProgress, SUMMARY_MARKER } from './render.js';
+import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, SUMMARY_MARKER } from './render.js';
 import { redact } from './redact.js';
 import { handleLearning } from './learning-command.js';
 import { commentKey } from './webhooks.js';
@@ -89,12 +89,13 @@ export class Controller {
     const all = [...await platform.comments(job.body.target.number), ...await platform.inlineComments(job.body.target.number)];
     const key = commentKey(comment), marker = `<!-- codereviewbot:reply:${key.replace(/[^\w-]/g, '')} -->`;
     if (all.some(c => platform.owned(c) && c.body.includes(marker))) return;
-    const usage = async (answer: string) => { await lease(); await platform.snapshot(job.body.target.number); await platform.reply(job.body.target.number, renderAnswer({ answer, evidence: [], next: '/reviewbot answer Q번호 보기 (예: /reviewbot answer Q1 B) · /reviewbot morequestion' }, key), comment.parentId, comment.discussionId); };
-    if (!command && /^\/reviewbot\b/i.test(normalized.trim())) { await usage('명령을 확인하세요. 답변은 /reviewbot answer Q번호 보기 형식으로 작성하세요. 예: /reviewbot answer Q1 B'); return; }
+    const usage = async (answer: string) => { await lease(); await platform.reply(job.body.target.number, [marker, plain(answer), '', COMMAND_HELP_HINT].join('\n'), comment.parentId, comment.discussionId); };
+    if (command?.action === 'help') { await lease(); await platform.reply(job.body.target.number, renderCommandHelp(key), comment.parentId, comment.discussionId); return; }
+    if (!command && /^\/reviewbot\b/i.test(normalized.trim())) { await usage('명령을 확인하세요.'); return; }
     if (!command && (comment.parentId || comment.discussionId)) {
       const ids = new Set(all.filter(c => platform.owned(c) && c.surface === comment.surface && (c.id === comment.parentId || (comment.parentId && c.parentId === comment.parentId) || (comment.discussionId && c.discussionId === comment.discussionId))).flatMap(c => [...c.body.matchAll(/<!-- codereviewbot:question:(Q-[a-f0-9]{12}) -->/g)].map(m => m[1]!)));
       if (ids.size === 1) command = { action: 'answer', id: [...ids][0]!, text: comment.body.slice(0, 8000) };
-      else if (ids.size > 1) { await usage('이 스레드에는 여러 질문이 있습니다. 답할 질문 번호를 명시하세요. 예: /reviewbot answer Q1 B'); return; }
+      else if (ids.size > 1) { await usage('이 스레드에는 여러 질문이 있습니다. 답할 질문 번호를 명시하세요.'); return; }
     }
     if (!command && (comment.parentId || comment.discussionId) && all.some(c => platform.owned(c) && c.surface === comment.surface && c.body.includes('codereviewbot:finding:') && (c.id === comment.parentId || (comment.discussionId && c.discussionId === comment.discussionId)))) command = { action: 'ask', text: comment.body };
     if (!command) return;

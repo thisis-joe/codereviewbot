@@ -124,3 +124,15 @@
   when changed; gate errors never block publication. The bot's own status is excluded from
   CI results. 70 unit and 9 real PostgreSQL/HTTP integration tests passed. Live GitHub
   branch protection and GitLab "Pipelines must succeed" behaviour remain unverified.
+- H1 (2026-10-21): `codex/command-help` from clean 2db8478 in the isolated
+  `/Users/Joseph/.codex/worktrees/question-bot/codereviewbot` checkout; the original
+  checkout's uncommitted changes were left untouched. Work-unit commit subject:
+  `feat(commands): show full command reference only on help`.
+  RED reproduced absent help parsing and verbose malformed-command replies; added a
+  deterministic 13-command, four-column help response with marker reconciliation and
+  no report/snapshot/workspace/model access. Reports, follow-up questions, grades and
+  invalid answers now point to help without repeated command tables or examples.
+  `npm test` passed 87 unit tests and `git diff --check` passed. Both signed GitHub/GitLab
+  HTTP/PostgreSQL paused/no-report/reply-loss tests passed on the disposable database.
+  The logged first-attempt failures are injected remote response loss. Independent review is
+  delegated to the parent task before integration; no remote push or PR was created.

@@ -1,4 +1,4 @@
-export type Command = { action: 'review' | 'full' | 'pause' | 'resume' | 'questions' } | { action: 'approve' | 'reject'; id: string } | { action: 'explain'; id: string | null } | { action: 'dismiss'; id: string | null; text: string } | { action: 'answer'; id: string; text: string; more?: Answer[] } | { action: 'learn' | 'ask'; text: string };
+export type Command = { action: 'review' | 'full' | 'pause' | 'resume' | 'questions' | 'help' } | { action: 'approve' | 'reject'; id: string } | { action: 'explain'; id: string | null } | { action: 'dismiss'; id: string | null; text: string } | { action: 'answer'; id: string; text: string; more?: Answer[] } | { action: 'learn' | 'ask'; text: string };
 export interface Answer { id: string; text: string }
 // Each answer starts with a question reference (Q2 for review questions, 심화2 for follow-ups);
 // a reference inside reasoning only splits when a space, an option letter or the end follows.
@@ -17,7 +17,7 @@ export function parseCommand(body: string): Command | null {
   const match = text.match(/^\/reviewbot\s+(\w+)(?:\s+([\s\S]+))?$/i);
   if (!match) { const question = text.match(/^@reviewbot\s+([\s\S]+)$/i); return question ? { action: 'ask', text: question[1]!.slice(0, 4000) } : null; }
   const action = match[1]!.toLowerCase(), args = (match[2] ?? '').trim();
-  if (['review', 'full', 'pause', 'resume'].includes(action) && !args) return { action } as Command;
+  if (['review', 'full', 'pause', 'resume', 'help'].includes(action) && !args) return { action } as Command;
   if (action === 'morequestion' && !args) return { action: 'questions' };
   if (action === 'answer') {
     // Comments show revision-wide numbers (Q3), while Q-hex IDs from older comments keep working.

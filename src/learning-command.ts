@@ -1,7 +1,7 @@
 import { GradeSchema, QuestionBatchSchema, hasChangeQuestions, type ChangeQuestion, type Grade, type Snapshot } from './contracts.js';
 import { questionId, sameRevision } from './learning.js';
 import { hasQuestionSource, validateQuestions, type Model, type ReviewContext } from './review.js';
-import { renderGrades, renderQuestionBatch, replyMarker, type GradeItem } from './render.js';
+import { renderGrades, renderQuestionBatch, replyMarker, COMMAND_HELP_HINT, type GradeItem } from './render.js';
 import { redact } from './redact.js';
 import type { Command } from './commands.js';
 import type { Store, Job, CommandResult } from './store.js';
@@ -105,7 +105,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
     const prior = [...new Map([...current, ...await store.questionHistory(snap), ...batches.flatMap(b => b.questions ?? [])].map(q => [questionId(snap, q), q])).values()];
     const learnings = () => store.learnings(target);
     if (!prior.length) {
-      body = notice('현재 코드 기준의 학습 질문이 준비되지 않았습니다. 최신 리뷰가 완료된 후 질문 번호로 답하거나 /reviewbot full을 요청하세요.');
+      body = notice(['현재 코드 기준의 학습 질문이 준비되지 않았습니다. 최신 질문 생성이 완료된 후 질문 번호로 답하세요.', '', COMMAND_HELP_HINT].join('\n'));
     } else if (command.action === 'questions' && batches.length >= MAX_BATCHES) {
       body = notice('이 코드 버전의 심화 질문은 5회까지 생성할 수 있습니다. 이미 나온 질문에 답하거나 관련 코드를 더 탐색해 보세요.');
     } else if (command.action === 'answer') {
@@ -119,7 +119,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
         if ((q.options ?? []).length && !choice) { problems.push(`${label}: 보기 ${q.options.map(o => o.id).join('·')} 중 하나로 답하세요.`); continue; }
         picks.push({ q, label, text: a.text, picked: choice });
       }
-      if (problems.length) body = notice([...problems.map(p => `- ${p}`), '', '예: `/reviewbot answer Q1 B` · 여러 개: `/reviewbot answer Q1 B Q2 C`'].join('\n'));
+      if (problems.length) body = notice([...problems.map(p => `- ${p}`), '', COMMAND_HELP_HINT].join('\n'));
       else {
         const graded = await gradeAll(picks, snap, job, platform, workspaces, model, learnings, lease);
         if (typeof graded === 'string') body = notice(graded);

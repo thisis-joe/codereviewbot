@@ -31,27 +31,27 @@ function clip(value: string, length: number): string { return value.length > len
 function lines(values: string[]): string[] { return values.map((v, i) => i < values.length - 1 ? v + '\\' : v); }
 // Four literal spaces would start a Markdown code block, so options are indented with non-breaking spaces.
 const indent = '&nbsp;'.repeat(4);
-const answerHelp = ['답변: `/reviewbot answer Q1 B` — 여러 개는 `/reviewbot answer Q1 B Q2 C`', '심화 질문: `/reviewbot morequestion` — 이미 나온 질문을 빼고 더 깊은 질문 5개'];
-// Follow-up questions are labelled 심화N so they cannot be mistaken for the review's Q1, Q2.
-const advancedHelp = ['답변: `/reviewbot answer 심화1 B` — 여러 개는 `/reviewbot answer 심화1 B 심화2 C`', answerHelp[1]!];
+export const COMMAND_HELP_HINT = '명령어 안내: `/reviewbot help`';
 const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '🟡 부분 정답', incorrect: '❌ 오답', unverifiable: '⏸ 판정 보류' };
 /** Latest grade per question ID; null marks an answer graded before verdicts were recorded. */
 export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
-  ['/reviewbot answer', '답변', '리뷰 질문은 Q번호, 심화 질문은 심화번호와 보기(A~D)로 답하면 채점·해설, 여러 개를 한 번에 답할 수 있음', '/reviewbot answer Q1 B Q2 C'],
+  ['/reviewbot answer', '답변', '변경 이해 질문은 Q번호, 심화 질문은 심화번호와 보기(A~D)로 답하면 채점·해설, 여러 개를 한 번에 답할 수 있음', '/reviewbot answer Q1 B Q2 C'],
   ['/reviewbot morequestion', '심화 질문', '이미 나온 질문을 빼고 더 깊은 질문 5개, 심화1·심화2…로 번호를 붙임', '/reviewbot morequestion'],
-  ['/reviewbot review', '다시 검토', '최신 변경만 다시 검토', '/reviewbot review'],
-  ['/reviewbot full', '전체 검토', 'PR/MR 전체를 처음부터 다시 검토', '/reviewbot full'],
-  ['/reviewbot pause', '일시정지', '푸시마다 하는 자동 리뷰를 멈춤', '/reviewbot pause'],
-  ['/reviewbot resume', '재개', '멈춘 자동 리뷰를 다시 시작', '/reviewbot resume'],
-  ['/reviewbot explain', '지적 설명', '지적 댓글에 답글로 쓰면 그 지적, 일반 댓글이면 남은 지적 전체를 코드로 다시 확인해 설명', '/reviewbot explain'],
-  ['/reviewbot dismiss', '지적 기각', '지적 댓글에 답글로 사유를 남기면 이 PR/MR에서 제외, 일반 댓글은 ID 필요', '/reviewbot dismiss 의도된 동작'],
+  ['/reviewbot review', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/reviewbot review'],
+  ['/reviewbot full', '전체 질문 재생성', 'PR/MR 전체 범위의 질문을 다시 생성', '/reviewbot full'],
+  ['/reviewbot pause', '일시정지', '푸시마다 하는 자동 질문 생성을 멈춤', '/reviewbot pause'],
+  ['/reviewbot resume', '재개', '멈춘 자동 질문 생성을 다시 시작', '/reviewbot resume'],
+  ['/reviewbot explain', '과거 지적 설명', '과거 리뷰의 지적 댓글에 답글로 쓰면 그 지적, 일반 댓글이면 남은 지적 전체를 코드로 다시 확인해 설명', '/reviewbot explain'],
+  ['/reviewbot dismiss', '과거 지적 기각', '과거 리뷰의 지적 댓글에 답글로 사유를 남기면 이 PR/MR에서 제외, 일반 댓글은 ID 필요', '/reviewbot dismiss 의도된 동작'],
   ['@reviewbot', '코드 질문', '코드 근거를 확인해 답변', '@reviewbot 재시도는 왜 3회인가요?'],
   ['/reviewbot learn', '규칙 제안', '저장소 규칙 제안, 관리자 승인 후 적용', '/reviewbot learn 금액은 정수로 다룬다'],
   ['/reviewbot approve', '규칙 승인', '관리자가 규칙 제안을 승인', '/reviewbot approve 규칙ID'],
   ['/reviewbot reject', '규칙 거절', '관리자가 규칙 제안을 거절', '/reviewbot reject 규칙ID'],
+  ['/reviewbot help', '명령어 안내', '전체 명령어의 뜻·설명·사용 예시를 표시', '/reviewbot help'],
 ];
 const commandTable = ['| 명령어 | 뜻 | 설명 | 사용 예시 |', '|---|---|---|---|', ...commands.map(([c, m, d, e]) => `| \`${c}\` | ${m} | ${d} | \`${e}\` |`)];
+export function renderCommandHelp(commentId: string): string { return [replyMarker(commentId), '### 명령어 안내', '', ...commandTable].join('\n'); }
 function list(values: string[]): string { return values.length ? values.map(x => `- ${plain(x)}`).join('\n') : '없음'; }
 function verdict(r: Report): string {
   if (r.state !== 'completed') return '판단 보류';
@@ -93,8 +93,8 @@ function renderReportBody(r: Report, omittedChecks = false, results: AnswerResul
     ...(r.reviewedFiles.length || r.excludedFiles.length ? [`- 검토 파일 ${r.reviewedFiles.length}개${r.excludedFiles.length ? ` · 제외 ${r.excludedFiles.length}개` : ''}`] : []),
     ...r.limitations.map(l => `- ${plain(l)}`),
     ...(r.recommendedTests.length ? ['', '**권장 확인**', '', list(r.recommendedTests)] : []), '',
-    '### 4. 변경 이해 질문', '', ...(hasChangeQuestions(r) ? [`보기 하나를 골라 \`/reviewbot answer Q1 B\`로 답하세요. 여러 개는 \`/reviewbot answer Q1 B Q2 C\` · 답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`, ''] : []), ...questions,
-    '', '#### 명령어', '', ...commandTable,
+    '### 4. 변경 이해 질문', '', ...(hasChangeQuestions(r) ? [`보기 하나를 골라 답하세요. · 답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`, ''] : []), ...questions,
+    '', COMMAND_HELP_HINT,
   ].join('\n');
 }
 export interface ReviewEstimate { minutes: number; measured: boolean }
@@ -129,7 +129,7 @@ function renderFindingBody(f: Finding, s: Snapshot): string {
     '**문제**', plain(f.problem), '', '**발생 조건**', plain(f.condition), '', '**영향**', plain(f.impact), '',
     '**근거**', ...f.evidence.map(e => `- ${ref(s, e.path, e.line, e.side)}: ${plain(e.reason)}`), '',
     '**수정 방향**', plain(f.fix), '', '**추천 검증**', plain(f.test), ...(f.suggestion ? ['', '**코드 제안**', suggestion] : []),
-    '', '이 댓글에 답글로 `/reviewbot explain`을 쓰면 다시 설명하고, `/reviewbot dismiss 사유`를 쓰면 기각합니다.'].join('\n');
+    '', COMMAND_HELP_HINT].join('\n');
 }
 export function renderAnswer(a: { answer: string; evidence: string[]; next: string }, marker: string): string {
   return [`<!-- codereviewbot:reply:${marker.replace(/[^\w-]/g, '')} -->`, '### 답변', '', plain(a.answer), '',
@@ -159,7 +159,7 @@ export function replyMarker(id: string): string { return `<!-- codereviewbot:rep
 export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
   for (const linked of [true, false]) {
     const body = [replyMarker(commentId), '### 심화 질문', '', `기준 커밋: ${s.headSha.slice(0, 8)}`, '', ...renderQuestions(questions, s, start, new Map(), linked, '심화'), '',
-      ...lines(advancedHelp), ...(linked ? [] : ['', '댓글 길이 제한으로 코드 링크를 경로 표기로 바꿨습니다.'])].join('\n');
+      COMMAND_HELP_HINT, ...(linked ? [] : ['', '댓글 길이 제한으로 코드 링크를 경로 표기로 바꿨습니다.'])].join('\n');
     if (body.length <= 59000 || !linked) return body;
   }
   throw new Error('unreachable');
@@ -175,7 +175,7 @@ export function renderGrades(items: GradeItem[], s: Snapshot, commentId: string)
   const levels: [((g: Grade) => Grade), string][] = [[g => g, ''], [g => shrink(g, 700, 400, 3, 300), '댓글 길이 제한으로 해설과 근거를 축약했습니다.'], [g => shrink(g, 250, 120, 1, 120), '댓글 길이 제한으로 해설과 근거를 크게 축약했습니다.']];
   for (const [fit, note] of levels) {
     const body = [replyMarker(commentId), items.map(i => renderGradeSection({ ...i, grade: fit(i.grade) }, s)).join('\n\n---\n\n'), '',
-      ...lines([`기준 커밋: ${s.headSha.slice(0, 8)}`, answerHelp[1]!]), ...(note ? ['', note] : [])].join('\n');
+      ...lines([`기준 커밋: ${s.headSha.slice(0, 8)}`, COMMAND_HELP_HINT]), ...(note ? ['', note] : [])].join('\n');
     if (body.length <= 59000) return body;
   }
   throw new Error('Grading response exceeds comment budget');
