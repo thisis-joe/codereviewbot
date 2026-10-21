@@ -200,3 +200,11 @@
   explanations, quantified wording and explicit external-state assumptions, preserving
   the 3–10 question count, one model call and 120-second budget. Final live samples
   must be rerun on the corrected prompt; initial samples are diagnostic evidence only.
+- Corrected prompt `79c6e57` passed five real-model runs (four distinct archived
+  production refs, largest repeated), 28 questions audited against source/primary docs.
+  Actual CLI modelUsage: claude-opus-5-5, Claude Code 2.1.290. Initial-generation
+  median 69.777s, range 43.455–84.280s; one call each, no timeout/schema/source failures.
+  Correct options now cover both ignore paths and explicitly state untracked-file
+  assumptions. All 92 unit tests passed again; unchanged DB integration evidence reused.
+  GO decision and limits recorded in docs/verification/question-bot-live-2026-10-21.json.
+  No causal speedup percentage: the corrected candidate was a separate validation block.

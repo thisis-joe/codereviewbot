@@ -1,0 +1,157 @@
+{
+  "at": "2026-10-21T05:24:58.576104+00:00",
+  "sourceCommit": "79c6e57c1e13d0d87d7fc76ea3de46e11817cacb",
+  "decision": "GO",
+  "model": [
+    "claude-opus-5-5"
+  ],
+  "cli": "Claude Code 2.1.290",
+  "sampleCount": 5,
+  "distinctSourceRefs": 4,
+  "sampleKinds": [
+    "Kotlin Multiplatform bootstrap (49 files, sampled twice)",
+    "Personal-note documentation policy (2 files)",
+    "Repository/data documentation (14 files)",
+    "Repository/data documentation (11 files)"
+  ],
+  "questionCount": 28,
+  "generationTiming": {
+    "n": 5,
+    "medianMs": 69777,
+    "minMs": 43455,
+    "maxMs": 84280
+  },
+  "timingScope": "RPC + real model + structured output/source validation; excludes queue waiting, source export and remote comment publication",
+  "sourceExportMs": [
+    576,
+    332,
+    428,
+    331
+  ],
+  "quality": {
+    "reviewer": "root source audit; no separate independent semantic reviewer",
+    "structuralAndSourceChecks": "passed",
+    "semanticQuestionSets": [
+      {
+        "trial": 1,
+        "case": "case-1",
+        "questions": 6,
+        "verdict": "passed",
+        "evidence": [
+          "Separate JS/Wasm actual implementations and Greeting flow",
+          "webMain source-set sharing with both executable web targets",
+          "iOS Gradle framework/Swift bridge path in standard build configuration",
+          "deterministic Chromium Edge UA substring outcome",
+          "AnimatedVisibility removal after completed exit disposes remember state",
+          "daemon JVM21 versus Kotlin/Java11 output level"
+        ],
+        "references": [
+          "https://kotlinlang.org/docs/whatsnew2220.html#shared-source-set-for-js-and-wasmjs-targets",
+          "https://developer.android.com/develop/ui/compose/animation/composables-modifiers",
+          "https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.text/find-any-of.html"
+        ]
+      },
+      {
+        "trial": 2,
+        "case": "case-2",
+        "questions": 5,
+        "verdict": "passed",
+        "evidence": [
+          "Task record combines all three required record types in one file",
+          "ADR alternative versus independently rejected decision covers both scopes",
+          "Quality policy location matches implementation README rule",
+          "Gitignore question explicitly assumes untracked files",
+          "Personal learning question explicitly scopes ordinary untracked-note behavior"
+        ],
+        "probe": "git-ignore-probe.json"
+      },
+      {
+        "trial": 3,
+        "case": "case-3",
+        "questions": 5,
+        "verdict": "passed",
+        "evidence": [
+          "Correct option explicitly includes BOTH data/raw and data/processed and assumes untracked files",
+          "Fixture placement follows source document and ignore probe",
+          "Relative CLAUDE import targets ai/AGENTS.md",
+          "Data versus AI ownership and documented live/post-performance flow match source"
+        ],
+        "probe": "dataset-ignore-probe.json"
+      },
+      {
+        "trial": 4,
+        "case": "case-4",
+        "questions": 5,
+        "verdict": "passed",
+        "evidence": [
+          "Regression case now explicitly scopes two added patterns and both excluded paths in correct choice",
+          "Distractor ai/data/raw separated from independently existing ai/data ignore pattern",
+          "Relative frontend AGENTS import confirmed",
+          "Data/AI boundaries, consensus requirement and explicit skill-selection policy match documents"
+        ],
+        "probe": "dataset-ignore-probe.json"
+      },
+      {
+        "trial": 5,
+        "case": "case-1",
+        "questions": 7,
+        "verdict": "passed",
+        "evidence": [
+          "Wasm Greeting output, platform actual linkage",
+          "Empty TEAM_ID versus Android app ID explicitly scoped",
+          "Swift static framework/module bridge",
+          "Xcode script choice includes BOTH IDE override and Gradle branches",
+          "Concrete Edge user-agent substring",
+          "JDK21 runtime versus JVM11 output",
+          "webMain shared entry point for both executable browser targets"
+        ]
+      }
+    ],
+    "materialErrorsAfterFix": 0,
+    "limitations": "Five sampled outputs do not guarantee all future generated questions. One input had limited source context, correctly reported partial."
+  },
+  "diagnosticRound": {
+    "source": "c0d70c7",
+    "baselineTiming": {
+      "n": 5,
+      "medianMs": 89597,
+      "minMs": 65183,
+      "maxMs": 99998
+    },
+    "finding": "Ambiguous correct-option scope for a two-path ignore question; fixed in 79c6e57 before final validation",
+    "comparison": "Corrected candidate was measured in a separate block; no causal speedup percentage claimed."
+  },
+  "regression": {
+    "unitTests": 92,
+    "passed": 92,
+    "priorUnchangedDatabaseIntegrationTests": 32,
+    "dependencyAdvisories": 0,
+    "matchingControllerRunnerBuilds": "passed"
+  },
+  "recovery": {
+    "oldImageTagsPrepared": true,
+    "protectedDatabaseAndAuthBackups": true,
+    "databaseRestoreProbe": {
+      "passed": true,
+      "jobs": 30,
+      "targets": 8,
+      "deliveries": 41,
+      "feedback": 0
+    }
+  },
+  "deployment": {
+    "status": "ready",
+    "scope": [
+      "controller",
+      "runner"
+    ],
+    "preserveRuntimeEndpoint": true,
+    "keepOriginalUncommittedChanges": true,
+    "openMRsAtPreflight": 0
+  },
+  "privateEvidenceHashes": {
+    "results.json": "7944def4cfbaea15ae483455febe231bb0b3ee4de68c2b50e70a407226327d25",
+    "quality-review.json": "45785c3fce4fdb9d044d3cf750fbfbca97952f4154d9d2892275d552a6935d71",
+    "summary.json": "d075dddbca9e9a25d08064d9045c4516ecb70d58df1c09247a2a53c38f050fba"
+  }
+}
