@@ -7,7 +7,7 @@ import { emptyReport, reviewed, isQuestionReport, withoutKeys, AnswerSchema, typ
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
 import { parseCommand, type Command } from './commands.js';
-import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, renderAck, ackMarker, SUMMARY_MARKER } from './render.js';
+import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, renderAck, ackMarker, summaryMarker } from './render.js';
 import { redact } from './redact.js';
 import { handleLearning } from './learning-command.js';
 import { commentKey, type Comment, type Event } from './webhooks.js';
@@ -188,9 +188,9 @@ export class Controller {
   // The summary comment says a review is running before the model starts; a failed notice must not block the review.
   private async announce(platform: Platform, snap: Snapshot, mode: 'full' | 'incremental', previous: Report | null): Promise<void> {
     try {
-      const prior = previous ? { report: previous, results: await this.store.answerResults(previous.snapshot) } : undefined;
+      const prior = previous && sameRevision(previous.snapshot, snap) ? { report: previous, results: await this.store.answerResults(previous.snapshot) } : undefined;
       const body = renderProgress(snap, await this.store.reviewEstimate(mode), prior);
-      const existing = (await platform.comments(snap.number)).find(c => platform.owned(c) && c.body.includes(SUMMARY_MARKER));
+      const existing = (await platform.comments(snap.number)).find(c => platform.owned(c) && c.body.includes(summaryMarker(snap)));
       if (existing?.body !== body) await platform.comment(snap.number, body, existing?.id);
     } catch { console.error(JSON.stringify({ repository: platform.config.repository, number: snap.number, error: 'progress_notice_failed' })); }
   }
@@ -199,7 +199,7 @@ export class Controller {
     try {
       if (!sameRevision(report.snapshot, await platform.snapshot(report.snapshot.number))) return;
       const body = renderReport(report, await this.store.answerResults(report.snapshot));
-      const existing = (await platform.comments(report.snapshot.number)).find(c => platform.owned(c) && c.body.includes(SUMMARY_MARKER));
+      const existing = (await platform.comments(report.snapshot.number)).find(c => platform.owned(c) && c.body.includes(summaryMarker(report.snapshot)));
       if (existing && existing.body !== body && body.length <= 60000) await platform.comment(report.snapshot.number, body, existing.id);
     } catch { console.error(JSON.stringify({ repository: platform.config.repository, number: report.snapshot.number, error: 'summary_refresh_failed' })); }
   }

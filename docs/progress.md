@@ -288,3 +288,17 @@
   No open MR in the enabled production repository, so external MR comment publication
   was not exercised; no real test comments were posted. Source release remains on
   its feature branch; this task does not change main, push or merge the existing PR.
+
+- Push-question history task 2026-10-21: isolated feature branch
+  `feat/push-question-history`, base `aa851b1` (includes current fixed three-question
+  policy and answer-reveal formatting). Original checkout was clean and remains
+  untouched by this task. Existing no-Jira repository ruling applies.
+- P1: exact head/base/start revision marker scopes generation progress, publication
+  reconciliation and grade refresh to the corresponding comment. A new revision
+  creates a fresh comment and leaves earlier questions/grades untouched. Unversioned
+  legacy comments are retained. Same-revision retries reconcile the accepted comment.
+  Observed two focused regressions fail before the fix and pass after it. Full local
+  verification passes 105 unit + 34 disposable PostgreSQL/HTTP integration tests,
+  including GitHub/GitLab push/progress/response-loss/retry/latest-grade scenarios.
+  Author source review covered all current P1 changes; no independent reviewer used.
+  Delta-only question material and intent/rationale prompting remain the next slice.

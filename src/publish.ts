@@ -1,6 +1,6 @@
 import type { Platform } from './platform.js';
 import type { Report } from './contracts.js';
-import { renderReport, renderQuestionThread, SUMMARY_MARKER, type AnswerResults } from './render.js';
+import { renderReport, renderQuestionThread, summaryMarker, type AnswerResults } from './render.js';
 import { hasChangeQuestions } from './contracts.js';
 import { questionId } from './learning.js';
 import type { DiffMetadata } from './review.js';
@@ -12,7 +12,7 @@ export async function publish(platform: Platform, report: Report, diff: Record<s
   };
   await current();
   const comments = await platform.comments(report.snapshot.number);
-  const existing = comments.find(c => platform.owned(c) && c.body.includes(SUMMARY_MARKER));
+  const existing = comments.find(c => platform.owned(c) && c.body.includes(summaryMarker(report.snapshot)));
   const body = renderReport(report, results);
   if (body.length > 60000) throw new Error('Report exceeds platform comment budget');
   if (existing?.body !== body) { await current(); await platform.comment(report.snapshot.number, body, existing?.id); }

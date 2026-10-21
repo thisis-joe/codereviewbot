@@ -302,3 +302,30 @@ test('a failed first generation retains the policy answer gate instead of silent
   assert.equal(current.state, 'failed'); assert.equal(current.requireAnswers, true);
   assert.equal(f.statuses.at(-1).state, 'pending');
 });
+
+for (const name of ['github', 'gitlab']) {
+  test(`${name}: pushes preserve older question comments through progress, publication retry and latest grading`, async t => {
+    const f = await fixture(t, name);
+    const enqueue = deliveryId => f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId });
+    await enqueue('first-push'); await f.drain();
+    const older = f.comments.find(c => c.body.includes('codereviewbot:summary:'));
+    const saved = older.body;
+    f.snap.headSha = 'e'.repeat(40);
+    await enqueue('second-push'); await f.tick();
+    assert.equal(older.body, saved, 'Generation progress must not edit the earlier questions');
+    assert.equal(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).length, 2);
+    const post = f.platform.comment; let lost = false;
+    f.platform.comment = async (...args) => { await post(...args); if (!lost) { lost = true; throw Error('accepted response lost'); } };
+    await f.tick();
+    await f.pool.query("UPDATE jobs SET due_at=now() WHERE state='ready'");
+    await f.drain();
+    assert.equal(older.body, saved);
+    assert.equal(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).length, 2);
+    const latest = (await f.store.getTarget(f.snap)).report;
+    const first = latest.questions[0];
+    await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'answer-latest-push', comment: { id: 'answer-latest', body: `/reviewbot answer Q1 ${first.key.answer}`, author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null } });
+    await f.drain();
+    assert.equal(older.body, saved);
+    assert.match(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).at(-1).body, /답변 1\/3/);
+  });
+}
