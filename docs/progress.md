@@ -159,3 +159,8 @@
   tests passed, including 19 transition cases across GitHub/GitLab, real signed help
   HTTP, history/gate, queue/restart/ref fences and generation-time filtering.
   Provider/model network boundaries are fixtures; no live quality or latency claim.
+- Q2 completed in `a087379` on `codex/question-bot` after independent source/test
+  review and passing unit/integration suites. Q3 adds the dedicated 19-case real-DB
+  transition harness: both-provider legacy same-SHA/ready/recovery/current-cache,
+  command regeneration, pushes during generation/publication, timing separation and
+  same-head review/full coalescing. All cases passed in the final 31-test integration run.
