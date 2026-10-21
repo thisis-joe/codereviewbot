@@ -302,3 +302,9 @@
   including GitHub/GitLab push/progress/response-loss/retry/latest-grade scenarios.
   Author source review covered all current P1 changes; no independent reviewer used.
   Delta-only question material and intent/rationale prompting remain the next slice.
+- P1 completed in `341fcd3`. Compatibility source review then found that grading a
+  pre-update current summary lacked the new revision marker. Added a narrowly scoped
+  fallback: all question IDs in the stored current report must match the owned legacy
+  summary before grade refresh can adopt it; earlier revision comments cannot match.
+  A real-DB regression failed before the fix and passed after it. Current full suites
+  pass 106 unit + 35 PostgreSQL/HTTP integration tests, including pending delta tests.

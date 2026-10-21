@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import pg from 'pg';
 import { Controller } from '../../dist/controller.js';
+import { renderReport } from '../../dist/render.js';
 import { Store } from '../../dist/store.js';
 import { questionId } from '../../dist/learning.js';
 import { parsePatch, parsePositions } from '../../dist/review.js';
@@ -301,6 +302,20 @@ test('a failed first generation retains the policy answer gate instead of silent
   const current = (await f.store.getTarget(f.snap)).report;
   assert.equal(current.state, 'failed'); assert.equal(current.requireAnswers, true);
   assert.equal(f.statuses.at(-1).state, 'pending');
+});
+
+test('grading an unversioned current summary retains its questions and leaves older summaries untouched', async t => {
+  const f = await fixture(t, 'github'), current = report();
+  await f.seed(current);
+  const legacy = r => renderReport(r).split('\n').filter(line => !line.includes('codereviewbot:revision:')).join('\n');
+  const old = { id: 'older-legacy', author: 'bot', body: legacy(report({ snapshot: { ...f.snap, headSha: 'd'.repeat(40) } })) };
+  const saved = old.body;
+  f.comments.push(old, { id: 'current-legacy', author: 'bot', body: legacy(current) });
+  await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'legacy-answer', comment: { id: 'legacy-answer', body: '/reviewbot answer Q1 B', author: 'joe', surface: 'issue', parentId: null, discussionId: null } });
+  await f.drain();
+  assert.equal(old.body, saved);
+  assert.match(f.comments.find(c => c.id === 'current-legacy').body, /답변 1\/3/);
+  for (const q of current.questions) assert.ok(f.comments.find(c => c.id === 'current-legacy').body.includes(questionId(f.snap, q)));
 });
 
 for (const name of ['github', 'gitlab']) {
