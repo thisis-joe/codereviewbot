@@ -208,3 +208,62 @@
   assumptions. All 92 unit tests passed again; unchanged DB integration evidence reused.
   GO decision and limits recorded in docs/verification/question-bot-live-2026-10-21.json.
   No causal speedup percentage: the corrected candidate was a separate validation block.
+
+- A1 (2026-10-21): user authorized organizing pending changes and integrating command
+  acknowledgements + failure diagnostics into the question-bot branch. Reused the clean
+  help worktree, branched `codex/command-acknowledgements` from `2db8478` with no Jira
+  task (existing feature-name ruling). Original dirty files were saved in the question
+  worktree's ignored `.local/pending-changes-backup` before splitting overlapping hunks.
+- A1 contains only immediate permission-checked command notices, successful deletion,
+  terminal-failure notices, native provider edit/delete helpers and their README/tests.
+  Failure-cause logging is reserved for its own branch; Cloudflare override is excluded.
+  RED: missing acknowledge API/terminal cleanup. GREEN: 90 unit + 10 real PostgreSQL
+  integration tests, including signed HTTP/replay, native comment surfaces, foreign
+  comment exclusion and duplicate platform views. `git diff --check` passed.
+  Scoped author review covers the complete dirty/new source and tests; no fresh-context
+  reviewer was used in this follow-up. No deployment or remote publication performed.
+
+- L1 (2026-10-21): split pending failure-cause diagnostics into the independent
+  `codex/failure-diagnostics` branch from `2db8478`. No acknowledgement code or local
+  Cloudflare override included. Logs add work kind, retry attempt, classified schema/
+  JSON failures and redacted bounded generic causes. Operations notes are preserved.
+  RED reproduced absent cause/kind/attempt fields; GREEN: 88 unit tests, including
+  generic, schema-field-only, JSON-input-suppression and credential/size regressions.
+  Scoped author review + diff check passed; no independent reviewer used for this slice.
+
+- Integration (2026-10-21): A1 `240eea9` and L1 `d05086d` remain independent feature
+  branches from `2db8478`; cherry-picked with provenance as `0ec0556` and `d89a09a`
+  onto `codex/question-bot` from `c0d70c7`. Resolved renderer imports and appended
+  ledgers without restoring review behavior or losing question/gate failure handling.
+- The previous question worktree switched externally to `codex/question-bot-live-validation`
+  during preparation. Aborted our initial cherry-pick there, preserving that branch and
+  source, and moved integration to `/Users/Joseph/.codex/worktrees/question-integration/codereviewbot`.
+- Integration RED: help's old lost-reply fixture treated the new acknowledgement as its
+  help response and lacked deletion support. Kept the accepted-but-lost help/restart
+  checks, modeled notices separately, and now assert one notice for duplicate delivery,
+  native thread identity and successful cleanup on both providers. Grading/gate fixture
+  also verifies notice cleanup. GREEN: 102 unit + 32 real PostgreSQL integration tests.
+  Author review covers committed feature changes plus both integration test updates;
+  fresh-context review is unavailable in this follow-up (no subagents dispatched).
+- I1 completed in `85167b5`; final 102 unit + 32 real PostgreSQL integration tests,
+  Compose configuration, fixture demo and diff checks passed. Both final images built;
+  built controller exercised immediate notice → full help → cleanup plus classified
+  failure logs. Built runner exercised authenticated HTTP, bounded fixture generation
+  and invalid-count rejection. No actual model/provider call or deployment performed.
+- Original main's pending files matched the saved byte hashes before cleanup. Their
+  functionality now exists in A1/L1 commits and the verified question-bot integration;
+  only those known tracked changes were restored and the committed/split ack test was
+  cleared from the original checkout. Main remains at `2db8478` with a clean status.
+  Cloudflare override is byte-identical and ignored using local `info/exclude`; no
+  Cloudflare file, token or local exclusion rule was added to a Git commit.
+  Temporary test DB/container/image tags were removed; existing services and the
+  separate live-validation branch were left alone. Integration worktree is clean.
+
+- Release reconciliation: another user-authorized chat committed the original pending
+  command acknowledgements and failure diagnostics, integrated them in `4f7e8e3`,
+  and opened PR #8 while live validation was running. Integrated that branch into
+  the isolated release branch to retain those runtime features. Original tracked
+  patch and all eight source/test snapshots match their initial hashes; local
+  Cloudflare override also matches. No original checkout files were restored/reset
+  by this release task. Generation engine/provider/schema files are byte-identical
+  to live-tested `79c6e57`; refreshed full suites pass 102 unit + 32 real-DB/HTTP tests.

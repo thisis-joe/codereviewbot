@@ -125,6 +125,11 @@ export function renderQuestionThread(q: ChangeQuestion, s: Snapshot, number: num
   return [...questionLines(q, s, `Q${number}`), '', '이 스레드에 보기 문자(A~D)만 답글로 달아도 채점합니다. 이유를 덧붙여도 됩니다.'].join('\n');
 }
 export function replyMarker(id: string): string { return `<!-- codereviewbot:reply:${id.replace(/[^\w-]/g, '')} -->`; }
+export function ackMarker(id: string): string { return `<!-- codereviewbot:ack:${id.replace(/[^\w-]/g, '')} -->`; }
+/** Posted when a command arrives; deleted once the command finishes, or turned into a failure notice. */
+export function renderAck(id: string, failed = false): string {
+  return [ackMarker(id), failed ? '⚠️ 요청을 처리하지 못했습니다. 잠시 후 다시 요청하세요.' : '⏳ 요청을 접수했습니다. 처리하면 결과를 답글로 남기고 이 안내는 지웁니다.'].join('\n');
+}
 // A batch is always five questions, so oversized input drops code links before it would drop a question.
 export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
   for (const linked of [true, false]) {
