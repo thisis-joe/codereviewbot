@@ -182,3 +182,10 @@
   passed HTTP auth, one bounded initial-question fixture CLI and invalid-count rejection;
   the controller image passed current schema/help contract checks. No actual model
   invoked. Production services, credentials, webhooks and original checkout unchanged.
+- Q4 completed in `8d6006b`. Final source is integrated on `codex/question-bot`;
+  the standalone help feature remains on `codex/command-help` at `7aea43e`.
+  Temporary test PostgreSQL/runner containers and task-specific verification image
+  tags were removed after verification; existing service containers/tags were not touched.
+  Final hash comparison confirmed original main's tracked diff and both untracked
+  user files unchanged. Live-model quality/latency sampling and production rollout
+  remain unperformed; the completed implementation worktree is clean.
