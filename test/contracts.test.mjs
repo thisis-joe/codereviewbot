@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { AnalysisSchema, InitialQuestionsSchema } from '../dist/contracts.js';
 import { renderReport, renderFinding, renderAnswer, renderProgress, SUMMARY_MARKER } from '../dist/render.js';
 import { estimateMinutes } from '../dist/store.js';
-import { analysis, snapshot, finding, report, choices, answerKey } from './fixtures.mjs';
+import { analysis, snapshot, finding, report, choices, answerKey, initialQuestions } from './fixtures.mjs';
 
 test('legacy analysis contracts remain readable and initial questions reject review fields', () => {
   assert.equal(AnalysisSchema.safeParse(analysis({ findings: [finding()] })).success, true);
-  assert.equal(InitialQuestionsSchema.safeParse({ questions: report().questions }).success, true);
+  assert.equal(InitialQuestionsSchema.safeParse({ questions: initialQuestions() }).success, true);
   assert.equal(InitialQuestionsSchema.safeParse(analysis()).success, false);
   assert.equal(z.toJSONSchema(InitialQuestionsSchema, { unrepresentable: 'any' }).additionalProperties, false);
 });
@@ -55,14 +55,14 @@ test('failed reports cannot manufacture or reuse learning questions', () => {
   assert.doesNotMatch(failed, /#### Q1\.|\/reviewbot answer|\/reviewbot showanswer/);
 });
 
-test('oversized escaped questions retain three complete questions and visible compaction', () => {
+test('oversized escaped questions retain four complete questions and visible compaction', () => {
   for (const path of [Array(5).fill('&'.repeat(99)).join('/'), Array(6).fill('漢'.repeat(82)).join('/')]) {
     const questions = Array.from({ length: 10 }, (_, i) => ({ question: '&'.repeat(480) + `Q${i}?`, path, line: 1, side: 'RIGHT', level: 'basic', options: choices(...'ABCD'.split('').map(id => '&'.repeat(299) + id)), key: answerKey() }));
-    // Reports stored before the fixed three-question format may still hold up to ten.
+    // Reports stored before the fixed four-question format may still hold up to ten.
     assert.equal(InitialQuestionsSchema.safeParse({ questions }).success, false);
     const body = renderReport(report({ questions }));
-    assert.ok(body.length <= 60000); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3);
-    assert.match(body, /축약|3개만 표시/);
+    assert.ok(body.length <= 60000); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 4);
+    assert.match(body, /4개만 표시/);
     assert.ok(body.includes('&amp;'.repeat(480) + 'Q0?'));
   }
 });
