@@ -92,3 +92,11 @@ test('GitHub comment reads retain reply ancestry for single-question thread answ
   const provider = new Platform({ ...repo, instance: `http://127.0.0.1:${server.address().port}` }, async () => 'token');
   assert.equal((await provider.inlineComments(1))[0].parentId, '1');
 });
+
+test('CI-only provider webhooks do not enqueue question work', () => {
+  for (const event of ['check_run', 'check_suite', 'workflow_run']) {
+    const run = { head_sha: 'b'.repeat(40), pull_requests: [{ number: 1 }] };
+    assert.deepEqual(normalize({ repo, deliveryId: event, event, body: { action: 'completed', [event]: run } }), []);
+  }
+  assert.deepEqual(normalize({ repo: { ...repo, platform: 'gitlab' }, deliveryId: 'pipeline', event: 'Pipeline Hook', body: { object_kind: 'pipeline', merge_request: { iid: 1 }, object_attributes: { status: 'success', sha: 'b'.repeat(40) } } }), []);
+});

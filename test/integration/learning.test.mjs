@@ -54,7 +54,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   assert.ok(replies[2].body.includes('[요청 댓글](https://github.com/joe/demo/pull/1#discussion_r100)'));
   snap = snapshot({ headSha: 'c'.repeat(40) });
   await submit('102', `/reviewbot answer ${id} A 같은 요청을 식별합니다`); await tick();
-  assert.equal(calls.length, 3); assert.match(replies[3].body, /최신 리뷰/);
+  assert.equal(calls.length, 3); assert.match(replies[3].body, /최신 질문/);
   await submit('103', '/reviewbot morequestion', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
 });
 
@@ -86,7 +86,7 @@ test('answering every published question, right or wrong, clears the merge gate'
     await tick();
   };
   await tick();
-  assert.deepEqual(statuses.map(s => s.description), ['질문 답변 0/3 · /reviewbot answer Q번호 보기']);
+  assert.deepEqual(statuses.map(s => s.description), ['질문 답변 0/3']);
   const ids = seeded.questions.map(q => questionId(seeded.snapshot, q));
   await submit('200', `/reviewbot answer ${ids[0]} A`);
   await submit('201', `/reviewbot answer ${ids[0]} B`);

@@ -51,8 +51,8 @@ test('published questions expose revision-bound answer IDs and visible choices w
   assert.match(first, /^\*\*Q1\. \[기본\] 이번 pay .*\*\* — \[src\/pay\\\.ts:2\]\(.*\)\\\n(&nbsp;){4}\*\*A\.\*\* 새 키\\\n(&nbsp;){4}\*\*B\.\*\* 같은 키\\\n(&nbsp;){4}\*\*C\.\*\* 보기 C\\\n(&nbsp;){4}\*\*D\.\*\* 보기 D$/m);
   assert.match(first, /^\*\*Q3\. /m);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
-  assert.match(first, /^### CodeReviewBot 리뷰$/m); assert.doesNotMatch(first, /^#{1,2} /m);
-  assert.match(first, /### 4\. 변경 이해 질문\n\n보기 하나를 골라 답하세요\. · 답변 0\/3\n/);
+  assert.match(first, /^### CodeReviewBot 변경 이해 질문$/m); assert.doesNotMatch(first, /^#{1,2} /m);
+  assert.match(first, /답변 0\/3/);
   assert.ok(!first.includes(answerKey().explanation) && !first.includes('보기 해설'));
   assert.match(first, /^명령어 안내: `\/reviewbot help`$/m);
   assert.doesNotMatch(first, /\| 명령어|\/reviewbot answer|\/reviewbot morequestion|더 알아보자/);

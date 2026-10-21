@@ -9,7 +9,7 @@ import { analysis, finding, snapshot, changeQuestions } from '../fixtures.mjs';
 import { parsePatch } from '../../dist/review.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
-test('signed HTTP admission, database work, two-pass result and replay-safe publication work end to end', async t => {
+test('signed HTTP admission, database work, single-pass questions and replay-safe publication work end to end', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
   const comments = [], inline = [], statuses = [];
@@ -22,8 +22,8 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   };
   const patch = '@@ -1,2 +1,2 @@\n function pay() {\n+charge();\n';
   const workspaces = { prepare: async () => ({ policy: { version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5, requireAnswers: true }, guidelines: [], mode: 'full', context: { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/snapshots/source' } }), cleanup: async () => {} };
-  const checks = ['정확성·신뢰성','보안','성능','호환성','테스트','팀 규칙·요구사항'].map(name => ({ name, status: 'clear', detail: '관련 코드 검토', url: null }));
-  const model = { run: async phase => phase === 'review' ? analysis({ checks, findings: [finding({ line: 2, evidence: [{ path: 'src/pay.ts', line: 2, reason: '승인 호출' }] })] }) : { questions: changeQuestions(), decisions: [{ id: 'C-1', decision: 'confirmed', reason: '재시도 흐름 확인' }], resolutions: [] } };
+  const calls = [];
+  const model = { run: async phase => { calls.push(phase); return { questions: changeQuestions() }; } };
   const controller = new Controller(store, [platform], workspaces, model);
   const server = application(controller, [config], { INTERNAL_TOKEN: 'internal-test-secret', HOOK_SECRET: 'hook-test-secret' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
@@ -35,11 +35,11 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   for (let i=0;i<2;i++) assert.equal((await fetch(base+'/webhooks/github', { method:'POST', headers, body })).status, 202);
   const tick = async () => { const response = await fetch(base+'/internal/tick', { method:'POST', headers:{ authorization:'Bearer internal-test-secret' } }); assert.equal(response.status,202); await controller.active; };
   await tick(); await tick(); await tick();
-  assert.equal(comments.length,1); assert.equal(inline.length,1);
-  assert.match(comments[0].body,/수정 필요/); assert.match(inline[0].body,/CRB-0001/);
+  assert.equal(comments.length,1); assert.equal(inline.length,0);
+  assert.match(comments[0].body,/변경 이해 질문/); assert.doesNotMatch(comments[0].body,/CRB-|수정 필요/); assert.deepEqual(calls,['initial_questions']);
   assert.equal((await store.health()).queued,0);
   assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
-  assert.match(comments[0].body, /### 4\. 변경 이해 질문/);
+  assert.match(comments[0].body, /### CodeReviewBot 변경 이해 질문/);
   // The base-branch policy reaches the published merge gate.
   assert.equal((await store.getTarget(snapshot())).report.requireAnswers, true);
   assert.deepEqual(statuses.map(s => s.state), ['pending']); assert.match(statuses[0].description, /0\/3/);
@@ -57,7 +57,7 @@ test('signed HTTP admission, database work, two-pass result and replay-safe publ
   assert.equal(unavailable.state, 'partial'); assert.deepEqual(unavailable.questions, []);
   assert.ok(unavailable.questionsUnavailableReason);
   await controller.recover();
-  assert.equal((await pool.query("SELECT kind FROM jobs WHERE state='queued'")).rows[0].kind, 'ci');
+  assert.equal((await pool.query("SELECT kind FROM jobs WHERE state='queued'")).rows.length, 0);
   await tick(); await tick();
   assert.equal((await store.getTarget(snapshot())).report.questionsUnavailableReason, unavailable.questionsUnavailableReason);
   workspaces.prepare = prepare;

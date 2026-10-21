@@ -12,13 +12,13 @@ export function requiredQuestions(report: Report): string[] {
 }
 export function answerGate(report: Report, answered: Set<string>): GateStatus | null {
   if (!report.requireAnswers) return null;
-  if (!reviewed(report)) return { state: 'pending', description: '리뷰를 완료하지 못했습니다. /reviewbot full로 다시 요청하세요.' };
+  if (!reviewed(report)) return { state: 'pending', description: '질문 생성에 실패했습니다. 도움말을 확인해 다시 요청하세요.' };
   const required = requiredQuestions(report);
   if (!required.length) return { state: 'success', description: '답할 변경 이해 질문이 없습니다.' };
   const done = required.filter(id => answered.has(id)).length;
   return done === required.length
     ? { state: 'success', description: `질문 ${required.length}개에 모두 답했습니다.` }
-    : { state: 'pending', description: `질문 답변 ${done}/${required.length} · /reviewbot answer Q번호 보기` };
+    : { state: 'pending', description: `질문 답변 ${done}/${required.length}` };
 }
 export async function syncAnswerGate(platform: Platform, store: Store, report: Report): Promise<void> {
   const gate = answerGate(report, report.requireAnswers ? await store.answeredQuestions(report.snapshot) : new Set());

@@ -13,4 +13,4 @@ export const analysis = (o = {}) => {
   value.findings = value.findings.map(({ status, fingerprint, ...candidate }) => candidate);
   return value;
 };
-export const report = (o = {}) => ({ schemaVersion: '1', snapshot: snapshot(), state: 'completed', mode: 'full', summary: '결제 처리 변경', findings: [], checks: [], recommendedTests: [], limitations: [], questions: changeQuestions(), reviewedFiles: ['src/pay.ts'], excludedFiles: [], ...o });
+export const report = (o = {}) => ({ schemaVersion: '2', snapshot: snapshot(), state: 'completed', mode: 'full', summary: '결제 처리 변경', findings: [], checks: [], recommendedTests: [], limitations: [], questions: changeQuestions(), reviewedFiles: ['src/pay.ts'], excludedFiles: [], ...o });

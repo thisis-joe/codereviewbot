@@ -1,72 +1,76 @@
-# CodeReviewBot implementation contract
+# CodeReviewBot question-bot transition contract
 
-Accepted: 2026-10-19. Base: `9cc45cf1c7777c6e4f3a391dbfa8b58eeb3cd7ca`.
+Accepted: 2026-10-21. Base: `2db847897c9c291ce36999ef72e68d759bc9d6c5`.
 
-Implement the accepted conversation plan: GitHub PR/GitLab MR review on this Mac mini,
-Colima/Compose, Cloudflare Tunnel at codereviewbot.thisis-joe.com, n8n orchestration,
-PostgreSQL durable work, isolated Codex CLI. Each push is queued without delay, latest snapshot only,
-one review at a time, 10 minute review budget. No automatic commits/approvals/merges.
+Authors review code quality while writing code. The bot generates questions about the
+actual PR/MR change, grades answers, explains each option and supports code-grounded
+follow-up learning. Automatic defect discovery, severity judgments, suggestions,
+review summaries, CI reporting and candidate verification leave the automatic path.
 
-## Required behavior
+## Observable contract
 
-1. Versioned strict JSON and deterministic Korean report/inline/answer templates.
-   Format v2 (user revision): compact metadata and four sections: summary, findings,
-   checks/caveats, change-understanding questions. No successful verdict for partial/failed work.
-   Remove duplicate change tables, empty diagrams/lists and long audit inventories from output.
-   Generate 3–10 varied questions about the actual diff, independently check them, validate
-   unique text and real diff/source anchors, and publish questions without answers.
-   Failed reports show an explicit unavailable message, never fabricated questions.
-   Pure renames may use readable source anchors. Changes without any usable text source
-   return an explicit partial/unavailable result, preserve unresolved findings, and do not
-   retry inference solely to invent three questions. Preserve skipped/neutral CI disclosures.
-2. Signed webhook admission and repository allowlist, durable inbox, immediate dispatch and
-   leased work; normalize PR/MR and comment/CI events. Confirm live head before writes.
-3. Exact-snapshot code and context collection, base-branch policy, two-pass Codex
-   review, validated lines/evidence, single-location suggestions, CI evidence and
-   source-linked issue requirements. No execution of repository scripts or tests.
-4. Incremental review plus affected context, full fallback on changed ancestry/base,
-   persistent finding IDs/statuses and deduplicated side effects after unknown outcomes.
-5. Authorized review/full/pause/resume/explain/dismiss commands and threaded questions;
-   feedback records with explicit maintainer approval before policy learning.
-6. Runnable Compose, n8n workflows, setup/operations documentation, recovery,
-   fixtures/evaluation, meaningful unit + real PostgreSQL/HTTP/CLI-boundary integration tests.
-7. Interactive technical learning: revision-bound Q IDs; 3–10 optional multiple-choice
-   or open-ended questions, answer grading with correct/partial/incorrect/unverifiable
-   results, problem explanations and every option explained. Confirm real source evidence
-   before a conclusive grade; accept reasonable design alternatives. Natural replies in
-   one-question owned threads, explicit Q ID in ambiguous threads. `더 알아보자` and
-   `/reviewbot questions` generate 3–10 deeper questions tied to this change, excluding
-   prior questions. Same-ref report history and persisted extra batches survive replacement
-   and failed full reviews. Five extra requests per target/ref triple, two-minute calls,
-   bounded prompts/comments with honest compaction or an unavailable notice.
-   Save immutable command responses under the job lease before writes. Reconcile owned
-   surface-qualified markers on unknown outcomes. Preserve native reply roots/discussions;
-   GitHub general comments use a linked new comment. No live integration activation.
+- Initial generation produces 3–10 distinct multiple-choice questions in one
+  `initial_questions` model call with a 120,000 ms budget per attempt. Each question
+  has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
+  anchor. Basic/advanced levels and actual change relevance remain required.
+- Schema version 2 results display only a commit, generation state, answer progress,
+  code-linked questions and one `/reviewbot help` entry point. Old sections 1–3, review
+  verdicts, repeated command examples and automatic finding comments disappear.
+- `/reviewbot help` alone displays the full four-column command table, including
+  all prior commands and help. It needs no report, snapshot export or model call,
+  works while paused, respects existing permissions and reconciles owned markers.
+- `review` regenerates questions on current code, bypassing same-SHA cache. With no
+  newer revision to compare it falls back to full-PR source. `full` always uses the
+  full scope. `pause`/`resume`, `answer`, `morequestion`, `@reviewbot` and approved
+  repository context remain supported. `explain`/`dismiss` handle historical findings.
+- Question IDs, same-ref history, supplementary numbering, durable grading replies,
+  per-option explanations, inline letter replies and opt-in answer merge gates remain.
+  The answer gate concerns questions visible in the current summary, not review quality.
+- CI webhooks are ignored; already queued CI jobs drain without code preparation,
+  model calls or publication. Gate reconciliation remains part of recovery.
+- Version 1 cache entries refresh even at identical refs. Legacy ready/publishing
+  jobs enqueue versioned replacement generation before posting anything. Recovery
+  uses a new versioned delivery key so permanent old delivery deduplication cannot
+  suppress migration. Historical data is retained without a destructive DB migration.
+- New pushes and expired leases fence writes. Lost publication responses reconcile
+  existing owned markers. Failed/no-source runs explicitly explain unavailability.
+- Timing estimates use only version 2 generation measurements. Logs record preparation,
+  generation and publication time plus model call count, without model text or secrets.
 
-## Work units and verification
+## Work units and dependencies
 
-| ID | Feature branch | Acceptance |
+| ID | Feature branch | Scope and acceptance |
 |---|---|---|
-| 1 | codex/output-contract | fixed shapes, escaping, verdicts, schema and report tests |
-| 2 | codex/platform-adapters | webhook auth, exact refs, provider HTTP fixtures, checks/permissions |
-| 3 | codex/review-engine | isolated snapshots, two passes, evidence/diff validation, incremental state |
-| 4 | codex/durable-workflows | PostgreSQL leases, replay-safe publishing, commands, n8n HTTP end-to-end |
-| 5 | codex/local-operations | images, Compose, setup, docs, real DB integration and final review |
-| 6 | codex/interactive-learning | question IDs, technical follow-ups, grading, history, thread/retry and bounded input/output checks |
+| H1 | `codex/command-help` | deterministic full help; ordinary comments only help hint; authorization, paused/no-report and lost-response tests |
+| Q1 | `codex/question-bot` | additive initial-question schema and both CLI/HTTP runner contracts; 3–10 counts and strict output checks |
+| Q2 | `codex/question-bot` | one-pass engine, question-only renderer, publication, cache/recovery and CI cutover; core regression checks |
+| Q3 | `codex/question-bot` | PostgreSQL transition/restart/cache/ref/gate and timing regression coverage for GitHub and GitLab |
+| Q4 | `codex/question-bot` | documentation, concrete fixture previews and full verification evidence |
 
-Each branch builds on the preceding feature branch. Work-unit commits stay separate;
-do not merge or push main. Tests: `npm test`, `npm run test:integration`, Compose config/build
-and disposable local service verification. Live platform and account-auth checks require
-operator-provided credentials; record unavailable checks honestly.
+Dependency graph: `Q1 → Q2 → Q3 → Q4`; H1 is independent and integrates before Q2.
+Execution mode is continuous. `docs/progress.md` is the authoritative work ledger;
+this contract contains acceptance, not a second mutable task checklist.
 
-## Decisions
+## Ownership and validation
 
-- Ruling: use feature-named branches without Jira numbers: no Jira task exists in this
-  new repository and the user's instruction requires feature branches, not invented tickets.
-- Ruling: use the existing clean checkout on feature branches; do not create another
-  managed checkout or interrupt other Colima stacks.
-- Threat boundaries: external webhooks, repository text/config, model JSON and CI logs
-  are untrusted. Git credentials live only in the controller; runner has dedicated Codex
-  state and no Docker socket or host home. Base policy cannot change runtime privileges.
-- Existing CI is evidence, not a claim of locally executed tests. Missing CI is explicit.
-- Whole-branch independent review happens after all implementation units, before completion.
+The original checkout `/Users/Joseph/workspaces/codereviewbot` contains pre-existing
+uncommitted acknowledgement/operations work. Implementation uses clean managed
+worktrees from the base commit, preserving that checkout and all its files unchanged.
+No Jira task exists; the established repository ruling permits feature-named `codex/`
+branches without invented Jira numbers. Use explicit task-owned staging and separate
+work-unit commits; do not merge/push main or alter running deployment services.
+
+Required local checks: `npm test`, `npm run test:integration` against a disposable
+PostgreSQL database, isolated real CLI/HTTP boundary fixtures, `git diff --check`,
+Compose configuration, fixture demo generation and controller/runner image builds.
+Independent review covers committed and current unstaged/untracked task changes.
+
+Structural tests prove one generation call and deterministic source/format checks.
+They do not prove that a real model always selects the uniquely correct option or
+that total latency improves by a particular percentage. Live paired quality/latency
+sampling requires an authenticated model run and remains an explicit deployment
+validation item when unavailable locally.
+
+Keep historical data and additive contracts for recovery. On a rollout failure,
+pause automatic generation while retaining answer history; repair and retry without
+resetting the database. Deploy controller and runner built from the same revision.

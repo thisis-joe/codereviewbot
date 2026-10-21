@@ -136,3 +136,26 @@
   HTTP/PostgreSQL paused/no-report/reply-loss tests passed on the disposable database.
   The logged first-attempt failures are injected remote response loss. Independent review is
   delegated to the parent task before integration; no remote push or PR was created.
+
+- Question-bot transition accepted 2026-10-21; base main `2db847897c9c291ce36999ef72e68d759bc9d6c5`.
+  Original `/Users/Joseph/workspaces/codereviewbot` stays on main with pre-existing
+  README/operations/application/controller/platform/render/learning-test changes and
+  untracked compose.override.yaml + ack.test.mjs. Clean managed worktrees isolate
+  `codex/command-help` and `codex/question-bot`; no original edits copied or staged.
+- Q1 complete in `2c88e20`: additive 3–10 initial-question schema, Codex/Claude bounded
+  real subprocess checks and authenticated runner HTTP contract; 9 focused tests passed
+  on a staged-only clean snapshot. H1 cherry-picked as `18d68f8` from `7aea43e`.
+- Q2: replaced automatic review+verification with one 120-second initial-question call,
+  question-only comments and inline questions. Removed CI admission/polling and automatic
+  findings. Retained archival findings, history, grading, supplementary batches and gates.
+  Versioned same-SHA caches, legacy ready results/recovery, and generation-only estimates.
+- RED observed missing generation API, old review output, CI admission and lost manual
+  regeneration/full intent when same-head automatic events coalesce. GREEN after fixes.
+  Independent H1 review found command examples in learn/dismiss/oversized fallback;
+  replaced with help-only hints and added ordinary-command regression. Independent Q2
+  review found queued intent loss; same-head coalescing now preserves regeneration/full
+  intent. Revalidation found no remaining confirmed source/test defects.
+- Current Q2/Q3 combined evidence: 92 unit tests and 31 real PostgreSQL integration
+  tests passed, including 19 transition cases across GitHub/GitLab, real signed help
+  HTTP, history/gate, queue/restart/ref fences and generation-time filtering.
+  Provider/model network boundaries are fixtures; no live quality or latency claim.

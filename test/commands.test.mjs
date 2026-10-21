@@ -280,7 +280,7 @@ function findingHarness(body, comment = {}) {
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', owned: c => c.author === 'bot',
     comments: async () => [], inlineComments: async () => [{ id: 'root2', author: 'bot', surface: 'review', body: '<!-- codereviewbot:finding:v1:CRB-0002 -->\n### [보통][정확성] 문제' }],
     snapshot: async () => snapshot(), reply: async (_n, text) => { data.replies.push(text); } };
-  const store = { getTarget: async () => ({ report: report({ findings }) }), learnings: async () => [], dismiss: async (_t, id) => { data.dismissed.push(id); return true; }, enqueue: async () => 'job2' };
+  const store = { getTarget: async () => ({ report: report({ findings }) }), learnings: async () => [], addFeedback: async () => '11111111-1111-4111-8111-111111111111', dismiss: async (_t, id) => { data.dismissed.push(id); return true; }, enqueue: async () => 'job2' };
   const workspaces = { prepare: async () => ({ context: { sourceDir: '/source' }, policy: {} }) };
   const model = { run: async (_phase, prompt) => { data.prompts.push(prompt); return { answer: '설명', evidence: [], next: '확인' }; } };
   const job = { id: 'job', body: { target: snapshot(), comment: { id: 'c1', author: 'joe', body, parentId: null, discussionId: null, surface: 'issue', ...comment } } };
@@ -304,4 +304,13 @@ test('dismiss without an ID only works inside a finding thread', async () => {
   const plainComment = findingHarness('/reviewbot dismiss 의도된 동작'); await plainComment.run();
   assert.deepEqual(plainComment.data.dismissed, []);
   assert.match(plainComment.data.replies[0], /어떤 지적을 기각할지 알 수 없습니다/);
+});
+
+
+test('ordinary feedback and legacy dismissal replies contain only the help entry point', async () => {
+  for (const body of ['/reviewbot dismiss 의도된 동작', '/reviewbot learn 금액은 정수로 다룬다']) {
+    const h = findingHarness(body); await h.run();
+    assert.match(h.data.replies[0], /명령어 안내: `\/reviewbot help`/);
+    assert.doesNotMatch(h.data.replies[0], /\/reviewbot (?:dismiss|approve|reject)|\| 명령어/);
+  }
 });

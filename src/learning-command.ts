@@ -61,7 +61,7 @@ async function gradeAll(picks: Chosen[], snap: Snapshot, job: Job, platform: Pla
     const context = prepared.context;
     if (!readable(p.q, context)) {
       if (p.q.key) { items.push({ ...p, grade: keyGrade(p) }); continue; }
-      return `${p.label} 질문의 코드 근거를 현재 검토 자료에서 읽을 수 없어 채점을 보류합니다. 최신 리뷰를 다시 요청하세요.`;
+      return `${p.label} 질문의 코드 근거를 현재 검토 자료에서 읽을 수 없어 채점을 보류합니다. 최신 질문를 다시 요청하세요.`;
     }
     const payload = learningInput({ snapshot: snap, question: p.q, developerAnswer: redact(p.text), policy: prepared.policy, approvedLearnings: approved });
     if (!payload) return `${p.label} 채점 입력이 한도를 초과해 판정을 보류합니다. 질문과 답변 범위를 나누어 주세요.`;
@@ -94,7 +94,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
   const key = commentKey(comment), notice = (text: string) => `${replyMarker(key)}\n${text}`;
   let response: CommandResult | undefined = job.command_result ?? undefined;
   if (response && !sameRevision(response.snapshot, snap)) {
-    await lease(); await platform.reply(target.number, notice('질문 생성·채점 도중 코드 기준이 바뀌었습니다. 최신 리뷰의 질문 번호로 다시 요청하세요.') + sourceLink(all, comment, snap), comment.parentId, comment.discussionId); return;
+    await lease(); await platform.reply(target.number, notice('질문 생성·채점 도중 코드 기준이 바뀌었습니다. 최신 질문의 질문 번호로 다시 요청하세요.') + sourceLink(all, comment, snap), comment.parentId, comment.discussionId); return;
   }
   if (!response) {
     const state = await store.getTarget(target), report = state?.report;
@@ -112,7 +112,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
       const problems: string[] = [], picks: Chosen[] = [];
       for (const a of [{ id: command.id, text: command.text }, ...(command.more ?? [])]) {
         const q = /^(?:Q|심화)\d+$/.test(a.id) ? numbers.byLabel.get(a.id) : prior.find(p => questionId(snap, p) === a.id);
-        if (!q) { problems.push(`${a.id}: 현재 코드 버전에서 찾을 수 없습니다. 리뷰 질문은 Q번호, 심화 질문은 심화번호를 사용하세요.`); continue; }
+        if (!q) { problems.push(`${a.id}: 현재 코드 버전에서 찾을 수 없습니다. 변경 이해 질문은 Q번호, 심화 질문은 심화번호를 사용하세요.`); continue; }
         const label = [...numbers.byLabel].find(([, v]) => questionId(snap, v) === questionId(snap, q))?.[0] ?? questionId(snap, q);
         if (picks.some(p => questionId(snap, p.q) === questionId(snap, q))) { problems.push(`${label}: 한 명령에서 같은 질문에 두 번 답했습니다.`); continue; }
         const choice = picked(a.text, q);
