@@ -30,7 +30,7 @@ It no longer performs automatic code review, generates findings or reports CI re
 |---|---|
 | Automatic questions | Each push generates questions about changed code and related callers. The first run covers the whole PR/MR; subsequent runs cover the new changes. A new push prevents publishing the obsolete result. |
 | One initial generation call | One `initial_questions` model call produces questions and private answer keys, with a 120,000ms call timeout. Code validates structure, duplicates and source locations. |
-| Change understanding | 3–10 questions, four choices A–D, basic/advanced tags and links to the exact source revision. |
+| Change understanding | Exactly three questions (two basic, one advanced), four choices A–D, with a `[심화]` tag on the advanced one. |
 | Answer grading | Reply with question numbers and choices for grades, explanations and per-option notes. A bare option letter works in a single-question inline thread. |
 | Deeper learning | Each request adds five deeper questions, excluding those already asked. |
 | Command help | Ordinary question, follow-up and grading comments show one help entry point. `/reviewbot help` returns the complete four-column table of 14 commands. |
@@ -142,7 +142,7 @@ In actual comments, the source commit is linked and each choice occupies its own
 Questions on publishable diff lines also receive an inline thread. Questions that cannot be positioned in the diff remain in the summary. New findings and code-fix suggestions are not published.
 
 - Topics fit the change: behavior and invariants, design choices, edge cases, failure recovery and relevant technical principles.
-- Each initial batch has 3–10 questions with one correct answer among A–D. The key and explanations stay private until grading or `/reviewbot showanswer`.
+- Each initial batch has exactly three questions, two basic and one advanced (always last, Q3), with one correct answer among A–D. The key and explanations stay private until grading or `/reviewbot showanswer`.
 - Code validates question/key structure and source locations. There is no extra model verification pass to guarantee semantic correctness; live evaluation is still needed.
 - Binary-only or excluded-only changes show why questions are unavailable. Failures and source limits are shown as generation state and a short reason.
 - Comment compaction is disclosed and preserves at least three initial questions and all their choices.
