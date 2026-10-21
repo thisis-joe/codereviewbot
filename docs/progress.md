@@ -267,3 +267,24 @@
   Cloudflare override also matches. No original checkout files were restored/reset
   by this release task. Generation engine/provider/schema files are byte-identical
   to live-tested `79c6e57`; refreshed full suites pass 102 unit + 32 real-DB/HTTP tests.
+
+- Production release `a32c053` deployed 2026-10-21 05:34:44 UTC (14:34 KST).
+  Matching controller/runner images are healthy; PostgreSQL/n8n/tunnel container IDs
+  unchanged. Production data counts remain jobs30/targets8/deliveries41/feedback0.
+  Public webhook rejects invalid auth (401), accepts signed/configured auth (202)
+  with zero jobs for an ignored event. Deployed help has 13 rows; ordinary output
+  contains only questions/help hint; command receipt renderer retained.
+- Runtime caveat: first additional integrated-production model canary reached the
+  existing 120s process budget. Runner released busy state normally. Same-input
+  manual retry completed in 41.858s with five questions; all keys/options/explanations
+  audited against source and passed. Cause not established; no generation/provider
+  code or endpoint drift found. This failure is recorded separately from the five
+  successful pre-release trials, not removed from reliability evidence. Existing
+  job retry/final-failure/gate behavior is covered by the refreshed integration suite.
+  Earlier production canary on `79c6e57` passed in 40.546s with five audited questions.
+- Application rollback images and protected DB/auth backups retained. Rollback entry
+  point: `.local/releases/question-a32c053-20261021/deploy.py --rollback` (Python).
+  Backed-up DB restore was tested separately; application rollback does not restore DB.
+  No open MR in the enabled production repository, so external MR comment publication
+  was not exercised; no real test comments were posted. Source release remains on
+  its feature branch; this task does not change main, push or merge the existing PR.
