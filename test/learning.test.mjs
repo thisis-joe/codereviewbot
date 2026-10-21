@@ -47,17 +47,21 @@ test('published questions expose revision-bound answer IDs and visible choices w
   const first = renderReport(report({ questions }));
   const ids = [...first.matchAll(/codereviewbot:question:(Q-[a-f0-9]{12})/g)].map(m => m[1]);
   assert.equal(new Set(ids).size, 3);
-  // Readers see Q1..Q3 in bold with bold A–D labels on their own lines; hash IDs stay in hidden markers.
-  assert.match(first, /^\*\*Q1\. \[기본\] 이번 pay .*\*\* — \[src\/pay\\\.ts:2\]\(.*\)\\\n(&nbsp;){4}\*\*A\.\*\* 새 키\\\n(&nbsp;){4}\*\*B\.\*\* 같은 키\\\n(&nbsp;){4}\*\*C\.\*\* 보기 C\\\n(&nbsp;){4}\*\*D\.\*\* 보기 D$/m);
-  assert.match(first, /^\*\*Q3\. /m);
+  // Readers see Q1..Q3 as level-4 headings with bold A–D labels on their own lines; hash IDs and code links stay out of the question list.
+  assert.doesNotMatch(first, /기본/);
+  assert.match(first, /^#### Q1\. 이번 pay [^\n]*\?\n(&nbsp;){4}\*\*A\.\*\* 새 키\\\n(&nbsp;){4}\*\*B\.\*\* 같은 키\\\n(&nbsp;){4}\*\*C\.\*\* 보기 C\\\n(&nbsp;){4}\*\*D\.\*\* 보기 D$/m);
+  assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. \[심화\] 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
   assert.match(first, /^### CodeReviewBot 변경 이해 질문$/m); assert.doesNotMatch(first, /^#{1,2} /m);
   assert.match(first, /답변 0\/3/);
   assert.ok(!first.includes(answerKey().explanation) && !first.includes('보기 해설'));
   assert.match(first, /^명령어 안내: `\/reviewbot help`$/m);
-  assert.doesNotMatch(first, /\| 명령어|\/reviewbot answer|\/reviewbot morequestion|더 알아보자/);
+  assert.doesNotMatch(first, /\| 명령어|\/reviewbot morequestion|더 알아보자/);
+  // Answer and reveal instructions sit above the questions; revision and progress sit below them, without a 완료 label.
+  assert.match(first, /^### CodeReviewBot 변경 이해 질문\n\n답변 달기: `\/reviewbot answer Q1 B` .*\\\n정답·해설 한 번에 보기: `\/reviewbot showanswer` .*\n\n<!-- codereviewbot:question:/m);
+  assert.match(first, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\) · 답변 0\/3\\\n명령어 안내: `\/reviewbot help`$/); assert.doesNotMatch(first, /완료|전체 ·|증분/);
   const marked = renderReport(report({ questions }), new Map([[ids[0], 'correct'], [ids[1], 'incorrect']]));
-  assert.match(marked, /^\*\*Q1\. .* · ✅ 정답\\$/m); assert.match(marked, /^\*\*Q2\. .* · ❌ 오답\\$/m); assert.doesNotMatch(marked, /^\*\*Q3\. .* · /m); assert.match(marked, /답변 2\/3/);
+  assert.match(marked, /^#### Q1\. .* · ✅ 정답$/m); assert.match(marked, /^#### Q2\. .* · ❌ 오답$/m); assert.doesNotMatch(marked, /^#### Q3\. .* · /m); assert.match(marked, /답변 2\/3/);
   const changed = renderReport(report({ questions, snapshot: { ...report().snapshot, headSha: 'c'.repeat(40) } }));
   assert.ok(!changed.includes(ids[0]));
   assert.ok(!first.includes('정답:'));
@@ -68,7 +72,8 @@ test('question and grading comments keep one help entry point without repeating 
   const grade = { verdict: 'correct', explanation: '', expectedAnswer: '같은 키를 재사용합니다.', optionExplanations: answerKey().options, evidence: [{ path: q.path, line: q.line, side: q.side, reason: '호출' }] };
   for (const body of [renderReport(r), renderQuestionBatch(r.questions, r.snapshot, 'batch'), renderGrade(q, r.snapshot, grade, 'grade', 'Q1', 'B')]) {
     assert.equal((body.match(/명령어 안내: `\/reviewbot help`/g) ?? []).length, 1);
-    assert.doesNotMatch(body, /\| 명령어|사용 예시|\/reviewbot (?!help)[a-z]+/);
+    // Only the question summary teaches answering and revealing; every other command stays behind help.
+    assert.doesNotMatch(body === renderReport(r) ? body.replace(/^(답변 달기|정답·해설 한 번에 보기): .*$/gm, '') : body, /\| 명령어|사용 예시|\/reviewbot (?!help)[a-z]+/);
   }
 });
 

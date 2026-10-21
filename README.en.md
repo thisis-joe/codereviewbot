@@ -33,7 +33,7 @@ It no longer performs automatic code review, generates findings or reports CI re
 | Change understanding | 3–10 questions, four choices A–D, basic/advanced tags and links to the exact source revision. |
 | Answer grading | Reply with question numbers and choices for grades, explanations and per-option notes. A bare option letter works in a single-question inline thread. |
 | Deeper learning | Each request adds five deeper questions, excluding those already asked. |
-| Command help | Ordinary question, follow-up and grading comments show one help entry point. `/reviewbot help` returns the complete four-column table of 13 commands. |
+| Command help | Ordinary question, follow-up and grading comments show one help entry point. `/reviewbot help` returns the complete four-column table of 14 commands. |
 | Merge after answering | Optional commit status requires answers to the initial questions visible in the current summary before merging. |
 | Repository context | Maintainer-approved repository rules inform questions and explanations. |
 
@@ -107,40 +107,42 @@ Repository connections are off by default. To connect real GitHub or GitLab repo
 
 ## Question comments
 
-The comment shows generation state, scope, source commit, answer progress and the questions. The old summary, findings and checks/caveats sections, review verdict and CI report have been removed. The question heading has no section number.
+The comment opens with one line on how to answer and one on how to reveal answers and explanations; each question is a `####` heading. Only advanced questions carry a `[심화]` tag. Source commit and answer progress sit below the questions; the state label appears only for partial or failed runs. The old summary, findings and checks/caveats sections, review verdict and CI report have been removed. The question heading has no section number.
 
 ```markdown
 ### CodeReviewBot 변경 이해 질문
 
-**완료** · 전체 · 기준 커밋 bbbbbbbb · 답변 0/3
+답변 달기: `/reviewbot answer Q1 B` — 여러 개는 `/reviewbot answer Q1 B Q2 C`
+정답·해설 한 번에 보기: `/reviewbot showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인
 
-**Q1. [기본] pay의 재시도에 첫 요청의 멱등 키를 전달하는 이유는 무엇인가요?** — src/pay.ts:2
+#### Q1. pay의 재시도에 첫 요청의 멱등 키를 전달하는 이유는 무엇인가요?
     A. 재시도마다 새 승인을 만들기 위해
     B. 외부 승인 서비스가 동일 요청을 식별하도록 하기 위해
     C. 주문 저장을 생략하기 위해
     D. 모든 오류의 재시도를 금지하기 위해
 
-**Q2. [기본] 외부 승인이 성공하고 주문 저장이 실패한 뒤 같은 키로 재시도하면 무엇을 기대하나요?** — src/pay.ts:3
+#### Q2. 외부 승인이 성공하고 주문 저장이 실패한 뒤 같은 키로 재시도하면 무엇을 기대하나요?
     A. 새로운 결제 승인이 반드시 발생한다
     B. 주문 저장은 항상 생략한다
     C. 외부 승인이 자동 취소된다
     D. 같은 승인을 식별하고 주문 저장을 다시 시도한다
 
-**Q3. [심화] DB 트랜잭션만으로 외부 승인을 되돌릴 수 없는 이유는 무엇인가요?** — src/pay.ts:2
+#### Q3. [심화] DB 트랜잭션만으로 외부 승인을 되돌릴 수 없는 이유는 무엇인가요?
     A. 외부 서비스의 부작용이 로컬 DB 트랜잭션에 참여하지 않기 때문에
     B. DB 트랜잭션은 읽기만 허용하기 때문에
     C. 멱등 키가 DB 잠금을 해제하기 때문에
     D. 주문 저장보다 승인이 항상 느리기 때문에
 
+기준 커밋 bbbbbbbb · 답변 0/3
 명령어 안내: `/reviewbot help`
 ```
 
-In actual comments, source references link to the exact commit and each choice occupies its own line. The payment behavior above is an illustrative fixture assumption.
+In actual comments, the source commit is linked and each choice occupies its own line. The question list carries no code locations; grading and reveal replies link to the exact source revision. The payment behavior above is an illustrative fixture assumption.
 
 Questions on publishable diff lines also receive an inline thread. Questions that cannot be positioned in the diff remain in the summary. New findings and code-fix suggestions are not published.
 
 - Topics fit the change: behavior and invariants, design choices, edge cases, failure recovery and relevant technical principles.
-- Each initial batch has 3–10 questions with one correct answer among A–D. The key and explanations stay private until grading.
+- Each initial batch has 3–10 questions with one correct answer among A–D. The key and explanations stay private until grading or `/reviewbot showanswer`.
 - Code validates question/key structure and source locations. There is no extra model verification pass to guarantee semantic correctness; live evaluation is still needed.
 - Binary-only or excluded-only changes show why questions are unavailable. Failures and source limits are shown as generation state and a short reason.
 - Comment compaction is disclosed and preserves at least three initial questions and all their choices.
@@ -154,7 +156,7 @@ The existing database, published questions and answer history are retained. Expl
 
 Control the bot with PR/MR comments. Requires Write (GitHub) or Developer (GitLab) access or higher.
 
-Ordinary bot comments show only `명령어 안내: /reviewbot help`. Help runs without a model and works even when no questions exist or generation is paused. Its four columns are command, meaning, description and example; all 13 commands are included.
+Ordinary bot comments show only `명령어 안내: /reviewbot help`; the question summary also shows the answer and reveal lines. Help runs without a model and works even when no questions exist or generation is paused. Its four columns are command, meaning, description and example; all 14 commands are included.
 
 | Command | Action |
 |---|---|
@@ -168,6 +170,7 @@ Ordinary bot comments show only `명령어 안내: /reviewbot help`. Help runs w
 | `@reviewbot question` | Answer a question using code evidence |
 | `/reviewbot morequestion` | Add five deeper questions |
 | `/reviewbot answer Q1 B Q2 C` | Answer one or several questions by number and option, then receive grades and explanations |
+| `/reviewbot showanswer` | Reveal answers and explanations for every review question without answering. Name questions (`/reviewbot showanswer Q1 심화2`) to reveal only those, follow-ups included |
 | `/reviewbot learn rule` | Propose a repository rule |
 | `/reviewbot approve UUID` | Approve a rule (maintainers) |
 | `/reviewbot reject UUID` | Reject a rule (maintainers) |
@@ -189,7 +192,7 @@ Initial questions are numbered `Q1`, `Q2`…; questions from `/reviewbot moreque
 ```
 
 - Each initial question is also posted as an inline thread on its code line; replying with just `B` there is graded.
-- The answer key is fixed when the question is written and never shown in comments. A bare option letter is graded from the key without a model call; added reasoning is assessed by the model, but the key alone decides right or wrong.
+- The answer key is fixed when the question is written and stays out of question comments until grading or `/reviewbot showanswer`. A bare option letter is graded from the key without a model call; added reasoning is assessed by the model, but the key alone decides right or wrong.
 - After grading, the summary comment marks the question (`✅ 정답`, `🟡 부분 정답`, `❌ 오답`, `⏸ 판정 보류`) and updates `답변 n/m`.
 
 The bot replies in this order:
@@ -197,6 +200,14 @@ The bot replies in this order:
 **Correct · Partially correct · Incorrect · Undecided → Answer assessment → Explanation → Per-option notes → Code evidence**
 
 Design questions accept any reasonable alternative. If the code evidence is not enough, the bot withholds a verdict.
+
+### Reveal answers and explanations
+
+Comment `/reviewbot showanswer` to get the answer, code location, explanation and per-option notes for every review question in one reply, without answering. Add numbers (`/reviewbot showanswer Q1 심화2`, up to 10) to reveal only those; follow-up questions appear only when named.
+
+- It is built from the stored key, so no model is called.
+- It is not grading, so it does not change `답변 n/m` or the `requireAnswers` merge gate.
+- Older questions stored without a key point the reader to `/reviewbot answer` instead.
 
 ### Getting deeper questions
 

@@ -9,12 +9,12 @@ test('question comments contain questions and progress without review sections, 
     assert.match(text, /### CodeReviewBot 변경 이해 질문/);
     assert.doesNotMatch(text, /### [1-4]\.|수정 필요|지적 없음|판단 보류|CRB-0001|old summary|CI: fail|\| 명령어/);
     assert.match(text, /명령어 안내: `\/reviewbot help`/);
-    if (state === 'failed') assert.doesNotMatch(text, /\*\*Q1\./);
+    if (state === 'failed') assert.doesNotMatch(text, /#### Q1\./);
     else assert.match(text, /답변 0\/3/);
   }
 });
 
 test('generation progress never republishes historical review content', () => {
-  const text = renderProgress(snapshot(), 'full', { minutes: 2, measured: false }, { report: report({ findings: [finding({ id: 'CRB-0001' })] }), results: new Map() });
+  const text = renderProgress(snapshot(), { minutes: 2, measured: false }, { report: report({ findings: [finding({ id: 'CRB-0001' })] }), results: new Map() });
   assert.match(text, /질문 생성 중/); assert.doesNotMatch(text, /CRB-0001|리뷰 중|이전 리뷰 결과/);
 });

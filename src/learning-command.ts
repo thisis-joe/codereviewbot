@@ -1,7 +1,7 @@
 import { GradeSchema, QuestionBatchSchema, hasChangeQuestions, type ChangeQuestion, type Grade, type Snapshot } from './contracts.js';
 import { questionId, sameRevision } from './learning.js';
 import { hasQuestionSource, validateQuestions, type Model, type ReviewContext } from './review.js';
-import { renderGrades, renderQuestionBatch, replyMarker, COMMAND_HELP_HINT, type GradeItem } from './render.js';
+import { renderGrades, renderQuestionBatch, renderReveal, replyMarker, COMMAND_HELP_HINT, type GradeItem } from './render.js';
 import { redact } from './redact.js';
 import type { Command } from './commands.js';
 import type { Store, Job, CommandResult } from './store.js';
@@ -108,6 +108,17 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
       body = notice(['현재 코드 기준의 학습 질문이 준비되지 않았습니다. 최신 질문 생성이 완료된 후 질문 번호로 답하세요.', '', COMMAND_HELP_HINT].join('\n'));
     } else if (command.action === 'questions' && batches.length >= MAX_BATCHES) {
       body = notice('이 코드 버전의 심화 질문은 5회까지 생성할 수 있습니다. 이미 나온 질문에 답하거나 관련 코드를 더 탐색해 보세요.');
+    } else if (command.action === 'reveal') {
+      // Revealing records no grade, so the answer gate still waits for real answers.
+      const problems: string[] = [];
+      const items = command.ids.length ? command.ids.flatMap(label => {
+        const q = numbers.byLabel.get(label);
+        if (!q) problems.push(`${label}: 현재 코드 버전에서 찾을 수 없습니다. 변경 이해 질문은 Q번호, 심화 질문은 심화번호를 사용하세요.`);
+        return q ? [{ q, label }] : [];
+      }) : current.map((q, i) => ({ q, label: `Q${i + 1}` }));
+      if (problems.length) body = notice([...problems.map(p => `- ${p}`), '', COMMAND_HELP_HINT].join('\n'));
+      else if (!items.length) body = notice('현재 코드 버전에 변경 이해 질문이 없습니다. 심화 질문은 `/reviewbot showanswer 심화1`처럼 번호를 붙이세요.');
+      else body = renderReveal(items, snap, key);
     } else if (command.action === 'answer') {
       const problems: string[] = [], picks: Chosen[] = [];
       for (const a of [{ id: command.id, text: command.text }, ...(command.more ?? [])]) {

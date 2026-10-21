@@ -54,7 +54,7 @@ for (const provider of ['github', 'gitlab']) test(`${provider} signed help comma
   assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
   assert.equal(acks[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
   assert.match(replies[0].body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
-  assert.equal([...replies[0].body.matchAll(/^\| (?:`\/reviewbot|`@reviewbot)/gm)].length, 13);
+  assert.equal([...replies[0].body.matchAll(/^\| (?:`\/reviewbot|`@reviewbot)/gm)].length, 14);
   assert.equal(replies[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
   const state = await store.getTarget(target); assert.equal(state.paused, true); assert.equal(state.report, null);
   assert.equal((await pool.query("SELECT state FROM jobs WHERE kind='review'")).rows[0].state, 'queued');
