@@ -346,3 +346,9 @@
   later question-count change does not conflict with a hardcoded three-question phrase.
   Existing count/schema policy in this feature's base remains unchanged. Refreshed
   suites still pass 106 unit + 35 DB/HTTP integration tests; no live-model claim.
+- Count-neutral adjustment completed in `b51df1b`; final matching-revision controller
+  and runner image builds and disposable runtime probes passed again. Demo, Compose
+  configuration, 106 unit + 35 PostgreSQL/HTTP integration tests and diff checks pass.
+  Detailed image IDs/check scope recorded in ignored local verification evidence.
+  Final working tree is clean after this record; original concurrent four-question
+  work remains outside this branch and is preserved. No production redeployment.
