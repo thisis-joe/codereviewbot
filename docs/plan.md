@@ -9,7 +9,8 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 
 ## Observable contract
 
-- Initial generation produces 3–10 distinct multiple-choice questions in one
+- Initial generation produces exactly three distinct multiple-choice questions (two
+  basic, one advanced) in one
   `initial_questions` model call with a 120,000 ms budget per attempt. Each question
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
   anchor. Basic/advanced levels and actual change relevance remain required.

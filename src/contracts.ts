@@ -39,7 +39,10 @@ export const ChangeQuestionSchema = z.strictObject({
   key: AnswerKeySchema,
 });
 export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10);
-export const InitialQuestionsSchema = z.strictObject({ questions: ChangeQuestionsSchema });
+// Initial generation is fixed at three questions: two basic and one advanced.
+export const INITIAL_QUESTION_COUNT = 3;
+export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(INITIAL_QUESTION_COUNT)
+  .refine(v => v.filter(q => q.level === 'basic').length === 2, 'Write two basic questions and one advanced question') });
 // Each /reviewbot morequestion batch is fixed at five questions.
 export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });

@@ -83,7 +83,7 @@ test('questions on removed code retain the base path and side instead of pointin
   const questions = [
     { question: '이번 checkAuth 삭제로 호출자가 보장해야 할 조건은 무엇인가요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'basic', options: choices(), key: answerKey() },
     { question: '삭제한 checkAuth를 대체하는 권한 검사는 어느 호출 경계에서 수행해야 하나요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'basic', options: choices(), key: answerKey() },
-    { question: '이 인증 검사 삭제가 미인증 호출에 미치는 영향을 어떻게 검증하나요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'basic', options: choices(), key: answerKey() },
+    { question: '이 인증 검사 삭제가 미인증 호출에 미치는 영향을 어떻게 검증하나요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'advanced', options: choices(), key: answerKey() },
   ];
   const patch = '@@ -1,3 +1,2 @@\n begin();\n-checkAuth();\n next();\n';
   const context = { files: {}, baseFiles: { 'original.ts': 'begin();\ncheckAuth();\nnext();' }, diff: { 'renamed.ts': { oldPath: 'original.ts', patch, lines: parsePatch(patch), oldLines: parsePatch(patch, 'LEFT') } }, excluded: [], limited: false, sourceDir: '/source' };
@@ -95,11 +95,14 @@ test('pure renames support source anchors when the file has no textual hunk', as
   const questions = [
     { question: 'old.ts에서 new.ts로 이동한 함수의 공개 import 경로는 어떻게 달라지나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
     { question: 'new.ts로 옮긴 pay 함수를 호출하는 코드는 어떤 경계에서 확인해야 하나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
-    { question: '이번 new.ts 이동 후 대소문자를 구분하는 환경에서 모듈 해석을 어떻게 검증하나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
+    { question: '이번 new.ts 이동 후 대소문자를 구분하는 환경에서 모듈 해석을 어떻게 검증하나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'advanced', options: choices(), key: answerKey() },
   ];
   const context = { files: { 'new.ts': 'export function pay() {}' }, baseFiles: { 'old.ts': 'export function pay() {}' }, diff: { 'new.ts': { oldPath: 'old.ts', patch: '', lines: new Set(), oldLines: new Set() } }, excluded: [], limited: false, sourceDir: '/source' };
   const result = await generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
   assert.equal(result.questions.length, 3); assert.equal(result.questions[0].path, 'new.ts');
+  const reordered = await generateQuestions({ run: async () => ({ questions: [questions[2], questions[0], questions[1]] }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
+  assert.deepEqual(reordered.questions.map(q => q.level), ['basic', 'basic', 'advanced'], 'the advanced question is always shown last');
+  await assert.rejects(() => generateQuestions({ run: async () => ({ questions: questions.map(q => ({ ...q, level: 'basic' })) }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full'));
 });
 
 test('unavailable text diffs produce honest partial reports and preserve prior findings without inference', async () => {

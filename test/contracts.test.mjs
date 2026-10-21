@@ -58,7 +58,8 @@ test('failed reports cannot manufacture or reuse learning questions', () => {
 test('oversized escaped questions retain three complete questions and visible compaction', () => {
   for (const path of [Array(5).fill('&'.repeat(99)).join('/'), Array(6).fill('漢'.repeat(82)).join('/')]) {
     const questions = Array.from({ length: 10 }, (_, i) => ({ question: '&'.repeat(480) + `Q${i}?`, path, line: 1, side: 'RIGHT', level: 'basic', options: choices(...'ABCD'.split('').map(id => '&'.repeat(299) + id)), key: answerKey() }));
-    assert.equal(InitialQuestionsSchema.safeParse({ questions }).success, true);
+    // Reports stored before the fixed three-question format may still hold up to ten.
+    assert.equal(InitialQuestionsSchema.safeParse({ questions }).success, false);
     const body = renderReport(report({ questions }));
     assert.ok(body.length <= 60000); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3);
     assert.match(body, /축약|3개만 표시/);
