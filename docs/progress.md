@@ -171,3 +171,14 @@
   final-attempt failure, verifies the stored report and pending published gate.
   Independent delta review passed; full verification now 92 unit + 32 DB integration
   tests passed. This corrective work unit is separate from docs/demo updates.
+- Failure-path correction completed in `7b1fc35`. Q4 documentation and fixture demo
+  describe question-only comments, all 13 help entries, historical command behavior,
+  version-2 upgrade/recovery, timing budgets and visible-question-only answer gates.
+  Independent docs/demo review found only overly broad gate wording, now corrected.
+  Demo generation, artifact shape/link assertions and local doc links passed.
+- Final verification: 92 unit + 32 real PostgreSQL/signed-HTTP integration tests passed;
+  `git diff --check` and Compose configuration passed. Both final controller/runner
+  images built with task-specific verification tags. A disposable runner container
+  passed HTTP auth, one bounded initial-question fixture CLI and invalid-count rejection;
+  the controller image passed current schema/help contract checks. No actual model
+  invoked. Production services, credentials, webhooks and original checkout unchanged.

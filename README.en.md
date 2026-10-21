@@ -3,20 +3,20 @@
 [![한국어](https://img.shields.io/badge/%EC%96%B8%EC%96%B4-%ED%95%9C%EA%B5%AD%EC%96%B4-red.svg)](README.md)
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](README.en.md)
 
-**A self-hosted bot that automatically reviews GitHub pull requests and GitLab merge requests.**
-It runs on n8n and the Codex CLI or Claude Code CLI, checks changes for bugs, security issues, regressions and team rules, and posts a Korean report and inline comments in a fixed format.
-After each review it asks questions about the change; reply in a comment and it grades your answer and explains it.
+**A self-hosted question bot for GitHub pull requests and GitLab merge requests.**
+Authors review code quality while writing code. The bot uses n8n and the Codex CLI or Claude Code CLI to read the change and related callers, ask Korean multiple-choice questions, and grade replies with explanations.
+It no longer performs automatic code review, generates findings or reports CI results.
 
 > [!NOTE]
 > The bot never commits code, approves or merges. It only posts comments.
-> Review reports and bot replies are written in Korean.
+> Questions and bot replies are written in Korean.
 
 ## Contents
 
 - [Features](#features)
 - [How it works](#how-it-works)
 - [Quick start](#quick-start)
-- [Review report](#review-report)
+- [Question comments](#question-comments)
 - [Comment commands](#comment-commands)
 - [Learning through comments](#learning-through-comments)
 - [Repository policy](#repository-policy)
@@ -28,14 +28,14 @@ After each review it asks questions about the change; reply in a comment and it 
 
 | Feature | Description |
 |---|---|
-| Automatic review | Reviews each push right away. If a new push arrives before the previous review finishes, it reviews the latest commit instead. The first run covers the whole change; later runs cover changed files and related code. |
-| Second-pass verification | Every finding is verified again and checked against the real diff and code location before it is posted. |
-| Fixed format | Reports always have the same four sections. The renderer, not the AI, decides the structure. |
-| CI results | Reads GitHub Checks and commit statuses, and GitLab pipelines and failure logs. |
-| Change questions | Each review includes 3–10 questions about the change, with code links. |
-| Answer grading | Answer with a number and option, like `/reviewbot answer Q1 B`, to get a grade and explanation. `/reviewbot morequestion` adds five deeper questions. |
-| Merge after answering | Optional. Posts a commit status so a PR can be merged only after every question is answered. |
-| Repository rules | Team rules can be proposed; only rules approved by a maintainer are used in later reviews. |
+| Automatic questions | Each push generates questions about changed code and related callers. The first run covers the whole PR/MR; subsequent runs cover the new changes. A new push prevents publishing the obsolete result. |
+| One initial generation call | One `initial_questions` model call produces questions and private answer keys, with a 120,000ms call timeout. Code validates structure, duplicates and source locations. |
+| Change understanding | 3–10 questions, four choices A–D, basic/advanced tags and links to the exact source revision. |
+| Answer grading | Reply with question numbers and choices for grades, explanations and per-option notes. A bare option letter works in a single-question inline thread. |
+| Deeper learning | Each request adds five deeper questions, excluding those already asked. |
+| Command help | Ordinary question, follow-up and grading comments show one help entry point. `/reviewbot help` returns the complete four-column table of 13 commands. |
+| Merge after answering | Optional commit status requires answers to the initial questions visible in the current summary before merging. |
+| Repository context | Maintainer-approved repository rules inform questions and explanations. |
 
 ## How it works
 
@@ -45,22 +45,22 @@ flowchart LR
   Tunnel --> API[Verify webhook, store in DB]
   API --> N8N[n8n wakes jobs]
   N8N --> Queue[Claim job in PostgreSQL]
-  Queue --> Review[Prepare code, model analysis, verification]
-  Review --> Publish[Recheck SHA, match comments, publish]
+  Queue --> Questions[Prepare code, generate initial questions once]
+  Questions --> Publish[Recheck SHA, match comments, publish]
 ```
 
 1. A GitHub or GitLab webhook arrives; its signature is verified and the job is stored in the database.
-2. n8n wakes the next job every 10 seconds and checks for missed changes and CI updates every minute.
-3. The controller prepares a code snapshot, and the selected model (Codex or Claude) runs the analysis and verification in an isolated runner.
-4. Right before publishing, the latest commit SHA is checked again. If a new push arrived, the result is dropped and the change is reviewed again.
-5. When a review starts, the summary comment first shows `리뷰 중` (in review) with an estimated duration (median of recent reviews), then is replaced by the result. The previous result stays collapsed meanwhile. Finding IDs are kept across reviews.
+2. n8n wakes the next job every 10 seconds and checks for missed changes and answer-completion status every minute. CI events do not regenerate questions.
+3. The controller prepares a fixed source snapshot. The selected model (Codex or Claude) generates the initial questions in one isolated call. No readable text change means no model call and an explicit unavailable reason.
+4. Code validates question structure, duplicates, diff locations and answer-key structure. The controller rechecks SHAs before publishing and regenerates against new code after a push.
+5. The summary first shows `질문 생성 중` (generating questions), the commit and an estimated duration, then becomes the questions. Estimates use only question-generation history from the new version, with a two-minute unmeasured default. Historical review durations are excluded.
 
 | Service | Role |
 |---|---|
 | `controller` | Webhook auth, job queue, Git cache and snapshots, platform API calls and comment publishing |
 | `runner` | Runs the Codex CLI or Claude Code CLI (chosen with `MODEL_PROVIDER`; account login or API key). Uses only read/search tools on a fixed snapshot; has no Git write access. |
 | `postgres` | Reports, job state, webhook deduplication, question and answer history |
-| `n8n` | Periodic dispatch and recovery calls. Review logic lives in the controller. |
+| `n8n` | Periodic dispatch and recovery calls. Question generation and learning logic live in the controller. |
 | `tunnel` | Optional. Exposes only the webhook path through Cloudflare Tunnel. |
 
 ## Quick start
@@ -77,11 +77,11 @@ flowchart LR
 npm ci --ignore-scripts
 npm test                       # unit tests
 node scripts/integration.mjs   # integration tests with a temporary PostgreSQL container
-npm run demo                   # sample reports without calling a model
+npm run demo                   # question, learning and help examples without model calls
 ```
 
-`npm run demo` writes a sample report, inline comment and learning thread to `.local/`.
-Tests use controlled fixtures, so they do not measure real model quality.
+`npm run demo` writes `demo-report.md` (questions), `demo-inline.md` (question thread), `demo-learning.md` (five deeper questions and a grade) and `demo-help.md` (all commands) to `.local/`.
+These are fixtures. Actual answer quality and time saved against the former workflow still require live model evaluation.
 
 ### 2. Run the server
 
@@ -105,106 +105,72 @@ Repository connections are off by default. To connect real GitHub or GitLab repo
 > Use `docker compose stop` to stop the server.
 > `docker compose down -v` deletes credentials, the database and n8n state.
 
-## Review report
+## Question comments
 
-The top line shows the verdict, state, review mode and commit link. Four sections always follow in the same order.
-
-| Section | Contents |
-|---|---|
-| 1. 변경 요약 (Summary) | Purpose and key behavior of the change |
-| 2. 발견 사항 (Findings) | Table of ID, severity, status, description and location |
-| 3. 검증·주의사항 (Checks & caveats) | CI results, recommended checks, review limits |
-| 4. 변경 이해 질문 (Questions) | 3–10 four-option questions (Q1, Q2 …) tagged basic/advanced, with grades once answered |
-| 명령어 (Commands) | Table of command, meaning, description and example |
-
-<details>
-<summary>Show a sample report</summary>
+The comment shows generation state, scope, source commit, answer progress and the questions. The old summary, findings and checks/caveats sections, review verdict and CI report have been removed. The question heading has no section number.
 
 ```markdown
-### CodeReviewBot 리뷰
+### CodeReviewBot 변경 이해 질문
 
-**수정 필요** · 완료 · 전체 · bbbbbbbb
+**완료** · 전체 · 기준 커밋 bbbbbbbb · 답변 0/3
 
-### 1. 변경 요약
-결제 처리 변경
+**Q1. [기본] pay의 재시도에 첫 요청의 멱등 키를 전달하는 이유는 무엇인가요?** — src/pay.ts:2
+    A. 재시도마다 새 승인을 만들기 위해
+    B. 외부 승인 서비스가 동일 요청을 식별하도록 하기 위해
+    C. 주문 저장을 생략하기 위해
+    D. 모든 오류의 재시도를 금지하기 위해
 
-### 2. 발견 사항
-| ID       | 심각도 | 상태      | 내용           | 위치          |
-|----------|--------|-----------|----------------|---------------|
-| CRB-0001 | 높음   | 새로 발견 | 중복 결제 가능 | src/pay.ts:4  |
+**Q2. [기본] 외부 승인이 성공하고 주문 저장이 실패한 뒤 같은 키로 재시도하면 무엇을 기대하나요?** — src/pay.ts:3
+    A. 새로운 결제 승인이 반드시 발생한다
+    B. 주문 저장은 항상 생략한다
+    C. 외부 승인이 자동 취소된다
+    D. 같은 승인을 식별하고 주문 저장을 다시 시도한다
 
-### 3. 검증·주의사항
-- 로컬 테스트: 미실행
-- CI: 확인된 실행 결과 없음
+**Q3. [심화] DB 트랜잭션만으로 외부 승인을 되돌릴 수 없는 이유는 무엇인가요?** — src/pay.ts:2
+    A. 외부 서비스의 부작용이 로컬 DB 트랜잭션에 참여하지 않기 때문에
+    B. DB 트랜잭션은 읽기만 허용하기 때문에
+    C. 멱등 키가 DB 잠금을 해제하기 때문에
+    D. 주문 저장보다 승인이 항상 느리기 때문에
 
-### 4. 변경 이해 질문
-
-보기 하나를 골라 `/reviewbot answer Q1 B`로 답하세요. 여러 개는 `/reviewbot answer Q1 B Q2 C` · 답변 1/3
-
-**Q1. [기본] 이번 pay 재시도 변경에서 중복 승인을 막으려면 어떤 조건을 유지해야 하나요?** — src/pay.ts:2 · ✅ 정답\
-&nbsp;&nbsp;&nbsp;&nbsp;**A.** 재시도마다 새 멱등 키를 만든다\
-&nbsp;&nbsp;&nbsp;&nbsp;**B.** 첫 요청의 멱등 키를 재시도에 그대로 전달한다\
-&nbsp;&nbsp;&nbsp;&nbsp;**C.** 승인 응답을 받기 전에 주문을 저장한다\
-&nbsp;&nbsp;&nbsp;&nbsp;**D.** 재시도 간격을 늘려 동시 요청을 피한다
-
-**Q2. [심화] charge 호출이 성공하고 주문 저장이 실패하면 재시도 결과는 어떻게 달라지나요?** — src/pay.ts:2\
-&nbsp;&nbsp;&nbsp;&nbsp;**A.** ...
-
-#### 명령어
-
-| 명령어 | 뜻 | 설명 | 사용 예시 |
-|---|---|---|---|
-| `/reviewbot answer` | 답변 | 질문 번호와 보기(A~D)로 답하면 채점·해설, 여러 개를 한 번에 답할 수 있음 | `/reviewbot answer Q1 B Q2 C` |
-| `/reviewbot morequestion` | 심화 질문 | 이미 나온 질문을 빼고 더 깊은 질문 5개 | `/reviewbot morequestion` |
-| ... | | | |
+명령어 안내: `/reviewbot help`
 ```
 
-</details>
+In actual comments, source references link to the exact commit and each choice occupies its own line. The payment behavior above is an illustrative fixture assumption.
 
-### Inline comments
+Questions on publishable diff lines also receive an inline thread. Questions that cannot be positioned in the diff remain in the summary. New findings and code-fix suggestions are not published.
 
-Severity is shown as `치명` (critical), `높음` (high), `보통` (medium) or `낮음` (low). Inline comments show severity, category and ID, then follow this order. A code suggestion is added only when there is one.
+- Topics fit the change: behavior and invariants, design choices, edge cases, failure recovery and relevant technical principles.
+- Each initial batch has 3–10 questions with one correct answer among A–D. The key and explanations stay private until grading.
+- Code validates question/key structure and source locations. There is no extra model verification pass to guarantee semantic correctness; live evaluation is still needed.
+- Binary-only or excluded-only changes show why questions are unavailable. Failures and source limits are shown as generation state and a short reason.
+- Comment compaction is disclosed and preserves at least three initial questions and all their choices.
 
-**Problem → Trigger condition → Impact → Evidence → Fix direction → Recommended check**
+### Transition from existing results
 
-### Status labels
-
-| Label | Meaning |
-|---|---|
-| `판단 보류` (undecided) | Partial review or failure; no conclusion |
-| `미실행` (not run) | A check that was not run |
-| `확인 불가` (unavailable) | Information could not be obtained |
-| `건너뜀` · `중립` (skipped · neutral) | CI results, shown separately from passed |
-
-<details>
-<summary>How questions are generated</summary>
-
-- Topics are chosen to fit the change: key behavior and invariants, design intent and trade-offs, failure and edge cases, or how a newly introduced technique works.
-- No general-knowledge questions or filler duplicates. Answers and explanations are not included in the report.
-- Questions also go through the second pass, which checks real diff locations and duplicates.
-- Pure renames link to the moved source.
-- If only binary or excluded files changed, the review is marked partial and says why no questions could be made.
-- Failed reviews never get made-up questions.
-- If a comment hits the platform length limit, the four sections stay, content is shortened and marked as such, and at least three questions remain.
-
-</details>
+New results use `schemaVersion: "2"`. A previous result is converted once even when head/base/start SHAs are unchanged; subsequent runs reuse the question result. Old results awaiting publication are regenerated as questions and never repost historical findings.
+The existing database, published questions and answer history are retained. Explicit explain/dismiss commands still handle historical findings. Previously published remote comments are kept.
 
 ## Comment commands
 
 Control the bot with PR/MR comments. Requires Write (GitHub) or Developer (GitLab) access or higher.
 
+Ordinary bot comments show only `명령어 안내: /reviewbot help`. Help runs without a model and works even when no questions exist or generation is paused. Its four columns are command, meaning, description and example; all 13 commands are included.
+
 | Command | Action |
 |---|---|
-| `/reviewbot review` | Review the latest change |
-| `/reviewbot full` | Full re-review |
-| `/reviewbot pause` · `resume` | Pause · resume automatic reviews |
-| `/reviewbot explain` | Recheck and explain findings: the one whose thread you reply in, or every open finding from a plain comment. Add an ID such as `CRB-0001` to pick one |
-| `/reviewbot dismiss reason` | Reply in a finding thread to dismiss it in this PR/MR with a reason. From a plain comment use `/reviewbot dismiss CRB-0001 reason` |
-| `@reviewbot question` or reply to a bot finding | Answer using code evidence |
+| `/reviewbot help` | Show the complete command table |
+| `/reviewbot review` | Regenerate questions for the latest change scope |
+| `/reviewbot full` | Regenerate questions for the entire PR/MR |
+| `/reviewbot pause` | Pause automatic question generation |
+| `/reviewbot resume` | Resume automatic question generation |
+| `/reviewbot explain` | Explain historical review findings: the current finding thread or all remaining findings from an ordinary comment; an explicit ID selects one |
+| `/reviewbot dismiss reason` | Dismiss a historical finding in its thread; use `/reviewbot dismiss CRB-0001 reason` from an ordinary comment |
+| `@reviewbot question` | Answer a question using code evidence |
 | `/reviewbot morequestion` | Add five deeper questions |
-| `/reviewbot answer Q1 B` · `/reviewbot answer Q1 B Q2 C` | Grade and explain answers by question number and option, several at once |
+| `/reviewbot answer Q1 B Q2 C` | Answer one or several questions by number and option, then receive grades and explanations |
 | `/reviewbot learn rule` | Propose a repository rule |
-| `/reviewbot approve UUID` · `reject UUID` | Approve · reject a rule (maintainers) |
+| `/reviewbot approve UUID` | Approve a rule (maintainers) |
+| `/reviewbot reject UUID` | Reject a rule (maintainers) |
 
 Approving or rejecting rules requires GitHub Maintain/Admin or GitLab Maintainer or higher.
 Ordinary conversation and dismissals never become rules automatically.
@@ -214,7 +180,7 @@ Ordinary conversation and dismissals never become rules automatically.
 ### Answering a question
 
 Every question has four options. Answer with the question number (`Q1`) and an option letter (`A`–`D`), optionally followed by your reasoning.
-Review questions are numbered `Q1`, `Q2`…; questions from `/reviewbot morequestion` are numbered separately as `심화1`, `심화2`… so the two never collide. Follow-up numbers continue across requests within one code revision (심화1–5, then 심화6–10). Hash IDs like `Q-0123456789ab` from older comments still work.
+Initial questions are numbered `Q1`, `Q2`…; questions from `/reviewbot morequestion` are numbered separately as `심화1`, `심화2`… so the two never collide. Follow-up numbers continue across requests within one code revision (심화1–5, then 심화6–10). Hash IDs like `Q-0123456789ab` from older comments still work.
 
 ```text
 /reviewbot answer Q1 B
@@ -222,7 +188,7 @@ Review questions are numbered `Q1`, `Q2`…; questions from `/reviewbot moreques
 /reviewbot answer 심화1 B 심화2 C
 ```
 
-- Each review question is also posted as an inline thread on its code line; replying with just `B` there is graded.
+- Each initial question is also posted as an inline thread on its code line; replying with just `B` there is graded.
 - The answer key is fixed when the question is written and never shown in comments. A bare option letter is graded from the key without a model call; added reasoning is assessed by the model, but the key alone decides right or wrong.
 - After grading, the summary comment marks the question (`✅ 정답`, `🟡 부분 정답`, `❌ 오답`, `⏸ 판정 보류`) and updates `답변 n/m`.
 
@@ -234,27 +200,27 @@ Design questions accept any reasonable alternative. If the code evidence is not 
 
 ### Getting deeper questions
 
-Comment `/reviewbot morequestion` to get five deeper questions, excluding ones already asked, in the same format as review questions.
+Comment `/reviewbot morequestion` to get five deeper questions, excluding ones already asked, in the same format as initial questions.
 They cover how the technique works, design choices, failure recovery, concurrency, performance and test strategy.
 
 - 5 questions at a time, up to 5 requests per code version across the whole PR/MR
-- Question generation and grading each take at most 2 minutes
+- The model call timeout for initial generation (`initial_questions`), deeper questions (`questions`) and reasoning grades (`grade`) is 120,000ms each. Queueing, source preparation, publication and retries take additional time.
 
 ### Merge only after every question is answered (optional)
 
 Add `requireAnswers: true` to `.codereviewbot.yaml` and the bot posts a `codereviewbot/questions` status on the PR's latest commit.
-When a repository admin makes that status a required check, the merge button stays blocked until every review question is answered.
+When a repository admin makes that status a required check, the merge button stays blocked until every initial question visible in the current summary is answered.
 
 | Situation | Status |
 |---|---|
 | Some questions are unanswered | Pending · `질문 답변 1/3` (1 of 3 answered) |
 | Every question shown in the report is answered (correct, incorrect or undecided all count) | Success |
 | No questions could be made, e.g. only binary files changed | Success |
-| Review failed | Pending · request again with `/reviewbot full` |
+| Question generation failed | Pending · request again with `/reviewbot full` |
 
 - An answer counts once its grading reply is posted. A wrong answer still counts, since it gets an explanation.
 - Deeper questions from `/reviewbot morequestion` are not required.
-- A new push starts over with the new review's questions.
+- A new push starts over with the newly generated questions.
 - See the [connection guide](docs/connections.md) (Korean) for setup.
 
 <details>
@@ -265,41 +231,41 @@ When a repository admin makes that status a required check, the merge button sta
 - In a bot thread with only one question, a plain reply is graded without an ID. With several, the bot asks for the ID.
 - Comment bodies are read up to 8,000 characters.
 - Questions are tied to the head, base and start SHAs. If the code changes, the bot points you to the latest questions.
-- Regenerating a report or a failed review on the same code keeps posted question IDs and learning history.
+- Regenerating a report or failed question generation on the same code keeps posted question IDs and learning history.
 
 </details>
 
 ## Repository policy
 
-Put `.codereviewbot.yaml` on the target branch of the reviewed repository to adjust the review.
+Put `.codereviewbot.yaml` on the target repository’s base branch to configure source scope and question context.
 
 ```yaml
 version: 1
-maxInlineComments: 5
+maxInlineComments: 5    # legacy finding limit; does not limit question threads
 requireAnswers: false   # true: merge only after every question is answered
 exclude: ["generated/**"]
 pathInstructions:
   - path: "src/controllers/**"
-    instructions: "인증·권한·입력 검증을 확인한다."
+    instructions: "인증·권한·입력 검증의 의도를 이해하는 질문을 출제한다."
 ```
 
-- The policy is read from the base branch. Changing it in a PR does not change that PR's review.
+- The policy is read from the base branch. Changing it in a PR does not change that PR's question policy.
 - `AGENTS.md` and `docs/coding-standards.md` on the base branch, linked issues and approved repository rules are also used.
-- Generated files, binaries, agent configs and credential files are excluded from review and listed in the report.
-- Limits: 1,500 files, 12 MiB total, 200 KB per file, 150 KB of diff. Anything beyond that marks the review as partial.
+- Generated files, binaries, agent configs and credential files are excluded from question sources. An explicit reason is shown when no readable change remains.
+- Limits: 1,500 files, 12 MiB total, 200 KB per file, 150 KB of diff. Anything beyond that marks question generation as partial.
 
 ## Safety
 
 - The model CLI's built-in tools (shell, browser, other apps, sub-agents) are turned off; only read/search tools on a fixed snapshot are provided.
 - The runner cannot reach the host home folder, the Docker socket or the Git cache. Only the controller has Git write credentials.
-- The reviewed project's code, tests and install scripts are never run.
+- The target project's code, tests and install scripts are never run.
 - Instructions inside PR descriptions, issues and code comments are treated as data only.
 - If a response is lost while publishing, the bot looks up existing comments and retries without duplicates.
 
 ## Project layout
 
 ```text
-src/          controller and runner servers, review engine, platform adapters, renderer, DB store
+src/          controller and runner servers, question generation engine, platform adapters, renderer, DB store
 migrations/   PostgreSQL schema
 n8n/          n8n workflows (generated by scripts/generate-workflows.mjs)
 config/       sample repository config (repositories.yaml is not committed)
@@ -313,7 +279,7 @@ docs/         implementation contract, progress log, connection and operations g
 
 | Document | Contents |
 |---|---|
-| [Connection guide](docs/connections.md) | Review engine (Codex/Claude) login and API keys, GitHub and GitLab, Cloudflare Tunnel (Korean) |
+| [Connection guide](docs/connections.md) | Question engine (Codex/Claude) login and API keys, GitHub and GitLab, Cloudflare Tunnel (Korean) |
 | [Operations guide](docs/operations.md) | Health checks, recovery, backups (Korean) |
 | [Implementation contract](docs/plan.md) | Scope, output contract, acceptance criteria |
 | [Progress log](docs/progress.md) | Work history and verification results |
