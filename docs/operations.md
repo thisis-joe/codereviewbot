@@ -12,6 +12,7 @@ curl --fail http://localhost:18092/healthz
 
 `/internal/health`는 `.env`의 INTERNAL_TOKEN에 대한 Bearer 인증이 필요하다. 작업 수·실패 수·현재 실행 여부를 제공한다.
 로그에는 작업 ID·단계·분류된 실패 원인만 남긴다. 모델 원문 대화나 Git 자격 증명을 출력하지 않는다.
+실패 로그의 `cause`는 봇이 만든 오류 문구다. 구조화 출력이 계약과 다르면 `schema mismatch:` 뒤에 필드 경로와 오류 코드만 남긴다. 이 원인이 반복되면 컨트롤러와 실행기 이미지가 같은 소스에서 빌드됐는지 먼저 확인한다.
 
 ## 중복과 장애
 

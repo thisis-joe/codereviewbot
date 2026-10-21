@@ -203,3 +203,11 @@
   comment exclusion and duplicate platform views. `git diff --check` passed.
   Scoped author review covers the complete dirty/new source and tests; no fresh-context
   reviewer was used in this follow-up. No deployment or remote publication performed.
+
+- L1 (2026-10-21): split pending failure-cause diagnostics into the independent
+  `codex/failure-diagnostics` branch from `2db8478`. No acknowledgement code or local
+  Cloudflare override included. Logs add work kind, retry attempt, classified schema/
+  JSON failures and redacted bounded generic causes. Operations notes are preserved.
+  RED reproduced absent cause/kind/attempt fields; GREEN: 88 unit tests, including
+  generic, schema-field-only, JSON-input-suppression and credential/size regressions.
+  Scoped author review + diff check passed; no independent reviewer used for this slice.

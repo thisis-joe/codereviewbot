@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { Store, type Job } from './store.js';
 import { Platform } from './platform.js';
 import { Workspaces } from './workspace.js';
@@ -91,7 +92,7 @@ export class Controller {
       if (job.kind === 'command' && job.body.comment && (superseded || job.attempts >= 3)) {
         try { await this.settleAck(this.platform(job.body.target), job.body.target.number, job.body.comment, !superseded); } catch { /* repository removed */ }
       }
-      console.error(JSON.stringify({ jobId: job.id, stage: job.state, error: error instanceof Superseded ? 'superseded' : 'execution_failed' }));
+      console.error(JSON.stringify({ jobId: job.id, kind: job.kind, stage: job.state, attempt: job.attempts, error: error instanceof Superseded ? 'superseded' : 'execution_failed', ...(error instanceof Superseded ? {} : { cause: describeFailure(error) }) }));
     } finally { clearInterval(heartbeat); }
   }
   async command(job: Job, platform: Platform, lease: () => Promise<void>): Promise<void> {
@@ -232,4 +233,11 @@ export class Controller {
 function normalizeMention(platform: Platform, body: string): string {
   const mention = platform.config.botLogin.replace(/\[bot\]$/, '');
   return body.replace(new RegExp(`^@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), '@reviewbot ');
+}
+
+// Names the failure for operators without echoing model output: schema errors keep field paths and issue codes only.
+function describeFailure(error: unknown): string {
+  if (error instanceof z.ZodError) return `schema mismatch: ${error.issues.slice(0, 5).map(i => `${i.path.map(String).join('.') || '(root)'} ${i.code}`).join(', ')}`;
+  if (error instanceof SyntaxError) return 'invalid JSON from runner';
+  return redact(error instanceof Error ? `${error.constructor.name}: ${error.message}` : 'unknown').slice(0, 300);
 }
