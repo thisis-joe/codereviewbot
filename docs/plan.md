@@ -46,16 +46,26 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 | Q2 | `codex/question-bot` | one-pass engine, question-only renderer, publication, cache/recovery and CI cutover; core regression checks |
 | Q3 | `codex/question-bot` | PostgreSQL transition/restart/cache/ref/gate and timing regression coverage for GitHub and GitLab |
 | Q4 | `codex/question-bot` | documentation, concrete fixture previews and full verification evidence |
+| A1 | `codex/command-acknowledgements` | organize pending command notices, native edit/delete helpers and lifecycle tests |
+| L1 | `codex/failure-diagnostics` | organize pending structured, redacted failure diagnostics and regressions |
+| I1 | `codex/question-bot` | integrate A1/L1 with help/grading, preserve local Cloudflare configuration and verify |
 
 Dependency graph: `Q1 → Q2 → Q3 → Q4`; H1 is independent and integrates before Q2.
-Execution mode is continuous. `docs/progress.md` is the authoritative work ledger;
+Follow-up dependency: `(A1, L1, Q4) → I1`. Execution mode is continuous. `docs/progress.md` is the authoritative work ledger;
 this contract contains acceptance, not a second mutable task checklist.
 
 ## Ownership and validation
 
-The original checkout `/Users/Joseph/workspaces/codereviewbot` contains pre-existing
-uncommitted acknowledgement/operations work. Implementation uses clean managed
-worktrees from the base commit, preserving that checkout and all its files unchanged.
+The initial transition preserved the original checkout's pending acknowledgement and
+operations changes. Follow-up authorization on 2026-10-21 organizes those changes into
+A1/L1 feature commits and integrates them into the question-bot branch. After verified
+integration, original pending source changes are cleared from main; the exact original
+snapshot remains in the integration worktree's ignored local backup. The Cloudflare
+`compose.override.yaml` stays byte-identical in the original checkout, excluded only
+through repository-local `info/exclude` and never committed.
+
+Integration uses `/Users/Joseph/.codex/worktrees/question-integration/codereviewbot`.
+The former question worktree is left on its separately selected live-validation branch.
 No Jira task exists; the established repository ruling permits feature-named `codex/`
 branches without invented Jira numbers. Use explicit task-owned staging and separate
 work-unit commits; do not merge/push main or alter running deployment services.

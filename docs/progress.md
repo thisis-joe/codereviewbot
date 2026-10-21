@@ -226,3 +226,16 @@
   also verifies notice cleanup. GREEN: 102 unit + 32 real PostgreSQL integration tests.
   Author review covers committed feature changes plus both integration test updates;
   fresh-context review is unavailable in this follow-up (no subagents dispatched).
+- I1 completed in `85167b5`; final 102 unit + 32 real PostgreSQL integration tests,
+  Compose configuration, fixture demo and diff checks passed. Both final images built;
+  built controller exercised immediate notice → full help → cleanup plus classified
+  failure logs. Built runner exercised authenticated HTTP, bounded fixture generation
+  and invalid-count rejection. No actual model/provider call or deployment performed.
+- Original main's pending files matched the saved byte hashes before cleanup. Their
+  functionality now exists in A1/L1 commits and the verified question-bot integration;
+  only those known tracked changes were restored and the committed/split ack test was
+  cleared from the original checkout. Main remains at `2db8478` with a clean status.
+  Cloudflare override is byte-identical and ignored using local `info/exclude`; no
+  Cloudflare file, token or local exclusion rule was added to a Git commit.
+  Temporary test DB/container/image tags were removed; existing services and the
+  separate live-validation branch were left alone. Integration worktree is clean.
