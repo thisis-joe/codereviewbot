@@ -11,7 +11,7 @@ if (provider !== 'codex' && provider !== 'claude') throw new Error('MODEL_PROVID
 const model = provider === 'claude'
   ? new ClaudeCode(data, process.env.CLAUDE_CONFIG_DIR ?? '/claude', process.env.CLAUDE_BINARY ?? 'claude', process.env.CLAUDE_MODEL ?? '')
   : new Codex(data, process.env.CODEX_HOME ?? '/codex', process.env.CODEX_BINARY ?? 'codex', process.env.CODEX_MODEL ?? '', process.env.CODEX_BASE_URL ?? '');
-const Input = z.strictObject({ phase: z.enum(['review','verify','answer','questions','grade']), prompt: z.string().min(1).max(500000), workspaceId: z.string().uuid(), timeoutMs: z.int().min(1).max(600000) });
+const Input = z.strictObject({ phase: z.enum(['review','verify','answer','initial_questions','questions','grade']), prompt: z.string().min(1).max(500000), workspaceId: z.string().uuid(), timeoutMs: z.int().min(1).max(600000) });
 let busy = false;
 const server = createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/healthz') { send(res, 200, { ok: true, busy }); return; }

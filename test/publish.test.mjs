@@ -17,7 +17,7 @@ test('publishing reconciles a remote summary accepted before response loss', asy
   await assert.rejects(() => publish(p, r, { 'src/pay.ts': { oldPath: 'src/pay.ts' } }, 5, async () => {}));
   await publish(p, r, { 'src/pay.ts': { oldPath: 'src/pay.ts' } }, 5, async () => {});
   await publish(p, r, { 'src/pay.ts': { oldPath: 'src/pay.ts' } }, 5, async () => {});
-  assert.equal(p.stored.comments.length, 1); assert.equal(p.stored.inline.length, 1);
+  assert.equal(p.stored.comments.length, 1); assert.equal(p.stored.inline.length, 0);
 });
 test('changed head or a lost lease prevents all remote writes', async () => {
   const stale = platform({ stale: true });
@@ -38,15 +38,14 @@ test('commands distinguish explicit dismiss/learning approval from ordinary conv
   assert.equal(parseCommand('@reviewbot why is this unsafe?').action, 'ask');
 });
 
-test('large valid review output remains publishable with all fixed sections and visible truncation', async () => {
+test('archived review output never posts findings and cannot crowd out questions', async () => {
   const p = platform();
   const path = Array(5).fill('&'.repeat(99)).join('/');
   const r = report({ findings: [finding({ id: 'CRB-0001', problem: 'p'.repeat(6000), condition: 'c'.repeat(6000), impact: 'i'.repeat(6000), evidence: Array.from({ length: 12 }, () => ({ path: 'src/pay.ts', line: 4, side: 'RIGHT', reason: 'r'.repeat(6000) })) }), ...Array.from({ length: 39 }, (_, i) => finding({ id: `CRB-${String(i + 2).padStart(4, '0')}`, path, title: '&'.repeat(160) }))] });
   await publish(p, r, { 'src/pay.ts': { oldPath: 'src/pay.ts' } }, 5, async () => {});
   const body = p.stored.comments[0].body; assert.ok(body.length <= 60000);
-  for (let i = 1; i <= 4; i++) assert.ok(body.includes(`### ${i}.`));
-  assert.match(body, /축약/); assert.equal([...body.matchAll(/^\*\*Q\d+\. /gm)].length, 3); assert.match(body, /CRB-0001/);
-  assert.equal(p.stored.inline.length, 1); assert.ok(p.stored.inline[0].body.length <= 60000);
+  assert.doesNotMatch(body, /### [1-4]\.|CRB-0001|수정 필요/); assert.equal([...body.matchAll(/^\*\*Q\d+\. /gm)].length, 3);
+  assert.equal(p.stored.inline.length, 0);
 });
 test('each review question gets one inline thread on its diff line and the summary shows recorded grades', async () => {
   const p = platform(), r = report(); r.questions[2] = { ...r.questions[2], line: 9 };

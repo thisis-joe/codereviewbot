@@ -15,7 +15,7 @@ test('the gate is off unless the repository policy requires answers', () => {
 
 test('every visible question must be answered, whatever the grade', () => {
   const r = gated(), all = ids(r);
-  assert.deepEqual(answerGate(r, new Set()), { state: 'pending', description: `질문 답변 0/3 · /reviewbot answer Q번호 보기` });
+  assert.deepEqual(answerGate(r, new Set()), { state: 'pending', description: `질문 답변 0/3` });
   assert.match(answerGate(r, new Set(all.slice(0, 2))).description, /2\/3/);
   assert.equal(answerGate(r, new Set(all)).state, 'success');
   assert.equal(answerGate(r, new Set(['Q-ffffffffffff', ...all.slice(1)])).state, 'pending');
@@ -28,7 +28,7 @@ test('failed reviews block and reviews without possible questions pass', () => {
 
 test('a shortened report only requires the questions it shows', () => {
   const questions = Array.from({ length: 10 }, (_, i) => ({ question: `pay 변경 질문 ${i}: 재시도 시 어떤 조건이 유지되나요?`, path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() }));
-  const long = gated({ summary: '요약 '.repeat(25000), questions });
+  const long = gated({ questions: questions.map(q => ({ ...q, path: Array(6).fill('漢'.repeat(82)).join('/'), question: '&'.repeat(480) + q.question, options: choices(...Array(4).fill('&'.repeat(299))) })) });
   assert.equal(requiredQuestions(gated({ questions })).length, 10);
   assert.equal(requiredQuestions(long).length, 3);
 });

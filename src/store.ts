@@ -28,8 +28,13 @@ export class Store {
       if (event.kind === 'closed') { await c.query("UPDATE jobs SET state='superseded',owner=NULL,lease_until=NULL,updated_at=now() WHERE target_key=$1 AND kind<>'command' AND state IN ('queued','running','ready','publishing')", [key]); return null; }
       if (event.kind === 'review') {
         await c.query("UPDATE jobs SET state='superseded',owner=NULL,lease_until=NULL,updated_at=now() WHERE target_key=$1 AND kind<>'command' AND state IN ('running','ready','publishing') AND ($2::boolean OR coalesce(body->>'headSha','')<>$3)", [key, force, event.headSha ?? '']);
-        const queued = await c.query("SELECT id FROM jobs WHERE target_key=$1 AND kind='review' AND state='queued' FOR UPDATE", [key]);
-        if (queued.rows[0]) { const id = queued.rows[0].id; await c.query('UPDATE jobs SET body=$2,updated_at=now() WHERE id=$1', [id, { ...event, force }]); return id; }
+        const queued = await c.query("SELECT id,body FROM jobs WHERE target_key=$1 AND kind='review' AND state='queued' FOR UPDATE", [key]);
+        if (queued.rows[0]) {
+          const prior = queued.rows[0], sameHead = prior.body.headSha === event.headSha;
+          const regenerate = event.regenerate || (sameHead && prior.body.regenerate);
+          const body = { ...event, force: force || Boolean(sameHead && prior.body.force), ...(regenerate ? { regenerate: true } : {}) };
+          await c.query('UPDATE jobs SET body=$2,updated_at=now() WHERE id=$1', [prior.id, body]); return prior.id;
+        }
       }
       if (event.kind === 'ci') {
         const queued = await c.query("SELECT id FROM jobs WHERE target_key=$1 AND kind='ci' AND state='queued' FOR UPDATE", [key]);
@@ -91,9 +96,9 @@ export class Store {
       await c.query('UPDATE targets SET report=$2,updated_at=now() WHERE key=$1', [row.rows[0].target_key, report]);
     });
   }
-  /** Median of the latest model reviews in this mode, falling back to any mode, then to a fixed guess. */
+  /** Median of the latest question generations in this mode, falling back to any mode, then to a fixed guess. */
   async reviewEstimate(mode: 'full' | 'incremental'): Promise<{ minutes: number; measured: boolean }> {
-    const median = async (sameMode: boolean) => (await this.pool.query("SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY review_seconds) AS seconds FROM (SELECT review_seconds FROM jobs WHERE kind='review' AND review_seconds IS NOT NULL AND (NOT $1::boolean OR result->>'mode'=$2) ORDER BY updated_at DESC LIMIT 20) recent", [sameMode, mode])).rows[0]?.seconds as number | null;
+    const median = async (sameMode: boolean) => (await this.pool.query("SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY review_seconds) AS seconds FROM (SELECT review_seconds FROM jobs WHERE kind='review' AND result->>'schemaVersion'='2' AND review_seconds IS NOT NULL AND (NOT $1::boolean OR result->>'mode'=$2) ORDER BY updated_at DESC LIMIT 20) recent", [sameMode, mode])).rows[0]?.seconds as number | null;
     return estimateMinutes(await median(true) ?? await median(false));
   }
   async complete(id: string, owner: string): Promise<void> {
@@ -141,7 +146,7 @@ export class Store {
     return { failed: rows.find(r => r.state === 'failed')?.count ?? 0, queued: rows.filter(r => ['queued', 'ready'].includes(r.state)).reduce((n, r) => n + r.count, 0) };
   }
 }
-// Rounded up so the notice rarely promises less time than the review takes.
+// Rounded up so the notice rarely promises less time than generation takes.
 export function estimateMinutes(seconds: number | null): { minutes: number; measured: boolean } {
-  return seconds == null ? { minutes: 5, measured: false } : { minutes: Math.max(1, Math.ceil(seconds / 60)), measured: true };
+  return seconds == null ? { minutes: 2, measured: false } : { minutes: Math.max(1, Math.ceil(seconds / 60)), measured: true };
 }

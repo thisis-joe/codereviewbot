@@ -39,6 +39,7 @@ export const ChangeQuestionSchema = z.strictObject({
   key: AnswerKeySchema,
 });
 export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10);
+export const InitialQuestionsSchema = z.strictObject({ questions: ChangeQuestionsSchema });
 // Each /reviewbot morequestion batch is fixed at five questions.
 export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
@@ -79,7 +80,7 @@ export interface Snapshot extends Target {
   policyVersion: string; title: string; description: string; webUrl: string;
 }
 export interface Report extends Omit<Analysis, 'findings' | 'resolutions' | 'questions'> {
-  schemaVersion: '1'; snapshot: Snapshot; state: 'completed' | 'partial' | 'failed';
+  schemaVersion: '1' | '2'; snapshot: Snapshot; state: 'completed' | 'partial' | 'failed';
   mode: 'full' | 'incremental'; findings: Finding[]; reviewedFiles: string[]; excludedFiles: string[];
   questions: ChangeQuestion[];
   questionsUnavailableReason?: string;
@@ -93,6 +94,9 @@ export function hasChangeQuestions(report: Report): boolean {
   return reviewed(report) && report.questions.length >= 3;
 }
 export function emptyReport(snapshot: Snapshot, state: Report['state'], detail: string): Report {
-  return { schemaVersion: '1', snapshot, state, mode: 'full', summary: detail, findings: [],
-    checks: [], recommendedTests: [], limitations: [detail], reviewedFiles: [], excludedFiles: [], questions: [] };
+  return { schemaVersion: '2', snapshot, state, mode: 'full', summary: detail, findings: [],
+    checks: [], recommendedTests: [], limitations: detail ? [detail] : [], reviewedFiles: [], excludedFiles: [], questions: [] };
 }
+
+/** Version 2 is the question-only pipeline; version 1 reports are retained as history. */
+export function isQuestionReport(report: Report | null | undefined): report is Report { return report?.schemaVersion === '2'; }

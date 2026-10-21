@@ -16,9 +16,12 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, report(), {}, 0);
   const publishing = await store.claim(); await store.complete(publishing.id, publishing.owner);
   const config = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', botLogin: 'bot', webhookSecretEnv: 'HOOK_SECRET', webhookAuth: 'hmac', tokenEnv: 'TOKEN', enabled: true };
-  const comments = [{ id: '50', surface: 'review', author: 'bot', body: '<!-- codereviewbot:finding:v1:CRB-0001 -->', url: '' }], calls = [], replies = []; let snap = snapshot(), loseReply = true;
+  const comments = [{ id: '50', surface: 'review', author: 'bot', body: '<!-- codereviewbot:finding:v1:CRB-0001 -->', url: '' }], calls = [], replies = [], acks = []; let snap = snapshot(), loseReply = true;
   const platform = { config, snapshot: async () => ({ ...snap }), permission: async () => 'write', comments: async () => comments.filter(c => c.surface !== 'review'), inlineComments: async () => comments.filter(c => c.surface === 'review'), owned: c => c.author === 'bot',
-    reply: async (number, body, parent, discussion) => { replies.push({ body, parent, discussion }); comments.push({ id: `bot-${replies.length}`, surface: parent ? 'review' : 'issue', parentId: parent ?? undefined, body, author: 'bot', url: '' }); if (loseReply) { loseReply = false; throw new Error('response lost after remote write'); } } };
+    deleteComment: async (number, c) => { comments.splice(comments.findIndex(x => x.id === c.id && x.surface === c.surface), 1); },
+    reply: async (number, body, parent, discussion) => {
+      if (body.includes('codereviewbot:ack:')) { acks.push(body); comments.push({ id: `ack-${acks.length}`, surface: parent ? 'review' : 'issue', body, author: 'bot', url: '' }); return; }
+      replies.push({ body, parent, discussion }); comments.push({ id: `bot-${replies.length}`, surface: parent ? 'review' : 'issue', parentId: parent ?? undefined, body, author: 'bot', url: '' }); if (loseReply) { loseReply = false; throw new Error('response lost after remote write'); } } };
   const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
   const questions = ['pay에서 같은 멱등 키를 사용하는 이유는 무엇인가요?', 'charge가 성공한 뒤 저장이 실패하면 어떤 복구 전략을 적용하나요?', '동시 pay 요청에 대한 멱등 기록은 어떻게 원자적으로 저장하나요?', 'pay 재시도 간격은 어떤 기준으로 정하나요?', 'charge 타임아웃 뒤 상태 조회는 왜 필요한가요?'].map((question, i) => ({ question, path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'advanced', options: (i ? ['보기 A', '보기 B', '보기 C', '보기 D'] : ['중복 요청 식별', '호출마다 새 승인', '승인 생략', '재시도 금지']).map((text, n) => ({ id: 'ABCD'[n], text })), key: { answer: 'A', explanation: '같은 키로 같은 요청을 식별합니다.', options: [...'ABCD'].map(id => ({ id, explanation: `${id} 해설` })) } }));
   const model = { run: async (phase, prompt) => { calls.push({ phase, prompt }); return phase === 'questions' ? { questions } : { verdict: 'correct', explanation: '동일 요청을 식별한다는 답이 맞습니다.', expectedAnswer: '외부 승인 재시도에서 같은 키를 재사용해 중복 부작용을 방지합니다.', optionExplanations: [{ id: 'A', explanation: '같은 논리 요청을 식별합니다.' }, { id: 'B', explanation: '새 승인은 중복 결제를 만들 수 있습니다.' }, { id: 'C', explanation: '승인을 생략할 수 없습니다.' }, { id: 'D', explanation: '재시도 자체는 필요합니다.' }], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '외부 결제 승인' }] }; } };
@@ -54,8 +57,10 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   assert.ok(replies[2].body.includes('[요청 댓글](https://github.com/joe/demo/pull/1#discussion_r100)'));
   snap = snapshot({ headSha: 'c'.repeat(40) });
   await submit('102', `/reviewbot answer ${id} A 같은 요청을 식별합니다`); await tick();
-  assert.equal(calls.length, 3); assert.match(replies[3].body, /최신 리뷰/);
+  assert.equal(calls.length, 3); assert.match(replies[3].body, /최신 질문/);
   await submit('103', '/reviewbot morequestion', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
+  // Each admitted human command got one received notice, and every notice was removed once its command finished.
+  assert.equal(acks.length, 4); assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
 });
 
 test('answering every published question, right or wrong, clears the merge gate', async t => {
@@ -69,6 +74,7 @@ test('answering every published question, right or wrong, clears the merge gate'
   const platform = { config, snapshot: async () => snapshot(), permission: async () => 'write', comments: async () => comments, inlineComments: async () => [], owned: c => c.author === 'bot',
     comment: async (n, body, id) => { const existing = comments.find(c => c.id === id); if (existing) existing.body = body; else comments.push({ id: `bot-${comments.length}`, body, author: 'bot', surface: 'issue' }); },
     reply: async (n, body) => { comments.push({ id: `bot-${comments.length}`, body, author: 'bot', surface: 'issue' }); },
+    deleteComment: async (n, item) => { const index = comments.findIndex(c => c.id === item.id && c.surface === item.surface); assert.ok(index >= 0); comments.splice(index, 1); },
     gateStatus: async () => statuses.at(-1) ?? null, setGateStatus: async (s, gate) => { statuses.push(gate); } };
   const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
   const verdicts = ['incorrect', 'unverifiable', 'correct']; let graded = 0;
@@ -86,7 +92,7 @@ test('answering every published question, right or wrong, clears the merge gate'
     await tick();
   };
   await tick();
-  assert.deepEqual(statuses.map(s => s.description), ['질문 답변 0/3 · /reviewbot answer Q번호 보기']);
+  assert.deepEqual(statuses.map(s => s.description), ['질문 답변 0/3']);
   const ids = seeded.questions.map(q => questionId(seeded.snapshot, q));
   await submit('200', `/reviewbot answer ${ids[0]} A`);
   await submit('201', `/reviewbot answer ${ids[0]} B`);
@@ -99,4 +105,5 @@ test('answering every published question, right or wrong, clears the merge gate'
   platform.openNumbers = async () => [1]; platform.target = number => ({ ...snapshot(), number }); platform.checks = async () => []; workspaces.cleanup = async () => {};
   await controller.recover();
   assert.equal(statuses.length, 4);
+  assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
 });

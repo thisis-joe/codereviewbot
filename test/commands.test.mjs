@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Controller } from '../dist/controller.js';
 import { snapshot, report, finding, choices, answerKey } from './fixtures.mjs';
 import { questionId } from '../dist/learning.js';
+import { parseCommand } from '../dist/commands.js';
 
 const context = () => ({ sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\n charge();\n save();\n}' }, baseFiles: {}, excluded: [], limited: false, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1 +1,4 @@\n+function pay() {\n+ charge();\n+ save();\n+}', lines: new Set([1, 2, 3, 4]), oldLines: new Set() } } });
 const explain = () => choices().map(o => ({ id: o.id, explanation: `${o.id} 해설` }));
@@ -19,6 +20,42 @@ function learningHarness(body, overrides = {}) {
   const controller = new Controller(store, [], { prepare: async () => ({ context: data.context ?? context(), policy: data.policy ?? {} }) }, model);
   return { data, job, run: async (jobOverride = {}) => controller.command({ ...job, ...jobOverride }, platform, async () => {}) };
 }
+
+test('help is an explicit no-argument command and returns the complete deterministic command table without a report or code access', async () => {
+  assert.deepEqual(parseCommand(' /reviewbot HELP '), { action: 'help' });
+  assert.equal(parseCommand('/reviewbot help answer'), null);
+  const expected = ['answer', 'morequestion', 'review', 'full', 'pause', 'resume', 'explain', 'dismiss', 'learn', 'approve', 'reject', 'help'];
+  const replies = [], forbidden = () => { throw new Error('help must not access report, snapshots, workspace or model'); };
+  const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], owned: c => c.author === 'bot', snapshot: forbidden,
+    reply: async (...args) => { replies.push(args); } };
+  const store = { getTarget: forbidden, learnings: forbidden, setPaused: forbidden };
+  const controller = new Controller(store, [], { prepare: forbidden }, { run: forbidden });
+  const job = { id: 'help-job', body: { target: snapshot(), comment: { id: 'help-1', author: 'joe', body: '/reviewbot help', parentId: 'root', discussionId: 'discussion', surface: 'review' } } };
+  for (let i = 0; i < 2; i++) await controller.command(job, platform, async () => {});
+  assert.equal(replies.length, 2); assert.equal(replies[0][1], replies[1][1]);
+  const body = replies[0][1];
+  assert.match(body, /^<!-- codereviewbot:reply:review-help-1 -->/);
+  assert.match(body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
+  for (const command of expected) assert.match(body, new RegExp(`^\\| \`/reviewbot ${command}\` \\| [^|]+ \\| [^|]+ \\| \`/reviewbot ${command}[^|]*\` \\|$`, 'm'));
+  assert.match(body, /^\| `@reviewbot` \| 코드 질문 \| .* \| `@reviewbot .+` \|$/m);
+  assert.equal([...body.matchAll(/^\| (?:`\/reviewbot|`@reviewbot)/gm)].length, 13);
+  assert.match(body, /최신 변경.*질문.*생성/); assert.match(body, /PR\/MR 전체.*질문.*생성/);
+  assert.match(body, /과거.*지적/);
+  assert.equal(replies[0][2], 'root'); assert.equal(replies[0][3], 'discussion');
+  platform.comments = async () => [{ id: 'prior-help', author: 'bot', body, surface: 'review' }];
+  await controller.command(job, platform, async () => {}); assert.equal(replies.length, 2, 'lost reply responses reconcile through the existing marker');
+});
+
+test('invalid commands show only a concise error and help entry point without code access', async () => {
+  for (const body of ['/reviewbot answer Q1', '/reviewbot unknown', '/reviewbot help answer']) {
+    const h = learningHarness(body, { report: null });
+    await h.run(); assert.equal(h.data.calls.length, 0); assert.equal(h.data.saved, null);
+    const response = h.data.replies[0][1];
+    assert.match(response, /명령.*확인/); assert.match(response, /명령어 안내: `\/reviewbot help`/);
+    assert.doesNotMatch(response, /\/reviewbot answer|\| 명령어|### 코드 근거|사용 예시/);
+    assert.ok(response.length < 300);
+  }
+});
 
 test('more-learning generates a source-bound technical batch and persists it before replying', async () => {
   const h = learningHarness('/reviewbot morequestion'); await h.run();
@@ -122,7 +159,7 @@ test('display numbers resolve to review questions first and then continue throug
   const fresh = ['pay 재시도 사이 키 저장소 장애는 어떻게 다뤄야 하나요?', 'charge 응답 코드별 재시도 정책은 어떻게 나누나요?', 'save 실패를 재현하는 테스트는 어떤 경계에서 작성하나요?', 'pay 로그에 남길 멱등 키 정보는 무엇인가요?', 'charge 호출 순서를 바꾸면 어떤 불변 조건이 깨지나요?'].map(question => ({ ...extra[0], question }));
   const more = learningHarness('/reviewbot morequestion', { report: r, batches: [{ snapshot: snapshot(), questions: extra }], output: { questions: fresh } }); await more.run();
   assert.equal(more.data.saved.start, 6); assert.match(more.data.replies[0][1], /^\*\*심화6\. pay /m); assert.match(more.data.replies[0][1], /^\*\*심화10\. /m);
-  assert.doesNotMatch(more.data.replies[0][1], /^\*\*Q\d/m); assert.match(more.data.replies[0][1], /`\/reviewbot answer 심화1 B`/); assert.doesNotMatch(more.data.replies[0][1], /^\*\*Q1\. /m);
+  assert.doesNotMatch(more.data.replies[0][1], /^\*\*Q\d/m); assert.match(more.data.replies[0][1], /`\/reviewbot help`/); assert.doesNotMatch(more.data.replies[0][1], /^\*\*Q1\. /m);
   const missing = learningHarness('/reviewbot answer Q4 B', { report: r }); await missing.run();
   assert.equal(missing.data.calls.length, 0); assert.match(missing.data.replies[0][1], /찾을 수 없습니다/);
 });
@@ -130,7 +167,7 @@ test('display numbers resolve to review questions first and then continue throug
 test('choice questions ask for an option letter before spending a grading call', async () => {
   for (const answer of ['같은 키를 씁니다.', 'Because the key is reused', 'E']) {
     const h = learningHarness(`/reviewbot answer Q1 ${answer}`); await h.run();
-    assert.equal(h.data.calls.length, 0); assert.match(h.data.replies[0][1], /보기 A·B·C·D 중 하나로 답하세요[\s\S]*Q1 B/);
+    assert.equal(h.data.calls.length, 0); assert.match(h.data.replies[0][1], /보기 A·B·C·D 중 하나로 답하세요[\s\S]*명령어 안내: `\/reviewbot help`/);
   }
 });
 
@@ -186,10 +223,10 @@ test('large but valid accumulated learning context fits the runner prompt bounda
   assert.ok(h.data.calls[0].prompt.includes(questions[49].question));
 });
 
-test('malformed answer commands ask for usage instead of grading the command as an answer', async () => {
+test('malformed answer commands point to help instead of grading the command as an answer', async () => {
   const id = questionId(snapshot(), report().questions[0]);
   const h = learningHarness(`/reviewbot answer ${id}`, { remote: [{ id: 'root', author: 'bot', body: `<!-- codereviewbot:question:${id} -->` }], comment: { parentId: 'root' } });
-  await h.run(); assert.equal(h.data.calls.length, 0); assert.match(h.data.replies[0][1], /reviewbot answer/);
+  await h.run(); assert.equal(h.data.calls.length, 0); assert.match(h.data.replies[0][1], /reviewbot help/);
 });
 
 test('GitHub comment surfaces prevent numeric ID collisions in replies and thread inference', async () => {
@@ -243,7 +280,7 @@ function findingHarness(body, comment = {}) {
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', owned: c => c.author === 'bot',
     comments: async () => [], inlineComments: async () => [{ id: 'root2', author: 'bot', surface: 'review', body: '<!-- codereviewbot:finding:v1:CRB-0002 -->\n### [보통][정확성] 문제' }],
     snapshot: async () => snapshot(), reply: async (_n, text) => { data.replies.push(text); } };
-  const store = { getTarget: async () => ({ report: report({ findings }) }), learnings: async () => [], dismiss: async (_t, id) => { data.dismissed.push(id); return true; }, enqueue: async () => 'job2' };
+  const store = { getTarget: async () => ({ report: report({ findings }) }), learnings: async () => [], addFeedback: async () => '11111111-1111-4111-8111-111111111111', dismiss: async (_t, id) => { data.dismissed.push(id); return true; }, enqueue: async () => 'job2' };
   const workspaces = { prepare: async () => ({ context: { sourceDir: '/source' }, policy: {} }) };
   const model = { run: async (_phase, prompt) => { data.prompts.push(prompt); return { answer: '설명', evidence: [], next: '확인' }; } };
   const job = { id: 'job', body: { target: snapshot(), comment: { id: 'c1', author: 'joe', body, parentId: null, discussionId: null, surface: 'issue', ...comment } } };
@@ -267,4 +304,13 @@ test('dismiss without an ID only works inside a finding thread', async () => {
   const plainComment = findingHarness('/reviewbot dismiss 의도된 동작'); await plainComment.run();
   assert.deepEqual(plainComment.data.dismissed, []);
   assert.match(plainComment.data.replies[0], /어떤 지적을 기각할지 알 수 없습니다/);
+});
+
+
+test('ordinary feedback and legacy dismissal replies contain only the help entry point', async () => {
+  for (const body of ['/reviewbot dismiss 의도된 동작', '/reviewbot learn 금액은 정수로 다룬다']) {
+    const h = findingHarness(body); await h.run();
+    assert.match(h.data.replies[0], /명령어 안내: `\/reviewbot help`/);
+    assert.doesNotMatch(h.data.replies[0], /\/reviewbot (?:dismiss|approve|reject)|\| 명령어/);
+  }
 });

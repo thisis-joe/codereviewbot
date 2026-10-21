@@ -4,7 +4,7 @@ import type { Target } from './contracts.js';
 
 export interface Comment { id: string; body: string; author: string; parentId: string | null; discussionId: string | null; surface: 'issue' | 'review' | 'note' }
 export function commentKey(comment: Comment): string { return `${comment.surface}-${comment.id}`; }
-export interface Event { kind: 'review' | 'ci' | 'command' | 'closed'; target: Target; deliveryId: string; headSha?: string; comment?: Comment }
+export interface Event { kind: 'review' | 'ci' | 'command' | 'closed'; target: Target; deliveryId: string; headSha?: string; regenerate?: boolean; comment?: Comment }
 export interface Authenticated { repo: RepositoryConfig; deliveryId: string; event: string; body: any }
 export function equal(a: string, b: string): boolean {
   const left = Buffer.from(a), right = Buffer.from(b);
@@ -44,10 +44,6 @@ export function normalize(input: Authenticated): Event[] {
       if (b.action === 'closed') return output('closed', b.pull_request?.number);
       if (['opened', 'reopened', 'synchronize', 'ready_for_review'].includes(b.action) || (b.action === 'edited' && b.changes?.base)) return output('review', b.pull_request?.number, { headSha: b.pull_request?.head?.sha });
     }
-    if (['check_run', 'check_suite', 'workflow_run'].includes(event)) {
-      const run = b.check_run ?? b.check_suite ?? b.workflow_run;
-      if (b.action === 'completed') return (run?.pull_requests ?? []).flatMap((pr: any) => output('ci', pr.number, { headSha: run.head_sha }));
-    }
     if (['issue_comment', 'pull_request_review_comment'].includes(event) && b.action === 'created' && (b.issue?.pull_request || b.pull_request)) {
       const c = b.comment;
       if (!c || c.user?.type === 'Bot' || c.user?.login === r.botLogin || c.body?.length > 8000) return [];
@@ -59,7 +55,6 @@ export function normalize(input: Authenticated): Event[] {
       if (['close', 'merge'].includes(a?.action)) return output('closed', a.iid);
       if (['open', 'reopen'].includes(a?.action) || (a?.action === 'update' && (a.oldrev || b.changes?.target_branch))) return output('review', a.iid, { headSha: a.last_commit?.id });
     }
-    if (b.object_kind === 'pipeline' && ['success', 'failed', 'canceled'].includes(a?.status)) return output('ci', b.merge_request?.iid, { headSha: a.sha });
     if (b.object_kind === 'note' && a?.noteable_type === 'MergeRequest' && (!a.action || a.action === 'create') && b.user?.username !== r.botLogin && a.note?.length <= 8000) {
       return output('command', b.merge_request?.iid, { comment: { id: String(a.id), body: a.note ?? '', author: b.user?.username ?? '', parentId: null, discussionId: a.discussion_id ?? null, surface: 'note' } });
     }

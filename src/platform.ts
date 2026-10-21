@@ -66,6 +66,14 @@ export class Platform {
     if (this.config.platform === 'gitlab' && discussionId) return this.api.request(`${this.root}/merge_requests/${number}/discussions/${encodeURIComponent(discussionId)}/notes`, 'POST', { body });
     return this.comment(number, body);
   }
+  async editComment(number: number, c: Pick<RemoteComment, 'id' | 'surface'>, body: string): Promise<unknown> {
+    if (this.config.platform === 'github' && c.surface === 'review') return this.api.request(`${this.root}/pulls/comments/${encodeURIComponent(c.id)}`, 'PATCH', { body });
+    return this.comment(number, body, c.id);
+  }
+  async deleteComment(number: number, c: Pick<RemoteComment, 'id' | 'surface'>): Promise<void> {
+    const gh = this.config.platform === 'github';
+    await this.api.request(`${this.root}/${gh ? `${c.surface === 'review' ? 'pulls' : 'issues'}/comments` : `merge_requests/${number}/notes`}/${encodeURIComponent(c.id)}`, 'DELETE');
+  }
   async permission(username: string): Promise<'none' | 'write' | 'maintain'> {
     if (!username || username === this.config.botLogin) return 'none';
     try {

@@ -118,11 +118,11 @@ test('only completed graded answers on the same revision and target count toward
   assert.deepEqual([...await store.answeredQuestions(snapshot())].sort(), ['Q-000000000001', 'Q-000000000002', 'Q-000000000005']);
 });
 
-test('the start-of-review estimate uses recorded model review times for the same mode', async t => {
+test('question estimates use recorded generation times for the same mode', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate();
   await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
-  assert.deepEqual(await store.reviewEstimate('full'), { minutes: 5, measured: false });
+  assert.deepEqual(await store.reviewEstimate('full'), { minutes: 2, measured: false });
   for (const [i, seconds] of [200, 250, 400].entries()) {
     const target = snapshot({ number: 10 + i });
     await store.enqueue({ kind: 'review', target, deliveryId: `estimate-${i}`, headSha: target.headSha });

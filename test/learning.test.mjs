@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseCommand } from '../dist/commands.js';
 import * as contracts from '../dist/contracts.js';
-import { renderReport, renderGrade } from '../dist/render.js';
+import { renderReport, renderGrade, renderQuestionBatch } from '../dist/render.js';
 import { questionId } from '../dist/learning.js';
 import { report, changeQuestions, choices, answerKey } from './fixtures.mjs';
 
@@ -51,17 +51,25 @@ test('published questions expose revision-bound answer IDs and visible choices w
   assert.match(first, /^\*\*Q1\. \[기본\] 이번 pay .*\*\* — \[src\/pay\\\.ts:2\]\(.*\)\\\n(&nbsp;){4}\*\*A\.\*\* 새 키\\\n(&nbsp;){4}\*\*B\.\*\* 같은 키\\\n(&nbsp;){4}\*\*C\.\*\* 보기 C\\\n(&nbsp;){4}\*\*D\.\*\* 보기 D$/m);
   assert.match(first, /^\*\*Q3\. /m);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
-  assert.match(first, /^### CodeReviewBot 리뷰$/m); assert.doesNotMatch(first, /^#{1,2} /m);
-  assert.match(first, /### 4\. 변경 이해 질문\n\n보기 하나를 골라 `\/reviewbot answer Q1 B`로 답하세요\. 여러 개는 `\/reviewbot answer Q1 B Q2 C` · 답변 0\/3\n/);
+  assert.match(first, /^### CodeReviewBot 변경 이해 질문$/m); assert.doesNotMatch(first, /^#{1,2} /m);
+  assert.match(first, /답변 0\/3/);
   assert.ok(!first.includes(answerKey().explanation) && !first.includes('보기 해설'));
-  assert.match(first, /^#### 명령어\n\n\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|\n\|---\|---\|---\|---\|\n\| `\/reviewbot answer` \| 답변 \| .* \| `\/reviewbot answer Q1 B Q2 C` \|$/m);
-  assert.match(first, /^\| `\/reviewbot morequestion` \| 심화 질문 \| .*5개.*심화1.* \| `\/reviewbot morequestion` \|$/m); assert.ok(!first.includes('더 알아보자'));
-  for (const command of ['review', 'full', 'pause', 'resume', 'explain', 'dismiss', 'learn', 'approve', 'reject']) assert.match(first, new RegExp(`^\\| \`/reviewbot ${command}\` \\| [^|]+ \\| [^|]+ \\| \`/reviewbot ${command}[^|]*\` \\|$`, 'm'));
+  assert.match(first, /^명령어 안내: `\/reviewbot help`$/m);
+  assert.doesNotMatch(first, /\| 명령어|\/reviewbot answer|\/reviewbot morequestion|더 알아보자/);
   const marked = renderReport(report({ questions }), new Map([[ids[0], 'correct'], [ids[1], 'incorrect']]));
   assert.match(marked, /^\*\*Q1\. .* · ✅ 정답\\$/m); assert.match(marked, /^\*\*Q2\. .* · ❌ 오답\\$/m); assert.doesNotMatch(marked, /^\*\*Q3\. .* · /m); assert.match(marked, /답변 2\/3/);
   const changed = renderReport(report({ questions, snapshot: { ...report().snapshot, headSha: 'c'.repeat(40) } }));
   assert.ok(!changed.includes(ids[0]));
   assert.ok(!first.includes('정답:'));
+});
+
+test('question and grading comments keep one help entry point without repeating command examples', () => {
+  const r = report(), q = r.questions[0];
+  const grade = { verdict: 'correct', explanation: '', expectedAnswer: '같은 키를 재사용합니다.', optionExplanations: answerKey().options, evidence: [{ path: q.path, line: q.line, side: q.side, reason: '호출' }] };
+  for (const body of [renderReport(r), renderQuestionBatch(r.questions, r.snapshot, 'batch'), renderGrade(q, r.snapshot, grade, 'grade', 'Q1', 'B')]) {
+    assert.equal((body.match(/명령어 안내: `\/reviewbot help`/g) ?? []).length, 1);
+    assert.doesNotMatch(body, /\| 명령어|사용 예시|\/reviewbot (?!help)[a-z]+/);
+  }
 });
 
 test('grading preserves question, verdict, all option explanations and valid links under the comment budget', () => {
