@@ -1,4 +1,4 @@
-export type Command = { action: 'review' | 'full' | 'pause' | 'resume' | 'questions' | 'help' } | { action: 'approve' | 'reject'; id: string } | { action: 'explain'; id: string | null } | { action: 'dismiss'; id: string | null; text: string } | { action: 'answer'; id: string; text: string; more?: Answer[] } | { action: 'learn' | 'ask'; text: string };
+export type Command = { action: 'review' | 'full' | 'pause' | 'resume' | 'questions' | 'help' } | { action: 'approve' | 'reject'; id: string } | { action: 'explain'; id: string | null } | { action: 'dismiss'; id: string | null; text: string } | { action: 'answer'; id: string; text: string; more?: Answer[] } | { action: 'reveal'; ids: string[] } | { action: 'learn' | 'ask'; text: string };
 export interface Answer { id: string; text: string }
 // Each answer starts with a question reference (Q2 for review questions, 심화2 for follow-ups);
 // a reference inside reasoning only splits when a space, an option letter or the end follows.
@@ -19,6 +19,11 @@ export function parseCommand(body: string): Command | null {
   const action = match[1]!.toLowerCase(), args = (match[2] ?? '').trim();
   if (['review', 'full', 'pause', 'resume', 'help'].includes(action) && !args) return { action } as Command;
   if (action === 'morequestion' && !args) return { action: 'questions' };
+  // Without labels every review question is revealed; labels (Q1, 심화2) pick specific ones, follow-ups included.
+  if (action === 'showanswer') {
+    const ids = args ? args.split(/\s+/).map(a => a.match(/^(?:Q(\d{1,3})|심화(\d{1,3}))$/i)) : [];
+    if (ids.length <= MAX_ANSWERS && ids.every(Boolean)) return { action: 'reveal', ids: [...new Set(ids.map(m => m![1] ? `Q${Number(m![1])}` : `심화${Number(m![2])}`))] };
+  }
   if (action === 'answer') {
     // Comments show revision-wide numbers (Q3), while Q-hex IDs from older comments keep working.
     const [first, ...more] = parseAnswers(args) ?? [];

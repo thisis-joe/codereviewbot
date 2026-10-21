@@ -118,7 +118,7 @@ export class Controller {
       if (ids.size === 1) command = { ...command, id: [...ids][0]! };
     }
     await lease();
-    if (command.action === 'questions' || command.action === 'answer') {
+    if (command.action === 'questions' || command.action === 'answer' || command.action === 'reveal') {
       await handleLearning(command, job, platform, this.store, this.workspaces, this.model, all, lease); return;
     }
     let answer = '요청을 처리했습니다.', evidence: string[] = [], next = COMMAND_HELP_HINT, answeredSnapshot: Snapshot | undefined;
@@ -189,7 +189,7 @@ export class Controller {
   private async announce(platform: Platform, snap: Snapshot, mode: 'full' | 'incremental', previous: Report | null): Promise<void> {
     try {
       const prior = previous ? { report: previous, results: await this.store.answerResults(previous.snapshot) } : undefined;
-      const body = renderProgress(snap, mode, await this.store.reviewEstimate(mode), prior);
+      const body = renderProgress(snap, await this.store.reviewEstimate(mode), prior);
       const existing = (await platform.comments(snap.number)).find(c => platform.owned(c) && c.body.includes(SUMMARY_MARKER));
       if (existing?.body !== body) await platform.comment(snap.number, body, existing?.id);
     } catch { console.error(JSON.stringify({ repository: platform.config.repository, number: snap.number, error: 'progress_notice_failed' })); }

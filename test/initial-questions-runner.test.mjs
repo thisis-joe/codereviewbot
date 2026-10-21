@@ -15,23 +15,25 @@ const questions = count => Array.from({ length: count }, (_, i) => ({
   ...changeQuestions()[i % 3], question: `변경된 처리 조건 ${i + 1}은 무엇인가요?`,
 }));
 
-test('initial question contract accepts 3–10 questions and rejects review output', () => {
+test('initial question contract accepts exactly three basic and one advanced question and rejects review output', () => {
   assert.ok(contracts.InitialQuestionsSchema, 'initial question contract must be exported');
-  for (const count of [3, 10]) {
-    assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(count) }).success, true);
-  }
-  for (const count of [2, 11]) {
+  assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(4) }).success, true);
+  assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(4).reverse() }).success, true, 'order is normalized after parsing');
+  for (const count of [3, 5, 10]) {
     assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(count) }).success, false);
   }
+  for (const levels of [['basic', 'basic', 'basic', 'basic'], ['basic', 'basic', 'advanced', 'advanced']]) {
+    assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(4).map((q, i) => ({ ...q, level: levels[i] })) }).success, false, levels.join());
+  }
   for (const field of ['summary', 'findings', 'checks', 'recommendedTests', 'limitations', 'resolutions']) {
-    assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(3), [field]: [] }).success, false, field);
+    assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(4), [field]: [] }).success, false, field);
   }
 });
 
 // The subprocess reads the actual CLI schema, then returns output through the provider's real boundary.
 // This catches mapping mistakes that a Model mock cannot exercise.
 for (const [provider, Model] of [['Codex', Codex], ['Claude', ClaudeCode]]) {
-  test(`${provider} initial question CLI receives only the 3–10 question schema`, { timeout: 30000 }, async t => {
+  test(`${provider} initial question CLI receives only the four-question schema`, { timeout: 30000 }, async t => {
     const root = await mkdtemp(join(tmpdir(), 'crb-initial-questions-'));
     t.after(() => rm(root, { recursive: true, force: true }));
     const id = '77777777-7777-4777-8777-777777777777';
@@ -43,18 +45,16 @@ import fs from 'node:fs';
 const args = process.argv.slice(2), at = flag => args[args.indexOf(flag) + 1];
 const codex = args.includes('--output-schema');
 const schema = codex ? JSON.parse(fs.readFileSync(at('--output-schema'), 'utf8')) : JSON.parse(at('--json-schema'));
-if (schema.additionalProperties !== false || Object.keys(schema.properties).join() !== 'questions' || schema.required.join() !== 'questions' || schema.properties.questions.minItems !== 3 || schema.properties.questions.maxItems !== 10) process.exit(42);
+if (schema.additionalProperties !== false || Object.keys(schema.properties).join() !== 'questions' || schema.required.join() !== 'questions' || schema.properties.questions.minItems !== 4 || schema.properties.questions.maxItems !== 4) process.exit(42);
 if (!codex && !/question and learning assistant/i.test(at('--system-prompt'))) process.exit(43);
 const value = ${JSON.stringify(value)};
 if (codex) fs.writeFileSync(at('-o'), JSON.stringify(value));
 else process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, structured_output: value }));
 `;
-    for (const count of [3, 10]) {
-      const value = { questions: questions(count) };
-      await writeFile(binary, reply(value), { mode: 0o755 });
-      assert.deepEqual(await model.run('initial_questions', 'Ask about the pinned code change.', id, 5000), value);
-    }
-    for (const value of [{ questions: questions(2) }, { questions: questions(11) }, { questions: questions(3), findings: [] }]) {
+    const value = { questions: questions(4) };
+    await writeFile(binary, reply(value), { mode: 0o755 });
+    assert.deepEqual(await model.run('initial_questions', 'Ask about the pinned code change.', id, 5000), value);
+    for (const value of [{ questions: questions(3) }, { questions: questions(5) }, { questions: questions(4).map(q => ({ ...q, level: 'basic' })) }, { questions: questions(4), findings: [] }]) {
       await writeFile(binary, reply(value), { mode: 0o755 });
       await assert.rejects(() => model.run('initial_questions', 'Ask about the pinned code change.', id, 5000));
     }
@@ -66,7 +66,7 @@ test('isolated runner HTTP accepts the initial question phase', { timeout: 15000
   t.after(() => rm(root, { recursive: true, force: true }));
   const id = '88888888-8888-4888-8888-888888888888';
   await mkdir(join(root, 'jobs', id, 'source'), { recursive: true });
-  const binary = join(root, 'fake-codex'), value = { questions: questions(3) };
+  const binary = join(root, 'fake-codex'), value = { questions: questions(4) };
   await writeFile(binary, `#!/usr/bin/env node
 import fs from 'node:fs';
 const args = process.argv.slice(2);

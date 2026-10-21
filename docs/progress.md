@@ -190,6 +190,25 @@
   user files unchanged. Live-model quality/latency sampling and production rollout
   remain unperformed; the completed implementation worktree is clean.
 
+- Live validation/deployment authorized 2026-10-21; isolated release branch
+  `codex/question-bot-live-validation` starts at `c0d70c7`, original main/diff hashes
+  unchanged. Authenticated production provider observed as Claude Opus 5.5 from CLI
+  modelUsage, with existing account/configuration and isolated baseline/candidate RPCs.
+- Pre-release live source audit found an ambiguous correct option in a dataset-ignore
+  question: a two-path question's choice could read as excluding only one path.
+  Deployment held. Strengthened question instructions for complete scope, consistent
+  explanations, quantified wording and explicit external-state assumptions, preserving
+  the 3–10 question count, one model call and 120-second budget. Final live samples
+  must be rerun on the corrected prompt; initial samples are diagnostic evidence only.
+- Corrected prompt `79c6e57` passed five real-model runs (four distinct archived
+  production refs, largest repeated), 28 questions audited against source/primary docs.
+  Actual CLI modelUsage: claude-opus-5-5, Claude Code 2.1.290. Initial-generation
+  median 69.777s, range 43.455–84.280s; one call each, no timeout/schema/source failures.
+  Correct options now cover both ignore paths and explicitly state untracked-file
+  assumptions. All 92 unit tests passed again; unchanged DB integration evidence reused.
+  GO decision and limits recorded in docs/verification/question-bot-live-2026-10-21.json.
+  No causal speedup percentage: the corrected candidate was a separate validation block.
+
 - A1 (2026-10-21): user authorized organizing pending changes and integrating command
   acknowledgements + failure diagnostics into the question-bot branch. Reused the clean
   help worktree, branched `codex/command-acknowledgements` from `2db8478` with no Jira
@@ -239,3 +258,33 @@
   Cloudflare file, token or local exclusion rule was added to a Git commit.
   Temporary test DB/container/image tags were removed; existing services and the
   separate live-validation branch were left alone. Integration worktree is clean.
+
+- Release reconciliation: another user-authorized chat committed the original pending
+  command acknowledgements and failure diagnostics, integrated them in `4f7e8e3`,
+  and opened PR #8 while live validation was running. Integrated that branch into
+  the isolated release branch to retain those runtime features. Original tracked
+  patch and all eight source/test snapshots match their initial hashes; local
+  Cloudflare override also matches. No original checkout files were restored/reset
+  by this release task. Generation engine/provider/schema files are byte-identical
+  to live-tested `79c6e57`; refreshed full suites pass 102 unit + 32 real-DB/HTTP tests.
+
+- Production release `a32c053` deployed 2026-10-21 05:34:44 UTC (14:34 KST).
+  Matching controller/runner images are healthy; PostgreSQL/n8n/tunnel container IDs
+  unchanged. Production data counts remain jobs30/targets8/deliveries41/feedback0.
+  Public webhook rejects invalid auth (401), accepts signed/configured auth (202)
+  with zero jobs for an ignored event. Deployed help has 13 rows; ordinary output
+  contains only questions/help hint; command receipt renderer retained.
+- Runtime caveat: first additional integrated-production model canary reached the
+  existing 120s process budget. Runner released busy state normally. Same-input
+  manual retry completed in 41.858s with five questions; all keys/options/explanations
+  audited against source and passed. Cause not established; no generation/provider
+  code or endpoint drift found. This failure is recorded separately from the five
+  successful pre-release trials, not removed from reliability evidence. Existing
+  job retry/final-failure/gate behavior is covered by the refreshed integration suite.
+  Earlier production canary on `79c6e57` passed in 40.546s with five audited questions.
+- Application rollback images and protected DB/auth backups retained. Rollback entry
+  point: `.local/releases/question-a32c053-20261021/deploy.py --rollback` (Python).
+  Backed-up DB restore was tested separately; application rollback does not restore DB.
+  No open MR in the enabled production repository, so external MR comment publication
+  was not exercised; no real test comments were posted. Source release remains on
+  its feature branch; this task does not change main, push or merge the existing PR.

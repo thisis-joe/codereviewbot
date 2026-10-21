@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { parsePatch, validateFindings, reconcile, generateQuestions } from '../dist/review.js';
 import { exportSnapshot } from '../dist/workspace.js';
 import { readPolicy } from '../dist/policy.js';
-import { analysis, snapshot, finding, changeQuestions, choices, answerKey } from './fixtures.mjs';
+import { analysis, snapshot, finding, changeQuestions, initialQuestions, choices, answerKey } from './fixtures.mjs';
 
 const patch = 'diff --git a/src/pay.ts b/src/pay.ts\n--- a/src/pay.ts\n+++ b/src/pay.ts\n@@ -2,2 +2,3 @@\n const key = input.id;\n+charge(input);\n return result;\n';
 test('diff validation rejects invented lines, paths and ungrounded evidence', () => {
@@ -72,34 +72,39 @@ test('a validated rename retains stable IDs and a prior dismissal', () => {
 test('question generation validates change questions and refuses duplicate or unrelated anchors', async () => {
   const context = { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}', 'unrelated.ts': 'const x = 1;' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/tmp/source' };
   const run = questions => generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
-  const checked = changeQuestions().map(q => ({ ...q, question: q.question.replace('?', ' 재검증 질문?') }));
+  const checked = initialQuestions().map(q => ({ ...q, question: q.question.replace('?', ' 재검증 질문?') }));
   const result = await run(checked); assert.deepEqual(result.questions, checked);
-  await assert.rejects(() => run(changeQuestions().map(q => ({ ...q, path: 'unrelated.ts', line: 1 }))), /질문.*코드 근거|question.*anchor/i);
-  await assert.rejects(() => run(changeQuestions().map(q => ({ ...q, line: 500 }))), /질문.*코드 근거|question.*anchor/i);
-  await assert.rejects(() => run(changeQuestions().map((q, i, all) => i ? q : { ...q, question: `  ${all[1].question}  ` })), /중복.*질문|duplicate.*question/i);
+  await assert.rejects(() => run(initialQuestions().map(q => ({ ...q, path: 'unrelated.ts', line: 1 }))), /질문.*코드 근거|question.*anchor/i);
+  await assert.rejects(() => run(initialQuestions().map(q => ({ ...q, line: 500 }))), /질문.*코드 근거|question.*anchor/i);
+  await assert.rejects(() => run(initialQuestions().map((q, i, all) => i ? q : { ...q, question: `  ${all[1].question}  ` })), /중복.*질문|duplicate.*question/i);
 });
 
 test('questions on removed code retain the base path and side instead of pointing to nonexistent new code', async () => {
   const questions = [
     { question: '이번 checkAuth 삭제로 호출자가 보장해야 할 조건은 무엇인가요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'basic', options: choices(), key: answerKey() },
     { question: '삭제한 checkAuth를 대체하는 권한 검사는 어느 호출 경계에서 수행해야 하나요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'basic', options: choices(), key: answerKey() },
-    { question: '이 인증 검사 삭제가 미인증 호출에 미치는 영향을 어떻게 검증하나요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'basic', options: choices(), key: answerKey() },
+    { question: '이 인증 검사 삭제가 미인증 호출에 미치는 영향을 어떻게 검증하나요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'advanced', options: choices(), key: answerKey() },
+    { question: 'checkAuth 삭제 후 begin과 next 사이에 남는 호출 순서는 무엇인가요?', path: 'renamed.ts', line: 2, side: 'LEFT', level: 'basic', options: choices(), key: answerKey() },
   ];
   const patch = '@@ -1,3 +1,2 @@\n begin();\n-checkAuth();\n next();\n';
   const context = { files: {}, baseFiles: { 'original.ts': 'begin();\ncheckAuth();\nnext();' }, diff: { 'renamed.ts': { oldPath: 'original.ts', patch, lines: parsePatch(patch), oldLines: parsePatch(patch, 'LEFT') } }, excluded: [], limited: false, sourceDir: '/source' };
   const result = await generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
-  assert.equal(result.questions.length, 3); assert.equal(result.questions[0].path, 'original.ts'); assert.equal(result.questions[0].side, 'LEFT');
+  assert.equal(result.questions.length, 4); assert.equal(result.questions[0].path, 'original.ts'); assert.equal(result.questions[0].side, 'LEFT');
 });
 
 test('pure renames support source anchors when the file has no textual hunk', async () => {
   const questions = [
     { question: 'old.ts에서 new.ts로 이동한 함수의 공개 import 경로는 어떻게 달라지나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
     { question: 'new.ts로 옮긴 pay 함수를 호출하는 코드는 어떤 경계에서 확인해야 하나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
-    { question: '이번 new.ts 이동 후 대소문자를 구분하는 환경에서 모듈 해석을 어떻게 검증하나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
+    { question: '이번 new.ts 이동 후 대소문자를 구분하는 환경에서 모듈 해석을 어떻게 검증하나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'advanced', options: choices(), key: answerKey() },
+    { question: 'old.ts를 import하던 코드는 이동 후 어떤 경로를 써야 하나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
   ];
   const context = { files: { 'new.ts': 'export function pay() {}' }, baseFiles: { 'old.ts': 'export function pay() {}' }, diff: { 'new.ts': { oldPath: 'old.ts', patch: '', lines: new Set(), oldLines: new Set() } }, excluded: [], limited: false, sourceDir: '/source' };
   const result = await generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
-  assert.equal(result.questions.length, 3); assert.equal(result.questions[0].path, 'new.ts');
+  assert.equal(result.questions.length, 4); assert.equal(result.questions[0].path, 'new.ts');
+  const reordered = await generateQuestions({ run: async () => ({ questions: [questions[2], questions[0], questions[1], questions[3]] }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
+  assert.deepEqual(reordered.questions.map(q => q.level), ['basic', 'basic', 'basic', 'advanced'], 'the advanced question is always shown last');
+  await assert.rejects(() => generateQuestions({ run: async () => ({ questions: questions.map(q => ({ ...q, level: 'basic' })) }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full'));
 });
 
 test('unavailable text diffs produce honest partial reports and preserve prior findings without inference', async () => {

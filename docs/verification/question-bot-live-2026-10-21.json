@@ -1,0 +1,238 @@
+{
+  "at": "2026-10-21T05:24:58.576104+00:00",
+  "sourceCommit": "a32c053f6b747a6c2a8f8f2fa14758a9068b9b94",
+  "decision": "GO",
+  "model": [
+    "claude-opus-5-5"
+  ],
+  "cli": "Claude Code 2.1.290",
+  "sampleCount": 5,
+  "distinctSourceRefs": 4,
+  "sampleKinds": [
+    "Kotlin Multiplatform bootstrap (49 files, sampled twice)",
+    "Personal-note documentation policy (2 files)",
+    "Repository/data documentation (14 files)",
+    "Repository/data documentation (11 files)"
+  ],
+  "questionCount": 28,
+  "generationTiming": {
+    "n": 5,
+    "medianMs": 69777,
+    "minMs": 43455,
+    "maxMs": 84280
+  },
+  "timingScope": "RPC + real model + structured output/source validation; excludes queue waiting, source export and remote comment publication",
+  "sourceExportMs": [
+    576,
+    332,
+    428,
+    331
+  ],
+  "quality": {
+    "reviewer": "root source audit; no separate independent semantic reviewer",
+    "structuralAndSourceChecks": "passed",
+    "semanticQuestionSets": [
+      {
+        "trial": 1,
+        "case": "case-1",
+        "questions": 6,
+        "verdict": "passed",
+        "evidence": [
+          "Separate JS/Wasm actual implementations and Greeting flow",
+          "webMain source-set sharing with both executable web targets",
+          "iOS Gradle framework/Swift bridge path in standard build configuration",
+          "deterministic Chromium Edge UA substring outcome",
+          "AnimatedVisibility removal after completed exit disposes remember state",
+          "daemon JVM21 versus Kotlin/Java11 output level"
+        ],
+        "references": [
+          "https://kotlinlang.org/docs/whatsnew2220.html#shared-source-set-for-js-and-wasmjs-targets",
+          "https://developer.android.com/develop/ui/compose/animation/composables-modifiers",
+          "https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.text/find-any-of.html"
+        ]
+      },
+      {
+        "trial": 2,
+        "case": "case-2",
+        "questions": 5,
+        "verdict": "passed",
+        "evidence": [
+          "Task record combines all three required record types in one file",
+          "ADR alternative versus independently rejected decision covers both scopes",
+          "Quality policy location matches implementation README rule",
+          "Gitignore question explicitly assumes untracked files",
+          "Personal learning question explicitly scopes ordinary untracked-note behavior"
+        ],
+        "probe": "git-ignore-probe.json"
+      },
+      {
+        "trial": 3,
+        "case": "case-3",
+        "questions": 5,
+        "verdict": "passed",
+        "evidence": [
+          "Correct option explicitly includes BOTH data/raw and data/processed and assumes untracked files",
+          "Fixture placement follows source document and ignore probe",
+          "Relative CLAUDE import targets ai/AGENTS.md",
+          "Data versus AI ownership and documented live/post-performance flow match source"
+        ],
+        "probe": "dataset-ignore-probe.json"
+      },
+      {
+        "trial": 4,
+        "case": "case-4",
+        "questions": 5,
+        "verdict": "passed",
+        "evidence": [
+          "Regression case now explicitly scopes two added patterns and both excluded paths in correct choice",
+          "Distractor ai/data/raw separated from independently existing ai/data ignore pattern",
+          "Relative frontend AGENTS import confirmed",
+          "Data/AI boundaries, consensus requirement and explicit skill-selection policy match documents"
+        ],
+        "probe": "dataset-ignore-probe.json"
+      },
+      {
+        "trial": 5,
+        "case": "case-1",
+        "questions": 7,
+        "verdict": "passed",
+        "evidence": [
+          "Wasm Greeting output, platform actual linkage",
+          "Empty TEAM_ID versus Android app ID explicitly scoped",
+          "Swift static framework/module bridge",
+          "Xcode script choice includes BOTH IDE override and Gradle branches",
+          "Concrete Edge user-agent substring",
+          "JDK21 runtime versus JVM11 output",
+          "webMain shared entry point for both executable browser targets"
+        ]
+      }
+    ],
+    "materialErrorsAfterFix": 0,
+    "limitations": "Five sampled outputs do not guarantee all future generated questions. One input had limited source context, correctly reported partial.",
+    "productionAdditionalQuestionsAudited": 10
+  },
+  "diagnosticRound": {
+    "source": "c0d70c7",
+    "baselineTiming": {
+      "n": 5,
+      "medianMs": 89597,
+      "minMs": 65183,
+      "maxMs": 99998
+    },
+    "finding": "Ambiguous correct-option scope for a two-path ignore question; fixed in 79c6e57 before final validation",
+    "comparison": "Corrected candidate was measured in a separate block; no causal speedup percentage claimed."
+  },
+  "regression": {
+    "unitTests": 102,
+    "passed": 102,
+    "dependencyAdvisories": 0,
+    "matchingControllerRunnerBuilds": "passed",
+    "databaseIntegrationTests": 32,
+    "integrationRefresh": "full suites rerun after integrating acknowledgements and diagnostics"
+  },
+  "recovery": {
+    "oldImageTagsPrepared": true,
+    "protectedDatabaseAndAuthBackups": true,
+    "databaseRestoreProbe": {
+      "passed": true,
+      "jobs": 30,
+      "targets": 8,
+      "deliveries": 41,
+      "feedback": 0
+    },
+    "rollbackImageTags": [
+      "codereviewbot-controller:rollback-question-20261021",
+      "codereviewbot-runner:rollback-question-20261021"
+    ]
+  },
+  "deployment": {
+    "status": "deployed",
+    "scope": [
+      "controller",
+      "runner"
+    ],
+    "preserveRuntimeEndpoint": true,
+    "keepOriginalUncommittedChanges": true,
+    "openMRsAtPreflight": 0,
+    "at": "2026-10-21T05:34:44.623585+00:00",
+    "candidate": "a32c053",
+    "services": {
+      "controller": "sha256:b7e5290607d1af664932a39bf8f59ba1ee1e994c0117afd978540d61410f27f6",
+      "runner": "sha256:d3b31cc7e397160dfd06392f00fdcbec3f2129dfac5c565018e912a076daec9b"
+    },
+    "unchangedSupportingContainers": true,
+    "generationSourceUnchanged": true,
+    "integratedBranchCommit": "4f7e8e39d48e3426f345e0d5401f6041f69a37f4",
+    "preservation": {
+      "originalCheckout": "main at 2db8478, now clean after separate user-authorized integration",
+      "separateChatIntegration": "command acknowledgements and failure diagnostics committed by user request and retained in deployed merge",
+      "originalPatchAndEightFiles": "all match initial byte hashes in protected local backup",
+      "localCloudflareOverride": "unchanged initial SHA256; excluded from commits",
+      "releaseTaskModifiedOriginalCheckout": false
+    },
+    "publicationLimit": "No open GitLab MR available for a real external comment/ack lifecycle; signed HTTP/platform fixture integration covers it.",
+    "postDeploymentChecks": {
+      "at": "2026-10-21T05:39:06.010409+00:00",
+      "passed": true,
+      "webhook": [
+        401,
+        202
+      ],
+      "admitted": 0,
+      "internalHealth": {
+        "failed": 0,
+        "queued": 0,
+        "active": false
+      },
+      "helpRows": 13,
+      "ackRenderer": true,
+      "questionOnlyRenderer": true,
+      "canary": {
+        "source": "a32c053",
+        "questions": 5,
+        "ms": 41858,
+        "state": "completed"
+      },
+      "databaseCounts": {
+        "jobs": 30,
+        "targets": 8,
+        "deliveries": 41,
+        "feedback": 0
+      },
+      "supportingContainersUnchanged": true,
+      "productionCanarySemanticAudit": "all five questions, keys and option explanations checked against frozen source and git-ignore probe; passed",
+      "modelTimeoutObserved": {
+        "attempts": 1,
+        "budgetMs": 120000,
+        "cause": "not established; runner reported process budget exceeded",
+        "manualRetry": {
+          "passed": true,
+          "ms": 41858,
+          "questions": 5
+        },
+        "scope": "one additional integrated-production canary; excluded from the five pre-release timing samples",
+        "existingRecovery": "production jobs already retry transient failures; retry/failed-report/gate behavior covered by real DB integration, not exercised by this direct canary"
+      },
+      "firstProductionCanary": {
+        "source": "79c6e57",
+        "passed": true,
+        "ms": 40546,
+        "questions": 5
+      },
+      "actualMRPublication": "unavailable: no open MR in enabled GitLab repository; no test comments posted"
+    }
+  },
+  "privateEvidenceHashes": {
+    "results.json": "7944def4cfbaea15ae483455febe231bb0b3ee4de68c2b50e70a407226327d25",
+    "quality-review.json": "45785c3fce4fdb9d044d3cf750fbfbca97952f4154d9d2892275d552a6935d71",
+    "summary.json": "d075dddbca9e9a25d08064d9045c4516ecb70d58df1c09247a2a53c38f050fba",
+    "final-health.json": "f23c62c17530c895f5172990cb85a66f1782465a47eab4776057ddaf72971630",
+    "production-integrated-canary.json": "491b1772b6062e1a380dec3eaccd6d3d48addc50877cfe4275b0127e032e7fc3",
+    "production-integrated-canary.log": "555a218298cf19ed6a3c05bf8bc9de752e6bacac1a8b3dbe8b800e035b560fca",
+    "production-integrated-canary-retry.log": "8017c6f7210b76c6ca466f1c0077f7a363a53f4029eb9df30639bc0a7f1916a6",
+    "integrated-unit.log": "bc1af3ae216dc3ba6eb4a491d227279ec04ec6d828db35d19293ef7fcdfdc8d1",
+    "integrated-integration.log": "1b757be2d5a8c92c4ad8615ed82bfe918a5d3ed94ec6f0ee243ed027706bae42"
+  },
+  "generationSourceCommit": "79c6e57c1e13d0d87d7fc76ea3de46e11817cacb",
+  "decisionNote": "Released with an observed model latency spike: one post-deploy 120-second timeout, subsequent manual retry passed in 41.858 seconds; runtime healthy. Underlying cause remains unproven. Five pre-release trials all passed."
+}

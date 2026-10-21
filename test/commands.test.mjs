@@ -24,7 +24,7 @@ function learningHarness(body, overrides = {}) {
 test('help is an explicit no-argument command and returns the complete deterministic command table without a report or code access', async () => {
   assert.deepEqual(parseCommand(' /reviewbot HELP '), { action: 'help' });
   assert.equal(parseCommand('/reviewbot help answer'), null);
-  const expected = ['answer', 'morequestion', 'review', 'full', 'pause', 'resume', 'explain', 'dismiss', 'learn', 'approve', 'reject', 'help'];
+  const expected = ['answer', 'showanswer', 'morequestion', 'review', 'full', 'pause', 'resume', 'explain', 'dismiss', 'learn', 'approve', 'reject', 'help'];
   const replies = [], forbidden = () => { throw new Error('help must not access report, snapshots, workspace or model'); };
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], owned: c => c.author === 'bot', snapshot: forbidden,
     reply: async (...args) => { replies.push(args); } };
@@ -38,7 +38,7 @@ test('help is an explicit no-argument command and returns the complete determini
   assert.match(body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
   for (const command of expected) assert.match(body, new RegExp(`^\\| \`/reviewbot ${command}\` \\| [^|]+ \\| [^|]+ \\| \`/reviewbot ${command}[^|]*\` \\|$`, 'm'));
   assert.match(body, /^\| `@reviewbot` \| 코드 질문 \| .* \| `@reviewbot .+` \|$/m);
-  assert.equal([...body.matchAll(/^\| (?:`\/reviewbot|`@reviewbot)/gm)].length, 13);
+  assert.equal([...body.matchAll(/^\| (?:`\/reviewbot|`@reviewbot)/gm)].length, 14);
   assert.match(body, /최신 변경.*질문.*생성/); assert.match(body, /PR\/MR 전체.*질문.*생성/);
   assert.match(body, /과거.*지적/);
   assert.equal(replies[0][2], 'root'); assert.equal(replies[0][3], 'discussion');
@@ -158,8 +158,8 @@ test('display numbers resolve to review questions first and then continue throug
   assert.deepEqual(mixed.data.saved.grades.map(g => g.id), [questionId(r.snapshot, r.questions[0]), questionId(r.snapshot, extra[0])]);
   const fresh = ['pay 재시도 사이 키 저장소 장애는 어떻게 다뤄야 하나요?', 'charge 응답 코드별 재시도 정책은 어떻게 나누나요?', 'save 실패를 재현하는 테스트는 어떤 경계에서 작성하나요?', 'pay 로그에 남길 멱등 키 정보는 무엇인가요?', 'charge 호출 순서를 바꾸면 어떤 불변 조건이 깨지나요?'].map(question => ({ ...extra[0], question }));
   const more = learningHarness('/reviewbot morequestion', { report: r, batches: [{ snapshot: snapshot(), questions: extra }], output: { questions: fresh } }); await more.run();
-  assert.equal(more.data.saved.start, 6); assert.match(more.data.replies[0][1], /^\*\*심화6\. pay /m); assert.match(more.data.replies[0][1], /^\*\*심화10\. /m);
-  assert.doesNotMatch(more.data.replies[0][1], /^\*\*Q\d/m); assert.match(more.data.replies[0][1], /`\/reviewbot help`/); assert.doesNotMatch(more.data.replies[0][1], /^\*\*Q1\. /m);
+  assert.equal(more.data.saved.start, 6); assert.match(more.data.replies[0][1], /^#### 심화6\. pay /m); assert.match(more.data.replies[0][1], /^#### 심화10\. /m);
+  assert.doesNotMatch(more.data.replies[0][1], /^#### Q\d/m); assert.match(more.data.replies[0][1], /`\/reviewbot help`/); assert.doesNotMatch(more.data.replies[0][1], /pay\\.ts:\d|\/blob\//);
   const missing = learningHarness('/reviewbot answer Q4 B', { report: r }); await missing.run();
   assert.equal(missing.data.calls.length, 0); assert.match(missing.data.replies[0][1], /찾을 수 없습니다/);
 });
@@ -237,6 +237,25 @@ test('GitHub comment surfaces prevent numeric ID collisions in replies and threa
   await unrelated.run(); assert.equal(unrelated.data.calls.length, 0); assert.equal(unrelated.data.replies.length, 0);
 });
 
+test('showanswer reveals stored keys without grading, a model call or answer credit', async () => {
+  assert.deepEqual(parseCommand('/reviewbot showanswer'), { action: 'reveal', ids: [] });
+  assert.deepEqual(parseCommand('/reviewbot SHOWANSWER q1 심화2 Q01'), { action: 'reveal', ids: ['Q1', '심화2'] });
+  for (const bad of ['/reviewbot showanswer all', '/reviewbot showanswer Q1 B', `/reviewbot showanswer ${Array.from({ length: 11 }, (_, i) => `Q${i + 1}`).join(' ')}`]) assert.equal(parseCommand(bad), null);
+  const r = report(), extra = extraQuestions();
+  const all = learningHarness('/reviewbot showanswer', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await all.run();
+  const body = all.data.replies[0][1];
+  assert.equal(all.data.calls.length, 0); assert.equal(all.data.saved.grades, undefined);
+  assert.match(body, /^### 정답·해설$/m); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3); assert.doesNotMatch(body, /심화1|codereviewbot:question:/);
+  assert.match(body, /^정답: \*\*B\*\* · 코드 위치: \[src\/pay\\\.ts:2\]\(.*\/blob\/.*#L2\)$/m);
+  assert.ok(body.includes('**문제 해설**') && body.includes('**보기별 해설**')); assert.match(body, /^\*\*B\.\*\* 보기 B \(정답\) — /m);
+  const picked = learningHarness('/reviewbot showanswer 심화2 Q9', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await picked.run();
+  assert.match(picked.data.replies[0][1], /Q9: .*찾을 수 없습니다/); assert.doesNotMatch(picked.data.replies[0][1], /정답:/);
+  const follow = learningHarness('/reviewbot showanswer 심화2', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await follow.run();
+  assert.match(follow.data.replies[0][1], /^#### 심화2\. charge의 /m); assert.equal([...follow.data.replies[0][1].matchAll(/^#### /gm)].length, 1);
+  const legacy = report(); delete legacy.questions[0].key;
+  const old = learningHarness('/reviewbot showanswer Q1', { report: legacy }); await old.run();
+  assert.match(old.data.replies[0][1], /저장된 정답이 없는 이전 질문/);
+});
 test('grading reserves comment room for the request link near the output boundary', async () => {
   const r = report(); r.questions[0] = { question: '&'.repeat(500), path: 'src/pay.ts', line: 2, side: 'RIGHT', options: ['A', 'B', 'C', 'D', 'E'].map(id => ({ id, text: '&'.repeat(299) + id })) };
   const id = questionId(snapshot(), r.questions[0]);
@@ -251,8 +270,8 @@ test('oversized follow-up batches keep all five questions and their choices with
   const questions = Array.from({ length: 5 }, (_, i) => ({ question: '&'.repeat(498) + i, path, line: 1, side: 'RIGHT', level: 'advanced', options: ['A', 'B', 'C', 'D'].map(id => ({ id, text: '&'.repeat(299) + id })), key: answerKey() }));
   const h = learningHarness('/reviewbot morequestion', { output: { questions }, context: { ...context(), files: { [path]: 'source' }, diff: { [path]: { oldPath: path, patch: '@@ -0,0 +1 @@\n+source', lines: new Set([1]) } } } });
   await h.run(); const body = h.data.replies[0][1]; assert.ok(body.length <= 60000, `got ${body.length}`);
-  assert.equal(h.data.saved.questions.length, 5); assert.equal([...body.matchAll(/^\*\*심화\d+\. /gm)].length, 5);
-  assert.equal([...body.matchAll(/^(&nbsp;){4}\*\*[A-D]\.\*\* /gm)].length, 20); assert.match(body, /코드 링크를 경로 표기로/);
+  assert.equal(h.data.saved.questions.length, 5); assert.equal([...body.matchAll(/^#### 심화\d+\. /gm)].length, 5);
+  assert.equal([...body.matchAll(/^(&nbsp;){4}\*\*[A-D]\.\*\* /gm)].length, 20);
   assert.ok(!body.includes(answerKey().explanation));
 });
 
