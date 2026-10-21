@@ -327,3 +327,16 @@
   publication ownership/ref fences, sensitive old paths, bounded payloads and recovery
   were traced. Independent semantic/model review was not run. This task does not claim
   new real-model quality/timing measurements or production deployment.
+- Push-history completion: P1 `341fcd3`, legacy-grade compatibility `08de725`,
+  P2 purpose/rationale + exact incremental material `61a0013`. Required final checks
+  passed on that runtime source: 106 unit tests, 35 PostgreSQL/HTTP integration tests,
+  real Git source/rename/exclusion tests, Codex/Claude subprocess and runner contract
+  fixtures, fixture demo generation, Compose configuration and diff whitespace checks.
+  Controller and runner images carry exact revision `61a0013` (full revision recorded
+  in ignored `.local/push-question-verification.json`). Disposable image execution
+  verified progress/publication/retry/latest-grade preservation and legacy-current
+  grading, plus runner health/auth/schema. No live model quality/timing sample was run.
+  Author review covered actual committed/current changes; independent review unavailable.
+  Task-owned verification containers/tags are removed after checks. Original checkout,
+  original local settings and production services were not modified; no remote push,
+  PR/MR mutation or production rollout was performed for this follow-up feature.
