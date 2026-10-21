@@ -7,7 +7,7 @@ import { emptyReport, reviewed, isQuestionReport, withoutKeys, AnswerSchema, typ
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
 import { parseCommand, type Command } from './commands.js';
-import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, renderAck, ackMarker, SUMMARY_MARKER } from './render.js';
+import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, renderAck, ackMarker, SUMMARY_MARKER, type AckState } from './render.js';
 import { redact } from './redact.js';
 import { handleLearning } from './learning-command.js';
 import { commentKey, type Comment, type Event } from './webhooks.js';
@@ -82,17 +82,17 @@ export class Controller {
       if (live.headSha !== snap.headSha || live.baseSha !== snap.baseSha || live.startSha !== snap.startSha) throw new Superseded('Review snapshot changed');
       await this.store.saveResult(job.id, job.owner, { ...result, requireAnswers: prepared.policy.requireAnswers === true }, Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), 0, Math.round((Date.now() - started) / 1000));
     } catch (error) {
-      if (error instanceof Superseded || (error instanceof HttpError && error.status === 410)) await this.store.supersede(job.id, job.owner);
+      const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
+      if (superseded) await this.store.supersede(job.id, job.owner);
       else if (snap && job.state !== 'publishing' && job.attempts >= 3) {
         const failed = { ...emptyReport(snap, 'failed', '질문 생성 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.'), requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
         try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
       } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
-      const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
-      // The last attempt replaces the received notice with a failure notice; a closed PR/MR only drops it.
+      // Commands are superseded only when their PR/MR closed; the last failed attempt replaces the notice with a failure notice.
       if (job.kind === 'command' && job.body.comment && (superseded || job.attempts >= 3)) {
-        try { await this.settleAck(this.platform(job.body.target), job.body.target.number, job.body.comment, !superseded); } catch { /* repository removed */ }
+        try { await this.settleAck(this.platform(job.body.target), job.body.target.number, job.body.comment, superseded ? 'closed' : 'failed'); } catch { /* repository removed */ }
       }
-      console.error(JSON.stringify({ jobId: job.id, kind: job.kind, stage: job.state, attempt: job.attempts, error: error instanceof Superseded ? 'superseded' : 'execution_failed', ...(error instanceof Superseded ? {} : { cause: describeFailure(error) }) }));
+      console.error(JSON.stringify({ jobId: job.id, kind: job.kind, stage: job.state, attempt: job.attempts, error: superseded ? 'superseded' : 'execution_failed', ...(error instanceof Superseded ? {} : { cause: describeFailure(error) }) }));
     } finally { clearInterval(heartbeat); }
   }
   async command(job: Job, platform: Platform, lease: () => Promise<void>): Promise<void> {
@@ -171,16 +171,18 @@ export class Controller {
     await platform.reply(event.target.number, renderAck(commentKey(comment)), comment.parentId, comment.discussionId);
     // A command that finished while the notice was being posted could not find it, so settle it here.
     const job = await this.store.getJob(jobId);
-    if (job && ['completed', 'superseded', 'failed'].includes(job.state)) await this.settleAck(platform, event.target.number, comment, job.state === 'failed');
+    const settled: Partial<Record<string, Exclude<AckState, 'received'> | 'done'>> = { completed: 'done', failed: 'failed', superseded: 'closed' };
+    const state = job && settled[job.state]; if (state) await this.settleAck(platform, event.target.number, comment, state);
   }
-  private async settleAck(platform: Platform, number: number, comment: Comment, failed = false): Promise<void> {
+  /** Deletes the received notice once the command is done, or rewrites it to say why it was not handled. */
+  private async settleAck(platform: Platform, number: number, comment: Comment, state: Exclude<AckState, 'received'> | 'done' = 'done'): Promise<void> {
     try {
       const marker = ackMarker(commentKey(comment)), seen = new Set<string>();
       // GitLab lists the same note as a comment and as a discussion note.
       const acks = [...await platform.comments(number), ...await platform.inlineComments(number)].filter(c => platform.owned(c) && c.body.includes(marker) && !seen.has(`${c.surface}:${c.id}`) && seen.add(`${c.surface}:${c.id}`));
-      const body = renderAck(commentKey(comment), true);
+      const body = state === 'done' ? '' : renderAck(commentKey(comment), state);
       for (const ack of acks) {
-        if (!failed) await platform.deleteComment(number, ack);
+        if (state === 'done') await platform.deleteComment(number, ack);
         else if (ack.body !== body) await platform.editComment(number, ack, body);
       }
     } catch { console.error(JSON.stringify({ repository: platform.config.repository, number, error: 'ack_settle_failed' })); }

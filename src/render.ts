@@ -130,10 +130,14 @@ export function renderQuestionThread(q: ChangeQuestion, s: Snapshot, number: num
 }
 export function replyMarker(id: string): string { return `<!-- codereviewbot:reply:${id.replace(/[^\w-]/g, '')} -->`; }
 export function ackMarker(id: string): string { return `<!-- codereviewbot:ack:${id.replace(/[^\w-]/g, '')} -->`; }
-/** Posted when a command arrives; deleted once the command finishes, or turned into a failure notice. */
-export function renderAck(id: string, failed = false): string {
-  return [ackMarker(id), failed ? '⚠️ 요청을 처리하지 못했습니다. 잠시 후 다시 요청하세요.' : '⏳ 요청을 접수했습니다. 처리하면 결과를 답글로 남기고 이 안내는 지웁니다.'].join('\n');
-}
+export type AckState = 'received' | 'failed' | 'closed';
+const ackText: Record<AckState, string> = {
+  received: '⏳ 요청을 접수했습니다. 처리하면 결과를 답글로 남기고 이 안내는 지웁니다.',
+  failed: '⚠️ 요청을 처리하지 못했습니다. 잠시 후 다시 요청하세요.',
+  closed: '🔒 이미 닫혔거나 머지된 PR/MR이라 요청을 처리하지 않았습니다. 열린 PR/MR에서 다시 요청하세요.',
+};
+/** Posted when a command arrives; deleted once the command finishes, or turned into a failure or closed notice. */
+export function renderAck(id: string, state: AckState = 'received'): string { return [ackMarker(id), ackText[state]].join('\n'); }
 // Follow-ups are never revealed by a bare showanswer, so the batch names its own labels for one-step reveal.
 export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
   const labels = questions.map((_, i) => `심화${start + i}`);
