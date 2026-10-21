@@ -6,10 +6,10 @@ import { emptyReport, reviewed, isQuestionReport, withoutKeys, AnswerSchema, typ
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
 import { parseCommand, type Command } from './commands.js';
-import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, SUMMARY_MARKER } from './render.js';
+import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, renderAck, ackMarker, SUMMARY_MARKER } from './render.js';
 import { redact } from './redact.js';
 import { handleLearning } from './learning-command.js';
-import { commentKey } from './webhooks.js';
+import { commentKey, type Comment, type Event } from './webhooks.js';
 import { syncAnswerGate } from './answer-gate.js';
 import { sameRevision } from './learning.js';
 
@@ -49,6 +49,7 @@ export class Controller {
       }
       if (job.kind === 'command') {
         await this.command(job, platform, lease); await this.store.complete(job.id, job.owner);
+        if (job.body.comment) await this.settleAck(platform, job.body.target.number, job.body.comment);
         const result = (await this.store.getJob(job.id))?.command_result;
         if (result?.answered || result?.grades?.length) {
           const report = (await this.store.getTarget(job.body.target))?.report;
@@ -85,14 +86,18 @@ export class Controller {
         const failed = { ...emptyReport(snap, 'failed', '질문 생성 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.'), requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
         try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
       } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
+      const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
+      // The last attempt replaces the received notice with a failure notice; a closed PR/MR only drops it.
+      if (job.kind === 'command' && job.body.comment && (superseded || job.attempts >= 3)) {
+        try { await this.settleAck(this.platform(job.body.target), job.body.target.number, job.body.comment, !superseded); } catch { /* repository removed */ }
+      }
       console.error(JSON.stringify({ jobId: job.id, stage: job.state, error: error instanceof Superseded ? 'superseded' : 'execution_failed' }));
     } finally { clearInterval(heartbeat); }
   }
   async command(job: Job, platform: Platform, lease: () => Promise<void>): Promise<void> {
     const comment = job.body.comment; if (!comment) return;
     const permission = await platform.permission(comment.author); if (permission === 'none') return;
-    const mention = platform.config.botLogin.replace(/\[bot\]$/, '');
-    const normalized = comment.body.replace(new RegExp(`^@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), '@reviewbot ');
+    const normalized = normalizeMention(platform, comment.body);
     let command = parseCommand(normalized);
     const all = [...await platform.comments(job.body.target.number), ...await platform.inlineComments(job.body.target.number)];
     const key = commentKey(comment), marker = `<!-- codereviewbot:reply:${key.replace(/[^\w-]/g, '')} -->`;
@@ -156,6 +161,29 @@ export class Controller {
     if (answeredSnapshot && (latest.headSha !== answeredSnapshot.headSha || latest.baseSha !== answeredSnapshot.baseSha || latest.startSha !== answeredSnapshot.startSha)) throw new Error('Answer snapshot changed; retry against latest code');
     await platform.reply(target.number, renderAnswer({ answer: redact(answer), evidence: evidence.map(redact), next: redact(next) }, key), comment.parentId, comment.discussionId);
   }
+  /** Replies at once to an explicit command so its author knows it was received before the queue reaches it. */
+  async acknowledge(event: Event, jobId: string): Promise<void> {
+    const comment = event.comment; if (event.kind !== 'command' || !comment) return;
+    const platform = this.platform(event.target), normalized = normalizeMention(platform, comment.body);
+    if (!parseCommand(normalized) && !/^\/reviewbot\b/i.test(normalized.trim())) return;
+    if (await platform.permission(comment.author) === 'none') return;
+    await platform.reply(event.target.number, renderAck(commentKey(comment)), comment.parentId, comment.discussionId);
+    // A command that finished while the notice was being posted could not find it, so settle it here.
+    const job = await this.store.getJob(jobId);
+    if (job && ['completed', 'superseded', 'failed'].includes(job.state)) await this.settleAck(platform, event.target.number, comment, job.state === 'failed');
+  }
+  private async settleAck(platform: Platform, number: number, comment: Comment, failed = false): Promise<void> {
+    try {
+      const marker = ackMarker(commentKey(comment)), seen = new Set<string>();
+      // GitLab lists the same note as a comment and as a discussion note.
+      const acks = [...await platform.comments(number), ...await platform.inlineComments(number)].filter(c => platform.owned(c) && c.body.includes(marker) && !seen.has(`${c.surface}:${c.id}`) && seen.add(`${c.surface}:${c.id}`));
+      const body = renderAck(commentKey(comment), true);
+      for (const ack of acks) {
+        if (!failed) await platform.deleteComment(number, ack);
+        else if (ack.body !== body) await platform.editComment(number, ack, body);
+      }
+    } catch { console.error(JSON.stringify({ repository: platform.config.repository, number, error: 'ack_settle_failed' })); }
+  }
   // The summary comment says a review is running before the model starts; a failed notice must not block the review.
   private async announce(platform: Platform, snap: Snapshot, mode: 'full' | 'incremental', previous: Report | null): Promise<void> {
     try {
@@ -200,4 +228,8 @@ export class Controller {
       await this.workspaces.cleanup();
     } finally { this.reconciling = false; }
   }
+}
+function normalizeMention(platform: Platform, body: string): string {
+  const mention = platform.config.botLogin.replace(/\[bot\]$/, '');
+  return body.replace(new RegExp(`^@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), '@reviewbot ');
 }

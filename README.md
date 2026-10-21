@@ -176,6 +176,7 @@ PR·MR 댓글로 봇을 조작합니다. 저장소 Write(GitHub) 또는 Develope
 | `/reviewbot approve UUID` | 규칙 승인 (관리자) |
 | `/reviewbot reject UUID` | 규칙 거절 (관리자) |
 
+`/reviewbot` 명령이나 `@reviewbot` 질문을 남기면 같은 스레드에 접수 안내가 바로 달립니다. 처리가 끝나 결과 답글이 달리면 안내는 지워지고, 재시도까지 모두 실패하면 실패 안내로 바뀝니다.
 규칙 승인·거절은 GitHub Maintain/Admin 또는 GitLab Maintainer 이상만 할 수 있습니다.
 일반 대화나 기각 내용이 자동으로 규칙이 되지는 않습니다.
 

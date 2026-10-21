@@ -189,3 +189,17 @@
   Final hash comparison confirmed original main's tracked diff and both untracked
   user files unchanged. Live-model quality/latency sampling and production rollout
   remain unperformed; the completed implementation worktree is clean.
+
+- A1 (2026-10-21): user authorized organizing pending changes and integrating command
+  acknowledgements + failure diagnostics into the question-bot branch. Reused the clean
+  help worktree, branched `codex/command-acknowledgements` from `2db8478` with no Jira
+  task (existing feature-name ruling). Original dirty files were saved in the question
+  worktree's ignored `.local/pending-changes-backup` before splitting overlapping hunks.
+- A1 contains only immediate permission-checked command notices, successful deletion,
+  terminal-failure notices, native provider edit/delete helpers and their README/tests.
+  Failure-cause logging is reserved for its own branch; Cloudflare override is excluded.
+  RED: missing acknowledge API/terminal cleanup. GREEN: 90 unit + 10 real PostgreSQL
+  integration tests, including signed HTTP/replay, native comment surfaces, foreign
+  comment exclusion and duplicate platform views. `git diff --check` passed.
+  Scoped author review covers the complete dirty/new source and tests; no fresh-context
+  reviewer was used in this follow-up. No deployment or remote publication performed.
