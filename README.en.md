@@ -55,7 +55,7 @@ flowchart LR
 4. Code validates question structure, duplicates, diff locations and answer-key structure. The controller rechecks SHAs before publishing and regenerates against new code after a push.
 5. The summary first shows `질문 생성 중` (generating questions), the commit and an estimated duration, then becomes the questions. Estimates use only question-generation history from the new version, with a two-minute unmeasured default. Historical review durations are excluded.
 
-A new push to an open PR/MR creates a new progress comment and preserves earlier question comments. Only the new comment becomes the new result. The two basic questions and one advanced question remain; at least one asks about the change's purpose or design rationale supported by code, with the others checking behavior, flow or edge cases. The bot must not guess the author's personal intentions as a correct answer.
+A new push to an open PR/MR creates a new progress comment and preserves earlier question comments. Only the new comment becomes the new result. Configured basic and advanced question counts remain; at least one asks about the change's purpose or design rationale supported by code, with the others checking behavior, flow or edge cases. The bot must not guess the author's personal intentions as a correct answer.
 
 Incremental generation receives the actual diff since the last question revision and previous question text. The full PR/MR diff supplies publication coordinates. A partial or failed previous generation, changed base refs or policy, or a force-push breaking ancestry falls back to full scope. The bot does not replay every intermediate push.
 

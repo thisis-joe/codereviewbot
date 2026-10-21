@@ -340,3 +340,9 @@
   Task-owned verification containers/tags are removed after checks. Original checkout,
   original local settings and production services were not modified; no remote push,
   PR/MR mutation or production rollout was performed for this follow-up feature.
+- Final concurrent-work check found separate uncommitted four-question changes in the
+  original checkout (`feat/four-initial-questions`). They were not copied, staged or
+  modified. Made only the newly added rationale instruction/docs count-neutral so a
+  later question-count change does not conflict with a hardcoded three-question phrase.
+  Existing count/schema policy in this feature's base remains unchanged. Refreshed
+  suites still pass 106 unit + 35 DB/HTTP integration tests; no live-model claim.
