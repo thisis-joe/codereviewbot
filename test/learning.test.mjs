@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseCommand } from '../dist/commands.js';
 import * as contracts from '../dist/contracts.js';
-import { renderReport, renderGrade, renderQuestionBatch } from '../dist/render.js';
+import { renderReport, renderGrade, renderQuestionBatch, renderQuestionThread } from '../dist/render.js';
 import { questionId } from '../dist/learning.js';
 import { report, changeQuestions, choices, answerKey } from './fixtures.mjs';
 
@@ -72,9 +72,17 @@ test('question and grading comments keep one help entry point without repeating 
   const grade = { verdict: 'correct', explanation: '', expectedAnswer: '같은 키를 재사용합니다.', optionExplanations: answerKey().options, evidence: [{ path: q.path, line: q.line, side: q.side, reason: '호출' }] };
   for (const body of [renderReport(r), renderQuestionBatch(r.questions, r.snapshot, 'batch'), renderGrade(q, r.snapshot, grade, 'grade', 'Q1', 'B')]) {
     assert.equal((body.match(/명령어 안내: `\/reviewbot help`/g) ?? []).length, 1);
-    // Only the question summary teaches answering and revealing; every other command stays behind help.
-    assert.doesNotMatch(body === renderReport(r) ? body.replace(/^(답변 달기|정답·해설 한 번에 보기): .*$/gm, '') : body, /\| 명령어|사용 예시|\/reviewbot (?!help)[a-z]+/);
+    // Question comments teach answering and revealing; every other command stays behind help.
+    assert.doesNotMatch(body.replace(/^(답변 달기|정답·해설 한 번에 보기): .*$/gm, ''), /\| 명령어|사용 예시|\/reviewbot (?!help)[a-z]+/);
   }
+});
+
+test('follow-up batches and inline threads name their own labels for answering and revealing', () => {
+  const r = report(), batch = renderQuestionBatch(r.questions, r.snapshot, 'batch', 6);
+  assert.match(batch, /^### 심화 질문\n\n답변 달기: `\/reviewbot answer 심화6 B` — 여러 개는 `\/reviewbot answer 심화6 B 심화7 C`\\\n정답·해설 한 번에 보기: `\/reviewbot showanswer 심화6 심화7 심화8`\n\n<!-- codereviewbot:question:/m);
+  assert.match(batch, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\/commit\/b{40}\)\\\n명령어 안내: `\/reviewbot help`$/);
+  for (const label of ['심화6', '심화7', '심화8']) assert.ok(parseCommand(`/reviewbot showanswer 심화6 심화7 심화8`).ids.includes(label));
+  assert.match(renderQuestionThread(r.questions[1], r.snapshot, 2), /보기 문자\(A~D\)만 답글로 .*\\\n정답·해설 보기: `\/reviewbot showanswer Q2`$/);
 });
 
 test('grading preserves question, verdict, all option explanations and valid links under the comment budget', () => {

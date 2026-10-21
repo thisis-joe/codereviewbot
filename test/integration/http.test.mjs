@@ -5,7 +5,7 @@ import pg from 'pg';
 import { Store } from '../../dist/store.js';
 import { application } from '../../dist/application.js';
 import { Controller } from '../../dist/controller.js';
-import { analysis, finding, snapshot, changeQuestions } from '../fixtures.mjs';
+import { analysis, finding, snapshot, changeQuestions, initialQuestions } from '../fixtures.mjs';
 import { parsePatch } from '../../dist/review.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
@@ -23,7 +23,7 @@ test('signed HTTP admission, database work, single-pass questions and replay-saf
   const patch = '@@ -1,2 +1,2 @@\n function pay() {\n+charge();\n';
   const workspaces = { prepare: async () => ({ policy: { version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5, requireAnswers: true }, guidelines: [], mode: 'full', context: { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/snapshots/source' } }), cleanup: async () => {} };
   const calls = [];
-  const model = { run: async phase => { calls.push(phase); return { questions: changeQuestions() }; } };
+  const model = { run: async phase => { calls.push(phase); return { questions: initialQuestions() }; } };
   const controller = new Controller(store, [platform], workspaces, model);
   const server = application(controller, [config], { INTERNAL_TOKEN: 'internal-test-secret', HOOK_SECRET: 'hook-test-secret' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
@@ -38,17 +38,17 @@ test('signed HTTP admission, database work, single-pass questions and replay-saf
   assert.equal(comments.length,1); assert.equal(inline.length,0);
   assert.match(comments[0].body,/변경 이해 질문/); assert.doesNotMatch(comments[0].body,/CRB-|수정 필요/); assert.deepEqual(calls,['initial_questions']);
   assert.equal((await store.health()).queued,0);
-  assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
+  assert.equal((await store.getTarget(snapshot())).report.questions.length, 4);
   assert.match(comments[0].body, /### CodeReviewBot 변경 이해 질문/);
   // The base-branch policy reaches the published merge gate.
   assert.equal((await store.getTarget(snapshot())).report.requireAnswers, true);
-  assert.deepEqual(statuses.map(s => s.state), ['pending']); assert.match(statuses[0].description, /0\/3/);
+  assert.deepEqual(statuses.map(s => s.state), ['pending']); assert.match(statuses[0].description, /0\/4/);
   platform.openNumbers = async () => [1];
   // Ordinary CI refreshes keep questions without inference; failed full runs clear old questions.
   model.run = async () => { throw new Error('inference unavailable'); };
   await store.enqueue({ kind: 'ci', target: snapshot(), deliveryId: 'ci-only', headSha: snapshot().headSha });
   await tick(); await tick();
-  assert.equal((await store.getTarget(snapshot())).report.questions.length, 3);
+  assert.equal((await store.getTarget(snapshot())).report.questions.length, 4);
   const prepare = workspaces.prepare;
   workspaces.prepare = async (...args) => { const prepared = await prepare(...args); return { ...prepared, context: { ...prepared.context, files: {}, diff: {} } }; };
   await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'no-source', headSha: snapshot().headSha }, true);

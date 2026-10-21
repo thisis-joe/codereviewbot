@@ -5,7 +5,7 @@ import { Controller } from '../../dist/controller.js';
 import { Store } from '../../dist/store.js';
 import { questionId } from '../../dist/learning.js';
 import { parsePatch, parsePositions } from '../../dist/review.js';
-import { changeQuestions, finding, report, snapshot } from '../fixtures.mjs';
+import { changeQuestions, initialQuestions, finding, report, snapshot } from '../fixtures.mjs';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
 
@@ -56,7 +56,7 @@ async function fixture(t, name) {
   };
   const model = { run: async (phase, prompt) => {
     calls.push({ phase, prompt });
-    return { questions: changeQuestions().map(q => ({ ...q, question: `새 질문: ${q.question}` })) };
+    return { questions: initialQuestions().map(q => ({ ...q, question: `새 질문: ${q.question}` })) };
   } };
   const controller = new Controller(store, [platform], workspaces, model);
   const tick = async (runner = controller) => { const id = await runner.tick(); await runner.active; return id; };
@@ -97,13 +97,13 @@ for (const name of ['github', 'gitlab']) {
     assert.deepEqual(f.calls.map(c => c.phase), ['initial_questions']);
     assert.equal(f.preparations.length, 1);
     assert.equal(f.preparations[0].previous, null, 'A legacy SHA must not become an empty incremental diff');
-    assert.equal(current.questions.length, 3);
+    assert.equal(current.questions.length, 4);
     assert.deepEqual(current.findings.map(item => [item.id, item.status]), [['CRB-0001', 'unverified'], ['CRB-0002', 'dismissed']]);
     assert.ok((await f.store.questionHistory(f.snap)).some(q => questionId(f.snap, q) === oldId));
     assert.equal((await f.store.answerResults(f.snap)).get(oldId), 'correct');
     assert.equal(current.requireAnswers, true);
     assert.equal(f.statuses.at(-1).state, 'pending');
-    assert.match(f.statuses.at(-1).description, /0\/3/);
+    assert.match(f.statuses.at(-1).description, /0\/4/);
     assert.equal(f.checks(), 0);
     assert.ok(f.writes.some(value => value.kind === 'inline' && value.body.includes('codereviewbot:question:')));
     assert.ok(f.writes.every(value => !value.body.includes('codereviewbot:finding:') && !value.body.includes('CRB-0001')));
