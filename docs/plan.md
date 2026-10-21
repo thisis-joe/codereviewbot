@@ -23,6 +23,8 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   newer revision to compare it falls back to full-PR source. `full` always uses the
   full scope. `pause`/`resume`, `answer`, `morequestion`, `@reviewbot` and approved
   repository context remain supported. `explain`/`dismiss` handle historical findings.
+- `showanswer` reveals stored answer keys and explanations without a model call; it
+  records no grade, so answer progress and the merge gate are unchanged.
 - Question IDs, same-ref history, supplementary numbering, durable grading replies,
   per-option explanations, inline letter replies and opt-in answer merge gates remain.
   The answer gate concerns questions visible in the current summary, not review quality.

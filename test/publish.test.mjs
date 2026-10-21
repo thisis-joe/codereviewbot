@@ -44,7 +44,7 @@ test('archived review output never posts findings and cannot crowd out questions
   const r = report({ findings: [finding({ id: 'CRB-0001', problem: 'p'.repeat(6000), condition: 'c'.repeat(6000), impact: 'i'.repeat(6000), evidence: Array.from({ length: 12 }, () => ({ path: 'src/pay.ts', line: 4, side: 'RIGHT', reason: 'r'.repeat(6000) })) }), ...Array.from({ length: 39 }, (_, i) => finding({ id: `CRB-${String(i + 2).padStart(4, '0')}`, path, title: '&'.repeat(160) }))] });
   await publish(p, r, { 'src/pay.ts': { oldPath: 'src/pay.ts' } }, 5, async () => {});
   const body = p.stored.comments[0].body; assert.ok(body.length <= 60000);
-  assert.doesNotMatch(body, /### [1-4]\.|CRB-0001|수정 필요/); assert.equal([...body.matchAll(/^\*\*Q\d+\. /gm)].length, 3);
+  assert.doesNotMatch(body, /### [1-4]\.|CRB-0001|수정 필요/); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3);
   assert.equal(p.stored.inline.length, 0);
 });
 test('each review question gets one inline thread on its diff line and the summary shows recorded grades', async () => {
@@ -54,10 +54,10 @@ test('each review question gets one inline thread on its diff line and the summa
   await publish(p, r, diff, 5, async () => {}, new Map([[ids[0], 'correct']]));
   const threads = p.stored.inline.filter(c => c.body.includes('codereviewbot:question:'));
   assert.equal(threads.length, 2, 'line 9 is outside the hunk, so Q3 stays in the summary only');
-  assert.match(threads[0].body, new RegExp(`<!-- codereviewbot:question:${ids[0]} -->\\n\\*\\*Q1\\. \\[기본\\] `)); assert.match(threads[1].body, /\*\*Q2\. /);
+  assert.match(threads[0].body, new RegExp(`<!-- codereviewbot:question:${ids[0]} -->\\n#### Q1\\. (?!\\[)`)); assert.match(threads[1].body, /^#### Q2\. /m);
   assert.match(threads[0].body, /^(&nbsp;){4}\*\*D\.\*\* /m); assert.match(threads[0].body, /보기 문자\(A~D\)만 답글로/);
   assert.deepEqual(threads[0].input.coordinates, { newLine: 2 }); assert.ok(!threads[0].body.includes(answerKey().explanation));
-  assert.match(p.stored.comments[0].body, /^\*\*Q1\. .* · ✅ 정답\\$/m); assert.match(p.stored.comments[0].body, /답변 1\/3/);
+  assert.match(p.stored.comments[0].body, /^#### Q1\. .* · ✅ 정답$/m); assert.match(p.stored.comments[0].body, /답변 1\/3/);
   await publish(p, r, diff, 5, async () => {});
   assert.equal(p.stored.inline.filter(c => c.body.includes('codereviewbot:question:')).length, 2);
 });

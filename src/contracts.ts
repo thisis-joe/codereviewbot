@@ -26,7 +26,7 @@ export const CheckSchema = z.strictObject({
 // Every question is multiple choice with exactly four options so answers stay one letter.
 export const optionIds = ['A', 'B', 'C', 'D'] as const;
 const inOrder = (v: { id: string }[]) => v.map(o => o.id).join('') === optionIds.join('');
-// The answer key is fixed when the question is written so grading stays consistent; it never appears in comments.
+// The answer key is fixed when the question is written so grading stays consistent; only grading and /reviewbot showanswer publish it.
 export const AnswerKeySchema = z.strictObject({
   answer: z.enum(optionIds), explanation: z.string().trim().min(1).max(1500),
   options: z.array(z.strictObject({ id: z.enum(optionIds), explanation: z.string().trim().min(1).max(500) })).length(4).refine(inOrder, 'Explain options A–D in order'),
