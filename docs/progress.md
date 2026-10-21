@@ -308,3 +308,22 @@
   summary before grade refresh can adopt it; earlier revision comments cannot match.
   A real-DB regression failed before the fix and passed after it. Current full suites
   pass 106 unit + 35 PostgreSQL/HTTP integration tests, including pending delta tests.
+- P2: incremental source preparation now supplies a separate bounded diff from the
+  last completed question revision, while retaining canonical MR/PR base coordinates
+  and base source for publication/deletion checks. Rename chains retain both the
+  incremental old path and canonical old path; excluded intermediate paths and oversized
+  deltas are withheld. Real-Git regression confirms the second push adds `second`
+  without presenting the earlier added `first` as a new addition, preserving exclusions.
+- Initial generation keeps exactly two basic and one advanced question and one bounded
+  model call. Prompt includes previous question text, explicitly scopes incremental
+  questions to the new delta, and requires at least one code-supported purpose/rationale
+  question alongside behavior/flow/edge-case understanding. It forbids guessing the
+  author's private intent as the answer. README and operations describe new-comment,
+  latest-question grading, full-scope fallbacks and coalesced intermediate push behavior.
+- P2 red/green: exact-delta payload and real-Git rename/source checks failed before
+  implementation and passed afterward. Final current-source suites: 106 unit + 35
+  disposable PostgreSQL/HTTP integration tests passed. Source self-review covers
+  P1 committed changes, legacy-grade correction and all current P2 code/tests/docs;
+  publication ownership/ref fences, sensitive old paths, bounded payloads and recovery
+  were traced. Independent semantic/model review was not run. This task does not claim
+  new real-model quality/timing measurements or production deployment.

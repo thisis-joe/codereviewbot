@@ -55,6 +55,10 @@ flowchart LR
 4. Code validates question structure, duplicates, diff locations and answer-key structure. The controller rechecks SHAs before publishing and regenerates against new code after a push.
 5. The summary first shows `질문 생성 중` (generating questions), the commit and an estimated duration, then becomes the questions. Estimates use only question-generation history from the new version, with a two-minute unmeasured default. Historical review durations are excluded.
 
+A new push to an open PR/MR creates a new progress comment and preserves earlier question comments. Only the new comment becomes the new result. The two basic questions and one advanced question remain; at least one asks about the change's purpose or design rationale supported by code, with the others checking behavior, flow or edge cases. The bot must not guess the author's personal intentions as a correct answer.
+
+Incremental generation receives the actual diff since the last question revision and previous question text. The full PR/MR diff supplies publication coordinates. A partial or failed previous generation, changed base refs or policy, or a force-push breaking ancestry falls back to full scope. The bot does not replay every intermediate push.
+
 | Service | Role |
 |---|---|
 | `controller` | Webhook auth, job queue, Git cache and snapshots, platform API calls and comment publishing |
@@ -242,6 +246,7 @@ When a repository admin makes that status a required check, the merge button sta
 - In a bot thread with only one question, a plain reply is graded without an ID. With several, the bot asks for the ID.
 - Comment bodies are read up to 8,000 characters.
 - Questions are tied to the head, base and start SHAs. If the code changes, the bot points you to the latest questions.
+- New revisions have separate question comments; earlier questions and grade marks remain unchanged. Publication retries and grade refreshes update only their revision's comment. Questions posted before the update are also preserved on new pushes, and existing questions for the current code can still be graded.
 - Regenerating a report or failed question generation on the same code keeps posted question IDs and learning history.
 
 </details>

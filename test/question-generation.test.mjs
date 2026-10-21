@@ -29,3 +29,19 @@ test('unreadable changes return explicit unavailable results without inference',
   assert.equal(result.schemaVersion, '2'); assert.equal(result.state, 'partial'); assert.deepEqual(result.questions, []);
   assert.match(result.questionsUnavailableReason, /변경 근거/);
 });
+
+test('incremental generation supplies the exact push delta and asks evidence-backed intent without dropping ordinary questions', async () => {
+  const ctx = { ...context(), changesSincePrevious: { fromHeadSha: 'c'.repeat(40), files: {
+    'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -2 +2 @@\n-oldCharge();\n+charge();' },
+  } } };
+  const calls = [];
+  const previous = report();
+  await engine.generateQuestions({ run: async (...args) => { calls.push(args); return { questions: changeQuestions() }; } },
+    'workspace', snapshot(), readPolicy(), ctx, previous, [], [], [], 'incremental');
+  const prompt = calls[0][1], data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
+  assert.deepEqual(data.changesSincePrevious, ctx.changesSincePrevious);
+  assert.deepEqual(data.previousQuestions, previous.questions.map(q => q.question));
+  assert.match(prompt, /최소 1개.*목적.*이유/);
+  assert.match(prompt, /작성자의.*추측/);
+  assert.match(prompt, /basic 2개.*advanced 1개/);
+});
