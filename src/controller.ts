@@ -31,7 +31,7 @@ export class Controller {
   async perform(job: Job): Promise<void> {
     const lease = () => this.store.assertLease(job.id, job.owner);
     const heartbeat = setInterval(() => { void this.store.heartbeat(job.id, job.owner).catch(() => {}); }, 15000);
-    let snap: Snapshot | undefined, previous: Report | null = null;
+    let snap: Snapshot | undefined, previous: Report | null = null, requireAnswers: boolean | undefined;
     try {
       const platform = this.platform(job.body.target);
       if (job.state === 'publishing') {
@@ -65,6 +65,7 @@ export class Controller {
       const learnings = await this.store.learnings(snap);
       const priorSnapshot = !job.body.force && isQuestionReport(previous) && previous.state === 'completed' && !(job.body.regenerate && sameRevision(previous.snapshot, snap)) ? previous.snapshot : null;
       const prepared = await this.workspaces.prepare(platform, snap, job.id, priorSnapshot, learnings);
+      requireAnswers = prepared.policy.requireAnswers === true;
       const prepareMs = Date.now() - prepareStarted;
       await lease();
       if (!job.body.force && !job.body.regenerate && isQuestionReport(previous) && reviewed(previous) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha && previous.snapshot.policyVersion === snap.policyVersion) {
@@ -81,7 +82,7 @@ export class Controller {
     } catch (error) {
       if (error instanceof Superseded || (error instanceof HttpError && error.status === 410)) await this.store.supersede(job.id, job.owner);
       else if (snap && job.state !== 'publishing' && job.attempts >= 3) {
-        const failed = { ...emptyReport(snap, 'failed', '질문 생성 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.'), requireAnswers: previous?.requireAnswers, findings: archivedFindings(previous) };
+        const failed = { ...emptyReport(snap, 'failed', '질문 생성 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.'), requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
         try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
       } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
       console.error(JSON.stringify({ jobId: job.id, stage: job.state, error: error instanceof Superseded ? 'superseded' : 'execution_failed' }));

@@ -164,3 +164,10 @@
   transition harness: both-provider legacy same-SHA/ready/recovery/current-cache,
   command regeneration, pushes during generation/publication, timing separation and
   same-head review/full coalescing. All cases passed in the final 31-test integration run.
+- Q3 completed in `ba50412`. Final failure-path audit reproduced loss of the opt-in
+  answer gate on a first-ever failed generation (no previous report). Captured the
+  prepared policy for the failure result; explicit false overrides old true, and an
+  unavailable policy still falls back to previous state. A real-DB regression forces
+  final-attempt failure, verifies the stored report and pending published gate.
+  Independent delta review passed; full verification now 92 unit + 32 DB integration
+  tests passed. This corrective work unit is separate from docs/demo updates.

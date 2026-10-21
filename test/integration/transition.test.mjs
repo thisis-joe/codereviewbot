@@ -291,3 +291,14 @@ for (const command of ['review', 'full']) {
     assert.deepEqual(f.calls.map(c => c.phase), ['initial_questions']);
   });
 }
+
+test('a failed first generation retains the policy answer gate instead of silently disabling it', async t => {
+  const f = await fixture(t, 'github');
+  f.model.run = async () => { throw new Error('inference unavailable'); };
+  const id = await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: 'first-generation-fails' });
+  await f.pool.query('UPDATE jobs SET attempts=2 WHERE id=$1', [id]);
+  await f.drain();
+  const current = (await f.store.getTarget(f.snap)).report;
+  assert.equal(current.state, 'failed'); assert.equal(current.requireAnswers, true);
+  assert.equal(f.statuses.at(-1).state, 'pending');
+});
