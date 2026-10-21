@@ -14,11 +14,18 @@ for (const provider of ['github', 'gitlab']) test(`${provider} signed help comma
   const target = { platform: provider, instance: config.instance, repository: config.repository, number: 1 };
   await store.enqueue({ kind: 'review', target, deliveryId: 'paused-review', headSha: 'b'.repeat(40) });
   await store.setPaused(target, true);
-  const comments = [], replies = [], forbidden = () => { throw new Error('help must not access code or inference'); };
-  let loseReply = true;
+  const comments = [], replies = [], acks = [], deleted = [], forbidden = () => { throw new Error('help must not access code or inference'); };
+  let loseReply = true, sequence = 0;
   const platform = { config, permission: async () => 'write', comments: async () => comments, inlineComments: async () => [], owned: c => c.author === 'bot', snapshot: forbidden,
+    deleteComment: async (_number, comment) => {
+      const index = comments.findIndex(c => c.id === comment.id && c.surface === comment.surface);
+      assert.ok(index >= 0); deleted.push(comment.id); comments.splice(index, 1);
+    },
     reply: async (_number, body, parent, discussion) => {
-      replies.push({ body, parent, discussion }); comments.push({ id: 'bot-help', author: 'bot', surface: provider === 'github' ? 'issue' : 'note', body });
+      const ack = body.includes('codereviewbot:ack:');
+      comments.push({ id: `bot-${++sequence}`, author: 'bot', surface: provider === 'github' ? 'issue' : 'note', body });
+      if (ack) { acks.push({ body, parent, discussion }); return; }
+      replies.push({ body, parent, discussion });
       if (loseReply) { loseReply = false; throw new Error('response lost after remote write'); }
     } };
   let controller = new Controller(store, [platform], { prepare: forbidden }, { run: forbidden });
@@ -42,6 +49,10 @@ for (const provider of ['github', 'gitlab']) test(`${provider} signed help comma
   controller = new Controller(store, [platform], { prepare: forbidden }, { run: forbidden });
   await tick(); assert.equal(replies.length, 1);
   assert.equal((await store.getJob(command[0].id)).state, 'completed');
+  assert.equal(acks.length, 1, 'Duplicate delivery does not create another received notice');
+  assert.equal(deleted.length, 1);
+  assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
+  assert.equal(acks[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
   assert.match(replies[0].body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
   assert.equal([...replies[0].body.matchAll(/^\| (?:`\/reviewbot|`@reviewbot)/gm)].length, 13);
   assert.equal(replies[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);

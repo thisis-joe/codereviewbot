@@ -74,6 +74,7 @@ test('answering every published question, right or wrong, clears the merge gate'
   const platform = { config, snapshot: async () => snapshot(), permission: async () => 'write', comments: async () => comments, inlineComments: async () => [], owned: c => c.author === 'bot',
     comment: async (n, body, id) => { const existing = comments.find(c => c.id === id); if (existing) existing.body = body; else comments.push({ id: `bot-${comments.length}`, body, author: 'bot', surface: 'issue' }); },
     reply: async (n, body) => { comments.push({ id: `bot-${comments.length}`, body, author: 'bot', surface: 'issue' }); },
+    deleteComment: async (n, item) => { const index = comments.findIndex(c => c.id === item.id && c.surface === item.surface); assert.ok(index >= 0); comments.splice(index, 1); },
     gateStatus: async () => statuses.at(-1) ?? null, setGateStatus: async (s, gate) => { statuses.push(gate); } };
   const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
   const verdicts = ['incorrect', 'unverifiable', 'correct']; let graded = 0;
@@ -104,4 +105,5 @@ test('answering every published question, right or wrong, clears the merge gate'
   platform.openNumbers = async () => [1]; platform.target = number => ({ ...snapshot(), number }); platform.checks = async () => []; workspaces.cleanup = async () => {};
   await controller.recover();
   assert.equal(statuses.length, 4);
+  assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
 });

@@ -211,3 +211,18 @@
   RED reproduced absent cause/kind/attempt fields; GREEN: 88 unit tests, including
   generic, schema-field-only, JSON-input-suppression and credential/size regressions.
   Scoped author review + diff check passed; no independent reviewer used for this slice.
+
+- Integration (2026-10-21): A1 `240eea9` and L1 `d05086d` remain independent feature
+  branches from `2db8478`; cherry-picked with provenance as `0ec0556` and `d89a09a`
+  onto `codex/question-bot` from `c0d70c7`. Resolved renderer imports and appended
+  ledgers without restoring review behavior or losing question/gate failure handling.
+- The previous question worktree switched externally to `codex/question-bot-live-validation`
+  during preparation. Aborted our initial cherry-pick there, preserving that branch and
+  source, and moved integration to `/Users/Joseph/.codex/worktrees/question-integration/codereviewbot`.
+- Integration RED: help's old lost-reply fixture treated the new acknowledgement as its
+  help response and lacked deletion support. Kept the accepted-but-lost help/restart
+  checks, modeled notices separately, and now assert one notice for duplicate delivery,
+  native thread identity and successful cleanup on both providers. Grading/gate fixture
+  also verifies notice cleanup. GREEN: 102 unit + 32 real PostgreSQL integration tests.
+  Author review covers committed feature changes plus both integration test updates;
+  fresh-context review is unavailable in this follow-up (no subagents dispatched).
