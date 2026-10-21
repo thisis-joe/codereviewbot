@@ -189,3 +189,14 @@
   Final hash comparison confirmed original main's tracked diff and both untracked
   user files unchanged. Live-model quality/latency sampling and production rollout
   remain unperformed; the completed implementation worktree is clean.
+
+- Live validation/deployment authorized 2026-10-21; isolated release branch
+  `codex/question-bot-live-validation` starts at `c0d70c7`, original main/diff hashes
+  unchanged. Authenticated production provider observed as Claude Opus 5.5 from CLI
+  modelUsage, with existing account/configuration and isolated baseline/candidate RPCs.
+- Pre-release live source audit found an ambiguous correct option in a dataset-ignore
+  question: a two-path question's choice could read as excluding only one path.
+  Deployment held. Strengthened question instructions for complete scope, consistent
+  explanations, quantified wording and explicit external-state assumptions, preserving
+  the 3–10 question count, one model call and 120-second budget. Final live samples
+  must be rerun on the corrected prompt; initial samples are diagnostic evidence only.
