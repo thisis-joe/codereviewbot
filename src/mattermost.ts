@@ -8,7 +8,7 @@ import { plain, summaryMarker } from './render.js';
 import { redact } from './redact.js';
 
 type Notification = { kind: 'opened' | 'reopened' | 'merged' | 'closed'; title: string }
-  | { kind: 'questions'; title: string; count: number; noteId: string }
+  | { kind: 'questions'; title: string; count: number; noteId: string; partial?: boolean }
   | { kind: 'commented'; title: string; noteId: string }
   | { kind: 'push'; branch: string; count: number; author: string; before: string; after: string };
 interface Pending { key: string; target: Target; payload: Notification; owner: string; attempts: number }
@@ -33,7 +33,7 @@ export function renderNotification(target: Target, notification: Notification, a
   }
   const who = plain(givenName(author)), mr = `${who}님의 MR !${target.number}`;
   const labels = { opened: `📬 ${mr}이 열렸어요`, reopened: `🔄 ${mr}이 다시 열렸어요`, merged: `🎉 ${mr} 머지 완료`, closed: `🚪 ${mr}이 닫혔어요`, commented: `💬 ${mr} · 새 댓글이 달렸어요` };
-  const headline = notification.kind === 'questions' ? `😏 ${mr} · 질문 ${notification.count}개 준비됐어요` : labels[notification.kind];
+  const headline = notification.kind === 'questions' ? `😏 ${mr} · 질문 ${notification.count}개 준비됐어요${notification.partial ? ' · 일부 변경 제외' : ''}` : labels[notification.kind];
   const url = `${project}/-/merge_requests/${target.number}`;
   const link = 'noteId' in notification ? `${url}#note_${notification.noteId}` : url;
   return `**${headline}**\n[${plain(redact(notification.title).slice(0, 500))}](${link})`;
@@ -85,11 +85,11 @@ export class Mattermost {
     return false;
   }
   async questionsPublished(platform: Platform, report: Report): Promise<void> {
-    if (!this.destinations.has(repositoryKey(platform.config)) || report.state !== 'completed' || !hasChangeQuestions(report)) return;
+    if (!this.destinations.has(repositoryKey(platform.config)) || !hasChangeQuestions(report)) return;
     const marker = summaryMarker(report.snapshot);
     const comment = (await platform.comments(report.snapshot.number)).find(c => platform.owned(c) && c.body.includes(marker));
     if (!comment || !/^\d+$/.test(comment.id)) throw new Error('Published question comment unavailable');
-    await this.enqueue(report.snapshot, `questions:${marker}`, { kind: 'questions', title: report.snapshot.title, count: report.questions.length, noteId: comment.id });
+    await this.enqueue(report.snapshot, `questions:${marker}`, { kind: 'questions', title: report.snapshot.title, count: report.questions.length, noteId: comment.id, ...(report.state === 'partial' ? { partial: true } : {}) });
   }
   tick(): void {
     if (this.active || !this.destinations.size) return;

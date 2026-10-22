@@ -548,3 +548,12 @@
   manual. Operator retry clears a failed generation result instead of republishing
   the error notice. RED reproduced all three recovery defects; GREEN: 118 unit +
   45 PostgreSQL/HTTP tests, including concurrent controller recovery.
+- F3: a published partial report with valid questions now sends the same concise
+  MM notification, with an explicit `일부 변경 제외` scope qualifier and exact
+  summary-comment link. Failed/empty output and repeated same-revision grading
+  remain silent. RED proved the missing first-partial notification; GREEN: 118
+  unit + 46 disposable PostgreSQL/HTTP tests; source/diff author review passed.
+- Identity investigation: existing bot self-token update of its display name
+  returned 403; project token UI only exposes revoke/rotate, not rename. GitLab's
+  documented user modification endpoint requires an instance administrator.
+  No credential rotation, access expansion or replacement account was attempted.

@@ -66,7 +66,7 @@ test('authenticated GitLab admission sends distinct MR events once, identifies t
   assert.equal((await f.pool.query('SELECT count(*) FROM mattermost_notifications')).rows[0].count, '5');
 });
 
-test('successful question publication queues one exact-comment notification per revision and skips partial or failed runs', async t => {
+test('successful question publication queues one exact-comment notification per revision and skips failures', async t => {
   const f = await fixture(t), controller = new Controller(f.store, [f.platform], {}, {}, f.notifications);
   await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: 'generation' });
   const running = await f.store.claim();
@@ -78,6 +78,21 @@ test('successful question publication queues one exact-comment notification per 
   assert.equal(f.received.length, 1); assert.match(f.received[0].text, /찬형님의 MR !15 · 질문 4개 준비됐어요/);
   assert.ok(f.received[0].text.endsWith('#note_321)'));
   for (const r of [result, { ...result, state: 'partial' }, { ...result, state: 'failed' }]) await f.notifications.questionsPublished(f.platform, r);
+  await f.flush(); assert.equal(f.received.length, 1);
+});
+
+test('partial publication with valid questions sends one concise scope warning and an exact comment link', async t => {
+  const f = await fixture(t), controller = new Controller(f.store, [f.platform], {}, {}, f.notifications);
+  await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: 'partial-generation' });
+  const running = await f.store.claim();
+  const result = report({ snapshot: f.snap, state: 'partial', questions: initialQuestions(), limitations: ['source size limit'], requireAnswers: false });
+  await f.store.saveResult(running.id, running.owner, result, {}, 0);
+  await controller.tick(); await controller.active; await f.flush();
+  assert.equal(f.received.length, 1);
+  assert.match(f.received[0].text, /찬형님의 MR !15 · 질문 4개 준비됐어요 · 일부 변경 제외/);
+  assert.equal(f.received[0].text.split('\n').length, 2);
+  assert.ok(f.received[0].text.endsWith('#note_321)'));
+  for (const value of [result, { ...result, state: 'completed' }, { ...result, state: 'failed' }, { ...result, questions: [] }]) await f.notifications.questionsPublished(f.platform, value);
   await f.flush(); assert.equal(f.received.length, 1);
 });
 
