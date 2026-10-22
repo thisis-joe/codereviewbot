@@ -43,5 +43,7 @@ test('incremental generation supplies the exact push delta and asks evidence-bac
   assert.deepEqual(data.previousQuestions, previous.questions.map(q => q.question));
   assert.match(prompt, /최소 1개.*목적.*이유/);
   assert.match(prompt, /작성자의.*추측/);
+  assert.match(prompt, /외부 콜백.*예외.*구분/);
+  assert.match(prompt, /그 보기가 틀리는.*조건/);
   assert.equal(calls.length, 1);
 });

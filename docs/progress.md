@@ -365,3 +365,15 @@
   fixture; retained legacy three-question reports for compatibility. All 109 unit and
   37 PostgreSQL/HTTP integration tests pass, including old-comment preservation through
   progress/retry/grading on GitHub/GitLab. Live quality/deployment gates remain pending.
+- Live diagnostic hold: first four-question request reached 120s process budget.
+  Unchanged tiny real-model query passed in 5.919s and same four-question input with
+  profiling passed in 35.778s (MCP ready 0.435s/source read 2.089s); timeout cause
+  remains unestablished. All failure/profile evidence retained, no rollout performed.
+- Source audit of subsequent samples found an overbroad option explanation claiming
+  RangeError occurs only on argument validation. A real transpilation/execution probe
+  with valid maxAttempts=3 and a callback RangeError reproduced three calls followed
+  by the original RangeError. Held sampling; tightened prompts to explain only each
+  distractor's source-supported failing condition, distinguish local versus propagated
+  callback/API errors, and keep key explanations concise. Prompt-boundary regression
+  observed red before the change. Full unit/DB suites pass again; final live samples
+  must be regenerated on the corrected candidate before GO.
