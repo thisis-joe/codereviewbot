@@ -7,7 +7,7 @@ import { emptyReport, reviewed, isQuestionReport, hasChangeQuestions, withoutKey
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
 import { parseCommand, type Command } from './commands.js';
-import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, renderAck, ackMarker, summaryMarker, SUMMARY_MARKER } from './render.js';
+import { renderAnswer, renderReport, renderProgress, renderCommandHelp, COMMAND_HELP_HINT, plain, renderAck, ackMarker, summaryMarker, SUMMARY_MARKER, type AckState } from './render.js';
 import { redact } from './redact.js';
 import { handleLearning } from './learning-command.js';
 import { commentKey, type Comment, type Event } from './webhooks.js';
@@ -38,12 +38,12 @@ export class Controller {
       if (job.state === 'publishing') {
         if (!job.result) throw new Error('Missing review result');
         if (!isQuestionReport(job.result)) {
-          const live = await platform.snapshot(job.body.target.number);
-          await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: live.headSha, deliveryId: `questions-v2:${job.id}` }, true);
+          const live = await platform.snapshot(job.body.target.number, job.body.requested);
+          await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: live.headSha, deliveryId: `questions-v2:${job.id}`, ...(job.body.requested ? { requested: true } : {}) }, true);
           return;
         }
         const publishStarted = Date.now();
-        await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease, await this.store.answerResults(job.result.snapshot));
+        await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease, await this.store.answerResults(job.result.snapshot), job.body.requested);
         console.info(JSON.stringify({ jobId: job.id, event: 'questions_published', publishMs: Date.now() - publishStarted }));
         await this.syncGate(platform, job.result);
         await this.store.complete(job.id, job.owner); return;
@@ -54,13 +54,13 @@ export class Controller {
         const result = (await this.store.getJob(job.id))?.command_result;
         if (result?.answered || result?.grades?.length) {
           const report = (await this.store.getTarget(job.body.target))?.report;
-          if (report) { await this.refreshSummary(platform, report); await this.syncGate(platform, report); }
+          if (report) { await this.refreshSummary(platform, report, true); await this.syncGate(platform, report); }
         }
         return;
       }
       // Drain legacy CI jobs without fetching checks, preparing source or invoking the model.
       if (job.kind === 'ci') { await this.store.complete(job.id, job.owner); return; }
-      snap = await platform.snapshot(job.body.target.number);
+      snap = await platform.snapshot(job.body.target.number, job.body.requested);
       snap.title = redact(snap.title); snap.description = redact(snap.description);
       previous = (await this.store.getTarget(snap))?.report ?? null;
       const prepareStarted = Date.now();
@@ -78,21 +78,21 @@ export class Controller {
       const started = Date.now();
       const result = await generateQuestions(this.model, job.id, snap, prepared.policy, prepared.context, previous, prepared.guidelines, issues, learnings, prepared.mode);
       console.info(JSON.stringify({ jobId: job.id, event: 'questions_generated', prepareMs, generateMs: Date.now() - started, modelCalls: hasQuestionSource(prepared.context) ? 1 : 0 }));
-      await lease(); const live = await platform.snapshot(snap.number);
+      await lease(); const live = await platform.snapshot(snap.number, job.body.requested);
       if (live.headSha !== snap.headSha || live.baseSha !== snap.baseSha || live.startSha !== snap.startSha) throw new Superseded('Review snapshot changed');
       await this.store.saveResult(job.id, job.owner, { ...result, requireAnswers: prepared.policy.requireAnswers === true }, Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), 0, Math.round((Date.now() - started) / 1000));
     } catch (error) {
-      if (error instanceof Superseded || (error instanceof HttpError && error.status === 410)) await this.store.supersede(job.id, job.owner);
+      const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
+      if (superseded) await this.store.supersede(job.id, job.owner);
       else if (snap && job.state !== 'publishing' && job.attempts >= 3) {
         const failed = { ...emptyReport(snap, 'failed', '질문 생성 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.'), requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
         try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
       } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
-      const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
-      // The last attempt replaces the received notice with a failure notice; a closed PR/MR only drops it.
+      // Commands also run on closed PR/MRs, so a closed notice is only a fallback; the last failed attempt leaves a failure notice.
       if (job.kind === 'command' && job.body.comment && (superseded || job.attempts >= 3)) {
-        try { await this.settleAck(this.platform(job.body.target), job.body.target.number, job.body.comment, !superseded); } catch { /* repository removed */ }
+        try { await this.settleAck(this.platform(job.body.target), job.body.target.number, job.body.comment, superseded ? 'closed' : 'failed'); } catch { /* repository removed */ }
       }
-      console.error(JSON.stringify({ jobId: job.id, kind: job.kind, stage: job.state, attempt: job.attempts, error: error instanceof Superseded ? 'superseded' : 'execution_failed', ...(error instanceof Superseded ? {} : { cause: describeFailure(error) }) }));
+      console.error(JSON.stringify({ jobId: job.id, kind: job.kind, stage: job.state, attempt: job.attempts, error: superseded ? 'superseded' : 'execution_failed', ...(error instanceof Superseded ? {} : { cause: describeFailure(error) }) }));
     } finally { clearInterval(heartbeat); }
   }
   async command(job: Job, platform: Platform, lease: () => Promise<void>): Promise<void> {
@@ -149,7 +149,7 @@ export class Controller {
       const chosen = command.action !== 'explain' ? [] : command.id ? findings.filter(f => f.id === command.id) : findings.filter(f => ['new', 'open', 'unverified'].includes(f.status));
       if (command.action === 'explain' && !chosen.length) { answer = command.id ? '해당 지적을 찾을 수 없습니다.' : '최신 보고서에 설명할 지적이 없습니다.'; }
       else {
-        const snap = await platform.snapshot(target.number); answeredSnapshot = snap; const learnings = await this.store.learnings(target);
+        const snap = await platform.snapshot(target.number, true); answeredSnapshot = snap; const learnings = await this.store.learnings(target);
         snap.title = redact(snap.title); snap.description = redact(snap.description);
         const prepared = await this.workspaces.prepare(platform, snap, job.id, null, learnings);
         const question = command.action === 'ask' ? command.text : `${chosen.map(f => f.id).join(', ')} 지적이 실제 문제인지 재검증하고 설명하세요.`;
@@ -158,7 +158,7 @@ export class Controller {
         answer = result.answer; evidence = result.evidence; next = result.next;
       }
     }
-    await lease(); const latest = await platform.snapshot(target.number);
+    await lease(); const latest = await platform.snapshot(target.number, true);
     if (answeredSnapshot && (latest.headSha !== answeredSnapshot.headSha || latest.baseSha !== answeredSnapshot.baseSha || latest.startSha !== answeredSnapshot.startSha)) throw new Error('Answer snapshot changed; retry against latest code');
     await platform.reply(target.number, renderAnswer({ answer: redact(answer), evidence: evidence.map(redact), next: redact(next) }, key), comment.parentId, comment.discussionId);
   }
@@ -171,16 +171,18 @@ export class Controller {
     await platform.reply(event.target.number, renderAck(commentKey(comment)), comment.parentId, comment.discussionId);
     // A command that finished while the notice was being posted could not find it, so settle it here.
     const job = await this.store.getJob(jobId);
-    if (job && ['completed', 'superseded', 'failed'].includes(job.state)) await this.settleAck(platform, event.target.number, comment, job.state === 'failed');
+    const settled: Partial<Record<string, Exclude<AckState, 'received'> | 'done'>> = { completed: 'done', failed: 'failed', superseded: 'closed' };
+    const state = job && settled[job.state]; if (state) await this.settleAck(platform, event.target.number, comment, state);
   }
-  private async settleAck(platform: Platform, number: number, comment: Comment, failed = false): Promise<void> {
+  /** Deletes the received notice once the command is done, or rewrites it to say why it was not handled. */
+  private async settleAck(platform: Platform, number: number, comment: Comment, state: Exclude<AckState, 'received'> | 'done' = 'done'): Promise<void> {
     try {
       const marker = ackMarker(commentKey(comment)), seen = new Set<string>();
       // GitLab lists the same note as a comment and as a discussion note.
       const acks = [...await platform.comments(number), ...await platform.inlineComments(number)].filter(c => platform.owned(c) && c.body.includes(marker) && !seen.has(`${c.surface}:${c.id}`) && seen.add(`${c.surface}:${c.id}`));
-      const body = renderAck(commentKey(comment), true);
+      const body = state === 'done' ? '' : renderAck(commentKey(comment), state);
       for (const ack of acks) {
-        if (!failed) await platform.deleteComment(number, ack);
+        if (state === 'done') await platform.deleteComment(number, ack);
         else if (ack.body !== body) await platform.editComment(number, ack, body);
       }
     } catch { console.error(JSON.stringify({ repository: platform.config.repository, number, error: 'ack_settle_failed' })); }
@@ -195,9 +197,9 @@ export class Controller {
     } catch { console.error(JSON.stringify({ repository: platform.config.repository, number: snap.number, error: 'progress_notice_failed' })); }
   }
   // Re-render the summary so each question shows its latest grade; a stale or superseded report is left alone.
-  private async refreshSummary(platform: Platform, report: Report): Promise<void> {
+  private async refreshSummary(platform: Platform, report: Report, allowClosed = false): Promise<void> {
     try {
-      if (!sameRevision(report.snapshot, await platform.snapshot(report.snapshot.number))) return;
+      if (!sameRevision(report.snapshot, await platform.snapshot(report.snapshot.number, allowClosed))) return;
       const body = renderReport(report, await this.store.answerResults(report.snapshot));
       const comments = await platform.comments(report.snapshot.number);
       // Upgrade a pre-marker current summary only when every stored question ID proves its revision.
@@ -213,8 +215,8 @@ export class Controller {
     catch { console.error(JSON.stringify({ repository: platform.config.repository, number: report.snapshot.number, error: 'answer_gate_failed' })); }
   }
   private async enqueueFromCommand(job: Job, platform: Platform, force: boolean): Promise<void> {
-    const snap = await platform.snapshot(job.body.target.number);
-    await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: snap.headSha, deliveryId: `${job.id}:review`, regenerate: true }, force);
+    const snap = await platform.snapshot(job.body.target.number, true);
+    await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: snap.headSha, deliveryId: `${job.id}:review`, regenerate: true, requested: true }, force);
   }
   async recover(): Promise<void> {
     if (this.reconciling || this.stopping) return; this.reconciling = true;

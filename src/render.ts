@@ -1,4 +1,4 @@
-import { isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
+import { INITIAL_QUESTION_COUNT, isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
 import { createHash } from 'node:crypto';
 import { questionId } from './learning.js';
 
@@ -61,8 +61,8 @@ export function renderCommandHelp(commentId: string): string { return [replyMark
 function list(values: string[]): string { return values.length ? values.map(x => `- ${plain(x)}`).join('\n') : '없음'; }
 export function renderReport(r: Report, results: AnswerResults = new Map()): string {
   const full = renderReportBody(r, results); if (full.length <= 60000) return full;
-  // Preserve complete questions and code URLs; the gate uses exactly the visible IDs.
-  const compact: Report = { ...r, questions: r.questions.slice(0, 3), limitations: ['댓글 길이 제한으로 질문 3개만 표시합니다.'] };
+  // Preserve complete questions, including the trailing advanced one; the gate uses exactly the visible IDs.
+  const compact: Report = { ...r, questions: r.questions.slice(0, INITIAL_QUESTION_COUNT), limitations: [`댓글 길이 제한으로 질문 ${INITIAL_QUESTION_COUNT}개만 표시합니다.`] };
   const body = renderReportBody(compact, results);
   if (body.length > 60000) throw new Error('Question report exceeds comment budget');
   return body;
@@ -132,16 +132,25 @@ function renderQuestions(questions: ChangeQuestion[], s: Snapshot, start = 1, re
 }
 /** One inline thread per question, so a bare option letter replied in the thread is graded. */
 export function renderQuestionThread(q: ChangeQuestion, s: Snapshot, number: number): string {
-  return [...questionLines(q, s, `Q${number}`), '', '이 스레드에 보기 문자(A~D)만 답글로 달아도 채점합니다. 이유를 덧붙여도 됩니다.'].join('\n');
+  return [...questionLines(q, s, `Q${number}`), '', ...lines(['이 스레드에 보기 문자(A~D)만 답글로 달아도 채점합니다. 이유를 덧붙여도 됩니다.', `정답·해설 보기: \`/reviewbot showanswer Q${number}\``])].join('\n');
 }
 export function replyMarker(id: string): string { return `<!-- codereviewbot:reply:${id.replace(/[^\w-]/g, '')} -->`; }
 export function ackMarker(id: string): string { return `<!-- codereviewbot:ack:${id.replace(/[^\w-]/g, '')} -->`; }
-/** Posted when a command arrives; deleted once the command finishes, or turned into a failure notice. */
-export function renderAck(id: string, failed = false): string {
-  return [ackMarker(id), failed ? '⚠️ 요청을 처리하지 못했습니다. 잠시 후 다시 요청하세요.' : '⏳ 요청을 접수했습니다. 처리하면 결과를 답글로 남기고 이 안내는 지웁니다.'].join('\n');
-}
+export type AckState = 'received' | 'failed' | 'closed';
+const ackText: Record<AckState, string> = {
+  received: '⏳ 요청을 접수했습니다. 처리하면 결과를 답글로 남기고 이 안내는 지웁니다.',
+  failed: '⚠️ 요청을 처리하지 못했습니다. 잠시 후 다시 요청하세요.',
+  closed: '🔒 이미 닫혔거나 머지된 PR/MR이라 요청을 처리하지 않았습니다. 열린 PR/MR에서 다시 요청하세요.',
+};
+/** Posted when a command arrives; deleted once the command finishes, or turned into a failure or closed notice. */
+export function renderAck(id: string, state: AckState = 'received'): string { return [ackMarker(id), ackText[state]].join('\n'); }
+// Follow-ups are never revealed by a bare showanswer, so the batch names its own labels for one-step reveal.
 export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
-  return [replyMarker(commentId), '### 심화 질문', '', `기준 커밋: ${s.headSha.slice(0, 8)}`, '', ...renderQuestions(questions, s, start, new Map(), '심화'), '', COMMAND_HELP_HINT].join('\n');
+  const labels = questions.map((_, i) => `심화${start + i}`);
+  const help = [`답변 달기: \`/reviewbot answer ${labels[0]} B\` — 여러 개는 \`/reviewbot answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
+    `정답·해설 한 번에 보기: \`/reviewbot showanswer ${labels.join(' ')}\``];
+  return [replyMarker(commentId), '### 심화 질문', '', ...lines(help), '', ...renderQuestions(questions, s, start, new Map(), '심화'), '',
+    ...lines([`기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, COMMAND_HELP_HINT])].join('\n');
 }
 export interface GradeItem { q: ChangeQuestion; grade: Grade; label: string; picked?: string }
 export function renderGrade(q: ChangeQuestion, s: Snapshot, grade: Grade, commentId: string, label = questionId(s, q), picked?: string): string {

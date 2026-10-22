@@ -30,7 +30,7 @@ test('a shortened report only requires the questions it shows', () => {
   const questions = Array.from({ length: 10 }, (_, i) => ({ question: `pay 변경 질문 ${i}: 재시도 시 어떤 조건이 유지되나요?`, path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() }));
   const long = gated({ questions: questions.map(q => ({ ...q, path: Array(6).fill('漢'.repeat(82)).join('/'), question: '&'.repeat(480) + q.question, options: choices(...Array(4).fill('&'.repeat(299))) })) });
   assert.equal(requiredQuestions(gated({ questions })).length, 10);
-  assert.equal(requiredQuestions(long).length, 3);
+  assert.equal(requiredQuestions(long).length, 4);
 });
 
 test('syncing posts only when the status changes', async () => {

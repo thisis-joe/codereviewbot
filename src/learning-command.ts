@@ -89,7 +89,7 @@ function learningInput(data: Record<string, unknown>): { json: string; truncated
 }
 export async function handleLearning(command: Command, job: Job, platform: Platform, store: Store, workspaces: Workspaces, model: Model, all: RemoteComment[], lease: () => Promise<void>): Promise<void> {
   const comment = job.body.comment!, target = job.body.target;
-  const snap = await platform.snapshot(target.number);
+  const snap = await platform.snapshot(target.number, true);
   snap.title = redact(snap.title); snap.description = redact(snap.description);
   const key = commentKey(comment), notice = (text: string) => `${replyMarker(key)}\n${text}`;
   let response: CommandResult | undefined = job.command_result ?? undefined;
@@ -157,13 +157,13 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
             }
     }
     if (!body) throw new Error('Unsupported learning command');
-    await lease(); const latest = await platform.snapshot(target.number);
+    await lease(); const latest = await platform.snapshot(target.number, true);
     if (!sameRevision(snap, latest)) throw new Error('Learning snapshot changed; retry against latest code');
     response = { snapshot: snap, body: redact(body) + sourceLink(all, comment, snap), ...(questions ? { questions, start } : {}), ...(grades ? { grades } : {}) };
     if (response.body.length > 60000) throw new Error('Learning response exceeds comment budget');
     await store.saveCommandResult(job.id, job.owner, response);
   }
-  await lease(); const latest = await platform.snapshot(target.number);
+  await lease(); const latest = await platform.snapshot(target.number, true);
   if (!sameRevision(response.snapshot, latest)) throw new Error('Learning snapshot changed before publication');
   await platform.reply(target.number, response.body, comment.parentId, comment.discussionId);
 }

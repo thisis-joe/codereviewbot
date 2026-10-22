@@ -5,9 +5,9 @@ import { hasChangeQuestions } from './contracts.js';
 import { questionId } from './learning.js';
 import type { DiffMetadata } from './review.js';
 export class Superseded extends Error {}
-export async function publish(platform: Platform, report: Report, diff: Record<string, DiffMetadata>, maxInline: number, fence: () => Promise<void>, results: AnswerResults = new Map()): Promise<void> {
+export async function publish(platform: Platform, report: Report, diff: Record<string, DiffMetadata>, maxInline: number, fence: () => Promise<void>, results: AnswerResults = new Map(), allowClosed = false): Promise<void> {
   const current = async () => {
-    await fence(); const live = await platform.snapshot(report.snapshot.number);
+    await fence(); const live = await platform.snapshot(report.snapshot.number, allowClosed);
     if (live.headSha !== report.snapshot.headSha || live.baseSha !== report.snapshot.baseSha || live.startSha !== report.snapshot.startSha) throw new Superseded('Review snapshot changed');
   };
   await current();

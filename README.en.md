@@ -30,7 +30,7 @@ It no longer performs automatic code review, generates findings or reports CI re
 |---|---|
 | Automatic questions | Each push generates questions about changed code and related callers. The first run covers the whole PR/MR; subsequent runs cover the new changes. A new push prevents publishing the obsolete result. |
 | One initial generation call | One `initial_questions` model call produces questions and private answer keys, with a 120,000ms call timeout. Code validates structure, duplicates and source locations. |
-| Change understanding | Exactly three questions (two basic, one advanced), four choices A–D, with a `[심화]` tag on the advanced one. |
+| Change understanding | Exactly four questions (three basic, one advanced), four choices A–D, with a `[심화]` tag on the advanced one. |
 | Answer grading | Reply with question numbers and choices for grades, explanations and per-option notes. A bare option letter works in a single-question inline thread. |
 | Deeper learning | Each request adds five deeper questions, excluding those already asked. |
 | Command help | Ordinary question, follow-up and grading comments show one help entry point. `/reviewbot help` returns the complete four-column table of 14 commands. |
@@ -131,13 +131,19 @@ The comment opens with one line on how to answer and one on how to reveal answer
     C. 외부 승인이 자동 취소된다
     D. 같은 승인을 식별하고 주문 저장을 다시 시도한다
 
-#### Q3. [심화] DB 트랜잭션만으로 외부 승인을 되돌릴 수 없는 이유는 무엇인가요?
+#### Q3. 외부 승인은 성공했지만 주문 저장이 실패한 주문은 어떤 상태로 남나요?
+    A. 승인과 주문이 모두 없는 상태
+    B. 승인은 있고 주문 기록은 없는 상태
+    C. 주문 기록만 있고 승인은 없는 상태
+    D. 승인과 주문이 모두 완료된 상태
+
+#### Q4. [심화] DB 트랜잭션만으로 외부 승인을 되돌릴 수 없는 이유는 무엇인가요?
     A. 외부 서비스의 부작용이 로컬 DB 트랜잭션에 참여하지 않기 때문에
     B. DB 트랜잭션은 읽기만 허용하기 때문에
     C. 멱등 키가 DB 잠금을 해제하기 때문에
     D. 주문 저장보다 승인이 항상 느리기 때문에
 
-기준 커밋 bbbbbbbb · 답변 0/3
+기준 커밋 bbbbbbbb · 답변 0/4
 명령어 안내: `/reviewbot help`
 ```
 
@@ -146,10 +152,10 @@ In actual comments, the source commit is linked and each choice occupies its own
 Questions on publishable diff lines also receive an inline thread. Questions that cannot be positioned in the diff remain in the summary. New findings and code-fix suggestions are not published.
 
 - Topics fit the change: behavior and invariants, design choices, edge cases, failure recovery and relevant technical principles.
-- Each initial batch has exactly three questions, two basic and one advanced (always last, Q3), with one correct answer among A–D. The key and explanations stay private until grading or `/reviewbot showanswer`.
+- Each initial batch has exactly four questions, three basic and one advanced (always last, Q4), with one correct answer among A–D. The key and explanations stay private until grading or `/reviewbot showanswer`.
 - Code validates question/key structure and source locations. There is no extra model verification pass to guarantee semantic correctness; live evaluation is still needed.
 - Binary-only or excluded-only changes show why questions are unavailable. Failures and source limits are shown as generation state and a short reason.
-- Comment compaction is disclosed and preserves at least three initial questions and all their choices.
+- Comment compaction is disclosed and preserves all four initial questions and their choices.
 
 ### Transition from existing results
 
@@ -191,7 +197,7 @@ Initial questions are numbered `Q1`, `Q2`…; questions from `/reviewbot moreque
 
 ```text
 /reviewbot answer Q1 B
-/reviewbot answer Q1 B Q2 C Q3 A
+/reviewbot answer Q1 B Q2 C Q3 A Q4 D
 /reviewbot answer 심화1 B 심화2 C
 ```
 
@@ -215,7 +221,7 @@ Comment `/reviewbot showanswer` to get the answer, code location, explanation an
 
 ### Getting deeper questions
 
-Comment `/reviewbot morequestion` to get five deeper questions, excluding ones already asked, in the same format as initial questions.
+Comment `/reviewbot morequestion` to get five deeper questions, excluding ones already asked, in the same format as initial questions. The comment opens with an answer example and a `/reviewbot showanswer 심화1 심화2 …` line using that batch's own numbers, so all five can be revealed at once.
 They cover how the technique works, design choices, failure recovery, concurrency, performance and test strategy.
 
 - 5 questions at a time, up to 5 requests per code version across the whole PR/MR

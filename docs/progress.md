@@ -352,3 +352,16 @@
   Detailed image IDs/check scope recorded in ignored local verification evidence.
   Final working tree is clean after this record; original concurrent four-question
   work remains outside this branch and is preserved. No production redeployment.
+
+- Four-question/push-history release authorized 2026-10-22. Isolated integration
+  branch `feat/four-question-push-release` starts at `08a8c62`; merges committed
+  `288c62f`, including four questions (three basic/one advanced), self-describing
+  follow-ups and current closed/merged-command behavior, to avoid runtime regression.
+  Original checkout was clean on `feat/commands-on-closed`; initial patch/config
+  hashes saved privately. No original source/config changes copied or discarded.
+- Integration resolves count versus rationale prompt, revision markers versus four-item
+  rendering and current command acknowledgement imports. One new push fixture still
+  supplied three initial questions: observed failure, corrected it to the four-question
+  fixture; retained legacy three-question reports for compatibility. All 109 unit and
+  37 PostgreSQL/HTTP integration tests pass, including old-comment preservation through
+  progress/retry/grading on GitHub/GitLab. Live quality/deployment gates remain pending.
