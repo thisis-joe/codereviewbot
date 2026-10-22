@@ -12,8 +12,8 @@ const PolicySchema = z.strictObject({
 });
 export type Policy = z.infer<typeof PolicySchema>;
 export function readPolicy(raw?: string): Policy { return PolicySchema.parse(raw ? parse(raw, { maxAliasCount: 0 }) : {}); }
-export function policyVersion(policy: Policy, guidelines: string[], learnings: string[]): string {
-  return createHash('sha256').update(JSON.stringify({ policy, guidelines, learnings })).digest('hex').slice(0, 16);
+export function policyVersion(policy: Policy, guidelines: string[]): string {
+  return createHash('sha256').update(JSON.stringify({ policy, guidelines })).digest('hex').slice(0, 16);
 }
 export function globMatch(pattern: string, path: string): boolean {
   const cache = new Map<string, boolean>();

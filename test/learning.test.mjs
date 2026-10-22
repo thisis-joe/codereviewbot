@@ -7,27 +7,27 @@ import { questionId } from '../dist/learning.js';
 import { report, changeQuestions, choices, answerKey } from './fixtures.mjs';
 
 test('learning commands require explicit intent and associate an answer with one question', () => {
-  assert.deepEqual(parseCommand('/reviewbot morequestion'), { action: 'questions' });
-  assert.equal(parseCommand('/reviewbot morequestion 지금'), null);
-  for (const removed of ['더 알아보자', '@reviewbot 더 알아보자', '/reviewbot questions']) assert.notDeepEqual(parseCommand(removed), { action: 'questions' });
-  assert.deepEqual(parseCommand('/reviewbot answer Q1 B Q2. C Q3:A'), { action: 'answer', id: 'Q1', text: 'B', more: [{ id: 'Q2', text: 'C' }, { id: 'Q3', text: 'A' }] });
-  assert.deepEqual(parseCommand('/reviewbot answer Q1 B Q2와 같은 이유'), { action: 'answer', id: 'Q1', text: 'B Q2와 같은 이유' });
-  assert.equal(parseCommand('/reviewbot answer Q1 B Q2'), null);
-  for (const short of ['심화1 B', '심화1. B', '심화 1 B', '심화1:b', '심화01 B']) assert.deepEqual(parseCommand(`/reviewbot answer ${short}`), { action: 'answer', id: '심화1', text: short.slice(-1) });
-  assert.deepEqual(parseCommand('/reviewbot answer Q1 B 심화2 C 심화3. A'), { action: 'answer', id: 'Q1', text: 'B', more: [{ id: '심화2', text: 'C' }, { id: '심화3', text: 'A' }] });
-  assert.deepEqual(parseCommand('/reviewbot answer 심화1 B 심화학습 관점에서'), { action: 'answer', id: '심화1', text: 'B 심화학습 관점에서' });
-  assert.equal(parseCommand('/reviewbot answer 심화 B'), null);
-  assert.equal(parseCommand('/reviewbot answer ' + Array.from({ length: 11 }, (_, i) => `Q${i + 1} A`).join(' ')), null);
-  assert.deepEqual(parseCommand('/reviewbot answer Q-0123456789ab B'), { action: 'answer', id: 'Q-0123456789ab', text: 'B' });
-  assert.deepEqual(parseCommand('/reviewbot answer q3 B 같은 키'), { action: 'answer', id: 'Q3', text: 'B 같은 키' });
-  assert.deepEqual(parseCommand('/reviewbot answer Q12. A'), { action: 'answer', id: 'Q12', text: 'A' });
-  for (const short of ['Q1 B', 'Q1. B', 'Q1.B', 'q1:b', 'Q1) B', 'Q01 B']) assert.deepEqual(parseCommand(`/reviewbot answer ${short}`), { action: 'answer', id: 'Q1', text: short.slice(-1) });
-  for (const missing of ['Q1', 'Q1.', 'Q1234 B']) assert.equal(parseCommand(`/reviewbot answer ${missing}`), null);
+  assert.deepEqual(parseCommand('/hey morequestion'), { action: 'questions' });
+  assert.equal(parseCommand('/hey morequestion 지금'), null);
+  for (const removed of ['더 알아보자', '@hey 더 알아보자', '/hey questions']) assert.notDeepEqual(parseCommand(removed), { action: 'questions' });
+  assert.deepEqual(parseCommand('/hey answer Q1 B Q2. C Q3:A'), { action: 'answer', id: 'Q1', text: 'B', more: [{ id: 'Q2', text: 'C' }, { id: 'Q3', text: 'A' }] });
+  assert.deepEqual(parseCommand('/hey answer Q1 B Q2와 같은 이유'), { action: 'answer', id: 'Q1', text: 'B Q2와 같은 이유' });
+  assert.equal(parseCommand('/hey answer Q1 B Q2'), null);
+  for (const short of ['심화1 B', '심화1. B', '심화 1 B', '심화1:b', '심화01 B']) assert.deepEqual(parseCommand(`/hey answer ${short}`), { action: 'answer', id: '심화1', text: short.slice(-1) });
+  assert.deepEqual(parseCommand('/hey answer Q1 B 심화2 C 심화3. A'), { action: 'answer', id: 'Q1', text: 'B', more: [{ id: '심화2', text: 'C' }, { id: '심화3', text: 'A' }] });
+  assert.deepEqual(parseCommand('/hey answer 심화1 B 심화학습 관점에서'), { action: 'answer', id: '심화1', text: 'B 심화학습 관점에서' });
+  assert.equal(parseCommand('/hey answer 심화 B'), null);
+  assert.equal(parseCommand('/hey answer ' + Array.from({ length: 11 }, (_, i) => `Q${i + 1} A`).join(' ')), null);
+  assert.deepEqual(parseCommand('/hey answer Q-0123456789ab B'), { action: 'answer', id: 'Q-0123456789ab', text: 'B' });
+  assert.deepEqual(parseCommand('/hey answer q3 B 같은 키'), { action: 'answer', id: 'Q3', text: 'B 같은 키' });
+  assert.deepEqual(parseCommand('/hey answer Q12. A'), { action: 'answer', id: 'Q12', text: 'A' });
+  for (const short of ['Q1 B', 'Q1. B', 'Q1.B', 'q1:b', 'Q1) B', 'Q01 B']) assert.deepEqual(parseCommand(`/hey answer ${short}`), { action: 'answer', id: 'Q1', text: short.slice(-1) });
+  for (const missing of ['Q1', 'Q1.', 'Q1234 B']) assert.equal(parseCommand(`/hey answer ${missing}`), null);
   assert.equal(parseCommand('Q1: B'), null);
   assert.deepEqual(parseCommand('Q-0123456789ab: 멱등 키를 재사용해야 합니다.'), { action: 'answer', id: 'Q-0123456789ab', text: '멱등 키를 재사용해야 합니다.' });
-  assert.equal(parseCommand('/reviewbot answer Q-0123456789ab'), null);
-  assert.equal(parseCommand('/reviewbot answer CRB-0001 B'), null);
-  assert.equal(parseCommand('/reviewbot answer Q-0123456789ab ' + '답'.repeat(7000)).text.length, 7000);
+  assert.equal(parseCommand('/hey answer Q-0123456789ab'), null);
+  assert.equal(parseCommand('/hey answer CRB-0001 B'), null);
+  assert.equal(parseCommand('/hey answer Q-0123456789ab ' + '답'.repeat(7000)).text.length, 7000);
 });
 
 test('questions are multiple choice with exactly four distinct options A–D in order', () => {
@@ -52,14 +52,14 @@ test('published questions expose revision-bound answer IDs and visible choices w
   assert.match(first, /^#### Q1\. 이번 pay [^\n]*\?\n(&nbsp;){4}\*\*A\.\*\* 새 키\\\n(&nbsp;){4}\*\*B\.\*\* 같은 키\\\n(&nbsp;){4}\*\*C\.\*\* 보기 C\\\n(&nbsp;){4}\*\*D\.\*\* 보기 D$/m);
   assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. \[심화\] 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
-  assert.match(first, /^### CodeReviewBot 변경 이해 질문$/m); assert.doesNotMatch(first, /^#{1,2} /m);
+  assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏$/m); assert.doesNotMatch(first, /^#{1,3} /m);
   assert.match(first, /답변 0\/3/);
   assert.ok(!first.includes(answerKey().explanation) && !first.includes('보기 해설'));
-  assert.match(first, /^명령어 안내: `\/reviewbot help`$/m);
-  assert.doesNotMatch(first, /\| 명령어|\/reviewbot morequestion|더 알아보자/);
+  assert.match(first, /^명령어 안내: `\/hey help`$/m);
+  assert.doesNotMatch(first, /\| 명령어|\/hey morequestion|더 알아보자/);
   // Answer and reveal instructions sit above the questions; revision and progress sit below them, without a 완료 label.
-  assert.match(first, /^### CodeReviewBot 변경 이해 질문\n\n답변 달기: `\/reviewbot answer Q1 B` .*\\\n정답·해설 한 번에 보기: `\/reviewbot showanswer` .*\n\n<!-- codereviewbot:question:/m);
-  assert.match(first, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\) · 답변 0\/3\\\n명령어 안내: `\/reviewbot help`$/); assert.doesNotMatch(first, /완료|전체 ·|증분/);
+  assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏\n\n답변 달기: `\/hey answer Q1 B` .*\\\n정답·해설 한 번에 보기: `\/hey showanswer` .*\n\n<!-- codereviewbot:question:/m);
+  assert.match(first, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\) · 답변 0\/3\\\n명령어 안내: `\/hey help`$/); assert.doesNotMatch(first, /완료|전체 ·|증분/);
   const marked = renderReport(report({ questions }), new Map([[ids[0], 'correct'], [ids[1], 'incorrect']]));
   assert.match(marked, /^#### Q1\. .* · ✅ 정답$/m); assert.match(marked, /^#### Q2\. .* · ❌ 오답$/m); assert.doesNotMatch(marked, /^#### Q3\. .* · /m); assert.match(marked, /답변 2\/3/);
   const changed = renderReport(report({ questions, snapshot: { ...report().snapshot, headSha: 'c'.repeat(40) } }));
@@ -71,18 +71,18 @@ test('question and grading comments keep one help entry point without repeating 
   const r = report(), q = r.questions[0];
   const grade = { verdict: 'correct', explanation: '', expectedAnswer: '같은 키를 재사용합니다.', optionExplanations: answerKey().options, evidence: [{ path: q.path, line: q.line, side: q.side, reason: '호출' }] };
   for (const body of [renderReport(r), renderQuestionBatch(r.questions, r.snapshot, 'batch'), renderGrade(q, r.snapshot, grade, 'grade', 'Q1', 'B')]) {
-    assert.equal((body.match(/명령어 안내: `\/reviewbot help`/g) ?? []).length, 1);
+    assert.equal((body.match(/명령어 안내: `\/hey help`/g) ?? []).length, 1);
     // Question comments teach answering and revealing; every other command stays behind help.
-    assert.doesNotMatch(body.replace(/^(답변 달기|정답·해설 한 번에 보기): .*$/gm, ''), /\| 명령어|사용 예시|\/reviewbot (?!help)[a-z]+/);
+    assert.doesNotMatch(body.replace(/^(답변 달기|정답·해설 한 번에 보기): .*$/gm, ''), /\| 명령어|사용 예시|\/hey (?!help)[a-z]+/);
   }
 });
 
 test('follow-up batches and inline threads name their own labels for answering and revealing', () => {
   const r = report(), batch = renderQuestionBatch(r.questions, r.snapshot, 'batch', 6);
-  assert.match(batch, /^### 심화 질문\n\n답변 달기: `\/reviewbot answer 심화6 B` — 여러 개는 `\/reviewbot answer 심화6 B 심화7 C`\\\n정답·해설 한 번에 보기: `\/reviewbot showanswer 심화6 심화7 심화8`\n\n<!-- codereviewbot:question:/m);
-  assert.match(batch, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\/commit\/b{40}\)\\\n명령어 안내: `\/reviewbot help`$/);
-  for (const label of ['심화6', '심화7', '심화8']) assert.ok(parseCommand(`/reviewbot showanswer 심화6 심화7 심화8`).ids.includes(label));
-  assert.match(renderQuestionThread(r.questions[1], r.snapshot, 2), /보기 문자\(A~D\)만 답글로 .*\\\n정답·해설 보기: `\/reviewbot showanswer Q2`$/);
+  assert.match(batch, /^### 심화 질문\n\n답변 달기: `\/hey answer 심화6 B` — 여러 개는 `\/hey answer 심화6 B 심화7 C`\\\n정답·해설 한 번에 보기: `\/hey showanswer 심화6 심화7 심화8`\n\n<!-- codereviewbot:question:/m);
+  assert.match(batch, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\/commit\/b{40}\)\\\n명령어 안내: `\/hey help`$/);
+  for (const label of ['심화6', '심화7', '심화8']) assert.ok(parseCommand(`/hey showanswer 심화6 심화7 심화8`).ids.includes(label));
+  assert.match(renderQuestionThread(r.questions[1], r.snapshot, 2), /보기 문자\(A~D\)만 답글로 .*\\\n정답·해설 보기: `\/hey showanswer Q2`$/);
 });
 
 test('grading preserves question, verdict, all option explanations and valid links under the comment budget', () => {

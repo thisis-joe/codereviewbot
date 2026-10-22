@@ -4,6 +4,7 @@ import type { Pool, PoolClient } from 'pg';
 import type { Report, Target, Snapshot, ChangeQuestion, Verdict } from './contracts.js';
 import type { Event } from './webhooks.js';
 import type { DiffMetadata } from './review.js';
+import { retryableFailure, recoveryAttempts } from './model-failure.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
 export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; start?: number; answered?: string; grades?: { id: string; verdict: Verdict }[] }
@@ -32,7 +33,9 @@ export class Store {
         if (queued.rows[0]) {
           const prior = queued.rows[0], sameHead = prior.body.headSha === event.headSha;
           const regenerate = event.regenerate || (sameHead && prior.body.regenerate);
-          const body = { ...event, force: force || Boolean(sameHead && prior.body.force), ...(regenerate ? { regenerate: true } : {}), ...(event.requested || prior.body.requested ? { requested: true } : {}) };
+          const recovery = sameHead && !event.requested && event.recoveryAttempt === undefined && prior.body.recoveryAttempt !== undefined
+            ? { recoveryAttempt: prior.body.recoveryAttempt, recoverySnapshot: prior.body.recoverySnapshot ?? prior.body.target } : {};
+          const body = { ...event, ...recovery, force: force || Boolean(sameHead && prior.body.force), ...(regenerate ? { regenerate: true } : {}), ...(event.requested || prior.body.requested ? { requested: true } : {}) };
           await c.query('UPDATE jobs SET body=$2,updated_at=now() WHERE id=$1', [prior.id, body]); return prior.id;
         }
       }
@@ -50,7 +53,7 @@ export class Store {
       await c.query('SELECT pg_advisory_xact_lock(710632418)');
       await c.query("UPDATE jobs SET state=CASE WHEN attempts>=3 THEN 'failed' WHEN state='publishing' THEN 'ready' ELSE 'queued' END,owner=NULL,lease_until=NULL,error='expired lease',updated_at=now() WHERE state IN ('running','publishing') AND lease_until<now()");
       if ((await c.query("SELECT id FROM jobs WHERE state IN ('running','publishing') LIMIT 1")).rowCount) return null;
-      const selected = await c.query("SELECT j.* FROM jobs j JOIN targets t ON t.key=j.target_key WHERE j.state IN ('queued','ready') AND j.due_at<=now() AND j.attempts<3 AND (NOT t.paused OR j.kind='command') ORDER BY CASE WHEN j.kind='command' THEN 0 ELSE 1 END,j.due_at,j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1");
+      const selected = await c.query("SELECT j.* FROM jobs j WHERE j.state IN ('queued','ready') AND j.due_at<=now() AND j.attempts<3 ORDER BY CASE WHEN j.kind='command' THEN 0 ELSE 1 END,j.due_at,j.created_at FOR UPDATE OF j SKIP LOCKED LIMIT 1");
       const job = selected.rows[0]; if (!job) return null;
       const owner = randomUUID(), state = job.state === 'ready' ? 'publishing' : 'running';
       return (await c.query("UPDATE jobs SET state=$2,owner=$3,lease_until=now()+interval '90 seconds',attempts=attempts+1,updated_at=now() WHERE id=$1 RETURNING *", [job.id, state, owner])).rows[0];
@@ -63,7 +66,20 @@ export class Store {
     if (!(await this.pool.query("UPDATE jobs SET lease_until=now()+interval '90 seconds' WHERE id=$1 AND owner=$2 AND state IN ('running','publishing') AND lease_until>now()", [id, owner])).rowCount) throw new Error('Job lease lost');
   }
   async getJob(id: string): Promise<Job | null> { return (await this.pool.query('SELECT * FROM jobs WHERE id=$1', [id])).rows[0] ?? null; }
-  async getTarget(t: Target): Promise<{ paused: boolean; report: Report | null } | null> { return (await this.pool.query('SELECT * FROM targets WHERE key=$1', [targetKey(t)])).rows[0] ?? null; }
+  async getTarget(t: Target): Promise<{ report: Report | null } | null> { return (await this.pool.query('SELECT * FROM targets WHERE key=$1', [targetKey(t)])).rows[0] ?? null; }
+  async recoveryEvent(snap: Snapshot, now = Date.now()): Promise<Event | null> {
+    const key = targetKey(snap);
+    if ((await this.pool.query("SELECT 1 FROM jobs WHERE target_key=$1 AND kind='review' AND state IN ('queued','running','ready','publishing') LIMIT 1", [key])).rowCount) return null;
+    const prior = (await this.pool.query("SELECT id,body,result,updated_at FROM jobs WHERE target_key=$1 AND kind='review' AND state='failed' AND (result->>'state'='failed' OR (result IS NULL AND body ? 'recoveryAttempt')) AND coalesce(result->'snapshot',body->'recoverySnapshot',body->'target')->>'headSha'=$2 AND coalesce(result->'snapshot',body->'recoverySnapshot',body->'target')->>'baseSha'=$3 AND coalesce(result->'snapshot',body->'recoverySnapshot',body->'target')->>'startSha'=$4 ORDER BY updated_at DESC,id DESC LIMIT 1", [key, snap.headSha, snap.baseSha, snap.startSha])).rows[0];
+    if (!prior) return null;
+    const attempt = recoveryAttempts(prior.body, snap) + 1;
+    const failure = (prior.result as Report | null)?.failure;
+    if (attempt > 3 || (failure && !retryableFailure(failure))) return null;
+    const retryAt = failure?.retryAt ? Date.parse(failure.retryAt) : new Date(prior.updated_at).getTime() + 5 * 60000;
+    if (!Number.isFinite(retryAt) || now < retryAt) return null;
+    // Every controller derives the same key from the preceding failed job; enqueue admits it once.
+    return { kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `recover:questions-v3:${prior.id}:${attempt}`, regenerate: true, recoveryAttempt: attempt, recoverySnapshot: snap };
+  }
   async saveCommandResult(id: string, owner: string, result: CommandResult): Promise<void> {
     const saved = await this.pool.query("UPDATE jobs SET command_result=$3,updated_at=now() WHERE id=$1 AND owner=$2 AND kind='command' AND state='running' AND lease_until>now() AND command_result IS NULL", [id, owner, result]);
     if (!saved.rowCount) { await this.assertLease(id, owner); throw new Error('Command result is already immutable'); }
@@ -102,48 +118,17 @@ export class Store {
     return estimateMinutes(await median(true) ?? await median(false));
   }
   async complete(id: string, owner: string): Promise<void> {
-    if (!(await this.pool.query("UPDATE jobs SET state='completed',owner=NULL,lease_until=NULL,updated_at=now() WHERE id=$1 AND owner=$2 AND state IN ('running','publishing') AND lease_until>now()", [id, owner])).rowCount) throw new Error('Job lease lost');
+    if (!(await this.pool.query("UPDATE jobs SET state=CASE WHEN kind='review' AND result->>'state'='failed' THEN 'failed' ELSE 'completed' END,owner=NULL,lease_until=NULL,updated_at=now() WHERE id=$1 AND owner=$2 AND state IN ('running','publishing') AND lease_until>now()", [id, owner])).rowCount) throw new Error('Job lease lost');
   }
   async supersede(id: string, owner: string): Promise<void> { await this.pool.query("UPDATE jobs SET state='superseded',owner=NULL,lease_until=NULL,updated_at=now() WHERE id=$1 AND owner=$2", [id, owner]); }
   async fail(job: Job, detail: string): Promise<void> {
     await this.pool.query("UPDATE jobs SET state=CASE WHEN attempts>=3 THEN 'failed' WHEN state='publishing' THEN 'ready' ELSE 'queued' END,owner=NULL,lease_until=NULL,error=$3,due_at=now()+interval '60 seconds',updated_at=now() WHERE id=$1 AND owner=$2", [job.id, job.owner, detail.slice(0, 300)]);
   }
-  async setPaused(t: Target, value: boolean): Promise<void> { await this.pool.query('UPDATE targets SET paused=$2,updated_at=now() WHERE key=$1', [targetKey(t), value]); }
-  async dismiss(t: Target, id: string): Promise<boolean> {
-    return this.transaction(async c => {
-      const row = await c.query('SELECT report FROM targets WHERE key=$1 FOR UPDATE', [targetKey(t)]);
-      const report = row.rows[0]?.report as Report | null; const finding = report?.findings.find(f => f.id === id);
-      if (!report || !finding) return false;
-      finding.status = 'dismissed';
-      await c.query('UPDATE targets SET report=$2,updated_at=now() WHERE key=$1', [targetKey(t), report]);
-      // A command can run before a saved result is published. Keep that result in sync.
-      const ready = await c.query("SELECT id,result FROM jobs WHERE target_key=$1 AND state='ready' FOR UPDATE", [targetKey(t)]);
-      for (const row of ready.rows) {
-        const pending = row.result as Report | null, item = pending?.findings.find(f => f.id === id);
-        if (!pending || !item) continue;
-        item.status = 'dismissed';
-        await c.query('UPDATE jobs SET result=$2,updated_at=now() WHERE id=$1', [row.id, pending]);
-      }
-      return true;
-    });
-  }
-  async addFeedback(t: Target, author: string, rule: string, sourceKey: string = randomUUID()): Promise<string> {
-    const id = randomUUID(); return (await this.pool.query('INSERT INTO feedback(id,target_key,author,rule,source_key) VALUES($1,$2,$3,$4,$5) ON CONFLICT(source_key) DO UPDATE SET source_key=EXCLUDED.source_key RETURNING id', [id, targetKey(t), author, rule.slice(0, 4000), sourceKey])).rows[0].id;
-  }
-  async approveFeedback(t: Target, id: string, author: string): Promise<boolean> {
-    // Same repository, any PR/MR; no cross-repository learning propagation.
-    const result = await this.pool.query("UPDATE feedback f SET status='approved',approved_by=$2 FROM targets source WHERE f.id=$1 AND f.target_key=source.key AND source.target->>'platform'=$3 AND source.target->>'instance'=$4 AND source.target->>'repository'=$5 AND f.status IN ('pending','approved')", [id, author, t.platform, t.instance, t.repository]); return Boolean(result.rowCount);
-  }
-  async rejectFeedback(t: Target, id: string, author: string): Promise<boolean> {
-    return Boolean((await this.pool.query("UPDATE feedback f SET status='rejected',approved_by=$2 FROM targets source WHERE f.id=$1 AND f.target_key=source.key AND source.target->>'platform'=$3 AND source.target->>'instance'=$4 AND source.target->>'repository'=$5 AND f.status IN ('pending','rejected')", [id, author, t.platform, t.instance, t.repository])).rowCount);
-  }
-  async retry(id: string): Promise<boolean> { return Boolean((await this.pool.query("UPDATE jobs SET state=CASE WHEN result IS NOT NULL AND kind<>'command' THEN 'ready' ELSE 'queued' END,attempts=0,due_at=now(),error=NULL WHERE id=$1 AND state='failed'", [id])).rowCount); }
-  async learnings(t: Target): Promise<string[]> {
-    return (await this.pool.query("SELECT f.rule FROM feedback f JOIN targets source ON source.key=f.target_key WHERE f.status='approved' AND source.target->>'platform'=$1 AND source.target->>'instance'=$2 AND source.target->>'repository'=$3 ORDER BY f.created_at DESC LIMIT 30", [t.platform, t.instance, t.repository])).rows.map(r => r.rule);
-  }
+  async retry(id: string): Promise<boolean> { return Boolean((await this.pool.query("UPDATE jobs SET state=CASE WHEN result IS NOT NULL AND result->>'state'<>'failed' AND kind<>'command' THEN 'ready' ELSE 'queued' END,result=CASE WHEN result->>'state'='failed' THEN NULL ELSE result END,diff=CASE WHEN result->>'state'='failed' THEN NULL ELSE diff END,body=body-'recoveryAttempt',attempts=0,due_at=now(),error=NULL,updated_at=now() WHERE id=$1 AND state='failed'", [id])).rowCount); }
   async health(): Promise<{ failed: number; queued: number }> {
     const rows = (await this.pool.query('SELECT state,count(*)::int AS count FROM jobs GROUP BY state')).rows;
-    return { failed: rows.find(r => r.state === 'failed')?.count ?? 0, queued: rows.filter(r => ['queued', 'ready'].includes(r.state)).reduce((n, r) => n + r.count, 0) };
+    const failures = (await this.pool.query("SELECT (SELECT count(*)::int FROM targets WHERE report->>'state'='failed') + (SELECT count(*)::int FROM jobs WHERE state='failed' AND coalesce(result->>'state','')<>'failed') AS count")).rows[0].count;
+    return { failed: failures, queued: rows.filter(r => ['queued', 'ready'].includes(r.state)).reduce((n, r) => n + r.count, 0) };
   }
 }
 // Rounded up so the notice rarely promises less time than generation takes.

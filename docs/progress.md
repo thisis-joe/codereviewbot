@@ -417,3 +417,301 @@
   checks pass. No uncommitted user files staged/reset/restored; no branch push or PR
   mutation performed here. Detailed report records concurrent deployment, the failed
   auth canary, actual rollback, same-account repair and successful final native canary.
+
+- hey rename (2026-10-22): user chose `hey` for the product and short command prefix.
+  Branch `codex/rename-to-hey` started clean from main
+  `5fb7a07b9c478ba8c5f384dddaf21ae3f173a914`; existing no-Jira ruling applies.
+- R1 completed in `da4fa8088763da25e7747fb72f6aaefb5aae3a6a`: canonical `/hey` and
+  `@hey`, comment titles/help, package/lockfile, images, n8n display names, examples
+  and Korean/English documentation. Base `.hey.yaml` wins over the legacy filename.
+  Old command aliases, comment markers, finding/question IDs, gate status context,
+  Compose storage identity, DB names and n8n IDs remain compatible.
+- RED: new commands/rendering failed 32 of 39 focused checks; the real-Git policy
+  precedence test failed against the old filename-only loader. GREEN: 108 unit
+  tests and 34 disposable PostgreSQL/HTTP integration tests passed. Existing test
+  assertions were preserved apart from the public names; alias/collision and base
+  policy precedence/trust checks were added.
+- D1 completed in `3b91cf08d55ec8c064029e6e4604a4ddb44d1f14`: fixed the pre-existing
+  demo's three-question fixture to meet the four-question contract. Its pre-edit
+  blob matched the base commit; `npm run demo` first failed the exact-count/basic
+  quota checks, then generated four questions (three basic, one advanced).
+- Compose configuration, workflow regeneration/stable-ID checks, manifest/lockfile
+  checks, fixture outputs and `git diff --check` passed. Both hey images built and
+  passed isolated, network-disabled command/help/summary checks and a real MCP
+  handshake/source read returning server name `hey-source`.
+- Author review covered base-to-HEAD plus staged/unstaged/new task files, including
+  the policy rename; scope receipt is `.local/hey-final-review-scope.json`.
+  No remaining author-review blockers. Fresh-context independent review was
+  unavailable; no subagents were dispatched. Live model quality and external
+  publication were not evaluated for this rename. No production rollout, remote
+  push, repository/account rename or tunnel/DNS change was performed.
+
+- hey rollout integration (2026-10-22): production was already on `3660af5`,
+  whose push-specific questions and revision-bound comment history had merged in
+  `90f6399` after the rename branch started. Integrated that merged revision before
+  rollout, preserving both revision markers and the hey display/command names.
+  Integration checks pass: 111 unit tests, 37 disposable PostgreSQL/HTTP tests.
+  Existing feature commits remain separate; production activation is pending.
+
+- Authorized hey production rollout completed 2026-10-22 02:36:50 UTC (11:36 KST)
+  from integrated source `eb559b97fb880ef8561e847cf894e751f0b15b40`. Controller and
+  runner use matching immutable hey images, remain healthy, and preserve exact
+  runtime environment/mounts and PostgreSQL/n8n/tunnel container IDs. Rollback
+  plans and restoration of a production DB dump into an isolated old controller
+  passed; protected DB/auth backups and exact old images remain available.
+- Production checks: new/legacy help both return 14 hey commands, hey progress
+  titles and per-revision markers remain, authenticated n8n dispatch returns 202,
+  public webhook rejects invalid auth (401) and accepts an ignored authenticated
+  event (202, admitted0). Controller failed0/queued0/inactive; runner healthy/idle.
+  Existing 50 jobs/13 targets/0 feedback remain. One real closed-MR delivery during
+  preflight explains deliveries67→68; no job was created by that closed event.
+- n8n workflow display names updated to hey with existing IDs, nodes, schedules,
+  connections and settings preserved; both active after restarting the same n8n
+  container. GitLab bot avatar replaced with the user's final selected JPEG; upload
+  returned 200 and current-user API readback confirmed the new avatar URL. The
+  earlier withdrawn image was not used. No GitLab test comments were posted.
+- Native model acceptance remains blocked by Claude session quota: two source-read
+  canaries returned API429; a direct CLI request without application code also
+  returned 429 and reported reset at 2026-10-22 13:40 Asia/Seoul. Authentication is
+  logged in. Kept the healthy hey deployment because the limit is independent of
+  the rename; provider/model/credential settings are unchanged. No model success
+  or post-reset recovery is claimed. Full evidence: docs/verification/hey-release-2026-10-22.json.
+  Rollback: `python3 .local/releases/hey-eb559b9-20261022/deploy.py --rollback`.
+  Author review only; independent review unavailable. No remote push or main merge.
+
+- Question title update (2026-10-22): branch `codex/question-heading-copy` started
+  clean from `85835d49e0b0f7eb0932c7a89ea5663d8a0addcd`; existing no-Jira ruling applies.
+  Changed the report and generation-progress title to `hey! 이건 알고 머지하는거지? 😏`.
+  The user selected H4 (`####`) after confirming H2 would increase the current H3 size.
+  Korean/English README examples and existing title expectations now match.
+- Verification passed: 111 unit tests, 37 disposable PostgreSQL/HTTP integration
+  tests, five direct report/progress rendering checks, and `git diff --check`.
+  Author review covers all eight changed files; no remaining blockers. Independent
+  review unavailable. Completion is recorded by this work-unit commit on the branch.
+  No deployment, remote push, or main merge was performed.
+
+- Mattermost notifications (2026-10-22): branch `codex/mattermost-notifications`
+  started clean from `adac621`; existing no-Jira ruling applies. Replaces native
+  MR/comment messages with two-line event-specific notices, MR-author given names,
+  linked titles and publication-complete question notices. Internal markers and
+  account handles remain absent from MM; human comment notifications are preserved.
+  Destinations are explicit per-repository secrets. PostgreSQL admission/deduplication
+  and delivery claims survive restart; ambiguous writes are not repeated automatically.
+  Native pipeline/deployment notifications remain outside the replacement scope.
+- Observed missing-module RED; GREEN: 115 unit tests and 40 disposable PostgreSQL/HTTP
+  integration tests. Author review only; independent review unavailable. Live activation
+  remains pending destination configuration and final runtime checks.
+
+- MR/question notification implementation committed as `c37dc85`. User extended
+  scope to push notifications: sender given name, branch, complete commit count,
+  comparison link; new branches link to commits, while deletion/tag events are skipped.
+  Push support is a separate work unit on the same notification feature branch.
+- Push RED reproduced unsupported notification rendering; GREEN: 116 unit tests and
+  41 disposable PostgreSQL/HTTP integration tests. Real local HTTP receives the MM
+  payload; authenticated push delivery/replay, counts above GitLab's 20-item payload,
+  author attribution, unsafe links, disallowed repositories, loss/restart and 429
+  cases pass. Author review found no remaining blockers; live activation pending.
+- Activation completed at 2026-10-22 12:39 KST from `367d357` (MR/question unit
+  `c37dc85`, push unit `367d357`). Only the controller was replaced; original
+  runner/PostgreSQL/n8n/tunnel containers, mounts and existing environment remain;
+  the existing MM webhook URL was added as the sole environment change.
+- GitLab UI readback: hey webhook Push events enabled for all branches. Native MM
+  MR and comment events disabled; native Push stays off to avoid duplication.
+  Existing native pipeline/deployment events stay enabled. Integration username
+  saved as `hey`; webhook authentication and destinations are preserved.
+- Live acceptance: historical completed MR !13 produced exactly one four-question
+  notice linking its published question comment. A real new MR !16 independently
+  produced the new author-attributed open notice. Both deliveries are `sent`, and
+  public invalid/valid ignored-event admission returned 401/202. Controller healthy.
+- Remaining external setting: MM client configuration exposes
+  `EnablePostUsernameOverride=false`; the actual posts therefore show the existing
+  webhook owner's display name despite the requested `username: hey`. The current
+  account has no System Console entry. No account/profile/permission changes made.
+  Evidence: `docs/verification/mm-notifications-2026-10-22.json`. Author review only;
+  no remote branch push or main merge. Runtime rollback also requires restoring
+  native MR/comment notifications and the original hey Push-event setting in GitLab.
+
+- Question failure recovery (2026-10-22): user authorized all diagnosed fixes, a live
+  MR !15 rerun through question publication/MM delivery, GitLab display name `hey`,
+  and the shortest permitted bot username. Branch `codex/question-failure-recovery`
+  started clean from `df86721`; existing no-Jira ruling applies.
+- F1: structured, allowlisted failure metadata now survives Claude CLI → runner HTTP
+  → controller → failed report. Quota/authentication failures stop immediate retry;
+  user notices show the actual category and scheduled retry time. Error payloads
+  retain no provider text or credentials. Failed-report publication remains failed;
+  health counts current failed reports while preserving historical audit outcomes.
+  RED reproduced missing error transport; GREEN: 118 unit + 42 PostgreSQL/HTTP tests,
+  including real subprocess/HTTP failure propagation and legacy false-success repair.
+- F2: same-revision failed generations now derive a fresh recovery delivery from
+  the preceding failed job, with shared admission deduplication, cooldown and at
+  most three automatic recovery attempts. Authentication/invalid output stay
+  manual. Operator retry clears a failed generation result instead of republishing
+  the error notice. RED reproduced all three recovery defects; GREEN: 118 unit +
+  45 PostgreSQL/HTTP tests, including concurrent controller recovery.
+- F3: a published partial report with valid questions now sends the same concise
+  MM notification, with an explicit `일부 변경 제외` scope qualifier and exact
+  summary-comment link. Failed/empty output and repeated same-revision grading
+  remain silent. RED proved the missing first-partial notification; GREEN: 118
+  unit + 46 disposable PostgreSQL/HTTP tests; source/diff author review passed.
+- Identity investigation: existing bot self-token update of its display name
+  returned 403; project token UI only exposes revoke/rotate, not rename. GitLab's
+  documented user modification endpoint requires an instance administrator.
+  No credential rotation, access expansion or replacement account was attempted.
+
+## 2026-10-22 — hey command cleanup and concise replies
+
+- Branch `codex/hey-command-cleanup`, initially based on `df86721`, rebased onto
+  `adb3c43` after the existing failure-recovery work committed independently.
+  Recovery commits `08d5e9b`/`fee3cb6` and partial-notification commit `adb3c43`
+  remain included. The original checkout was not reset or edited by this task.
+  No Jira task exists; the established `codex/` naming rule applies.
+- `ee002a8`: removed full/pause/resume/explain/dismiss/learn/approve/reject and their
+  handlers, feedback storage/context injection and pause scheduling. Regeneration
+  is `/hey tryagain`; the former review spelling is rejected, including in failure
+  guidance. Help has six commands, with unbroken names and short description lines
+  that survive GitLab sanitization. The migration retires only obsolete command
+  state and preserves question, answer, report and queued-work history.
+- `0cbf4e2`: confirmation replies contain a short message and the help hint. Code
+  answers show evidence and follow-up sections only when populated, using smaller
+  headings. No empty evidence or follow-up headings appear on regeneration replies.
+- Red checks reproduced unsupported tryagain/accepted retired commands, the old
+  14-command help and empty reply headings. Before integration, 116 unit and 41
+  PostgreSQL/HTTP tests passed; the first staged work-unit snapshot separately
+  passed 115 unit and 41 integration tests. After integration, 118 unit and 46
+  PostgreSQL/HTTP tests passed, including bounded recovery and partial notifications.
+  All six failure variants point to tryagain; restoring full in an isolated compiled
+  copy made that regression check fail. Docker disk exhaustion during an image export
+  was bypassed with disposable tmpfs PostgreSQL for the repeated integration checks.
+- Both original Dockerfile images built and passed isolated module smoke checks.
+  Final compiled code/migrations were overlaid on those images after integration,
+  then both final images passed command/failure/reply smoke checks. Dependencies
+  and runtime configuration were unchanged. Compose, demo and whitespace checks pass.
+- Actual GitLab (201) and GitHub (200) Markdown rendering retained the six-row table;
+  GitLab confirmation output and a local browser preview confirm the compact reply
+  and balanced columns. Author review covered the complete integrated diff; no
+  blocking findings remain. Independent review was not performed. This branch was
+  not deployed; production DB and remote comments were not changed by this task.
+  Evidence: `docs/verification/hey-command-cleanup-2026-10-22.json`.
+- Production activation completed from `adb3c4379a29aac6774801beb71ef864258f22ab`:
+  matching controller and runner are healthy; exact existing environment, mounts,
+  auth volumes and PostgreSQL/n8n/tunnel identities are preserved. Protected dump
+  and exact-image rollback live under `.local/releases/question-recovery-20261022/`.
+- Before activation, simultaneous image builds exhausted the Docker data disk and
+  PostgreSQL temporarily repeated crash recovery. The author missed a free-space
+  check before building. Removed only rebuildable unused BuildKit cache (187.5 MB
+  old cache + 3.176 GB unused cache), preserving all volumes and rollback images.
+  PostgreSQL recovered; health and data reads succeeded before rollout. Future
+  image builds must check Docker data-disk free space and concurrent build demand.
+- Live MR !15 rerun `5aa33234-16fd-4276-bfad-e9d5f198b006`: actual Claude call 1,
+  generation 49 seconds, completed, three basic + one advanced question; H4 title,
+  no answer keys in published body. Exact note `2906252` updated in place. Existing
+  same-revision MM completion post `z5sx7redj3ndpbkcndpo9xd8uy` is sent and visibly
+  links that note; no duplicate completion notice was generated. The existing
+  notice was sent at 14:59 KST, before this post-deployment rerun at 15:19–15:20.
+- Historical MR !15 note `2906188` retains its f3e79bd9 revision and comment ID; its
+  old title/generic error were replaced by H4 and the confirmed historical quota
+  429 cause, directing readers to the latest questions. Legacy false-success jobs
+  are now failed; zero completed jobs contain a failed generation result. Current
+  health still reports four failed targets from other historical MR reports;
+  MR !15 is successful and no MR !15 work remains queued/running.
+- Remaining external blocker: GitLab name `hey` and shortest requested login `hey`
+  could not be applied (403); `hey` is available. Bot user 33767 needs an instance
+  administrator's name/username update and coordinated `botLogin` config change.
+  Existing identity/config/credentials remain consistent. MM sender override is
+  still disabled server-wide as recorded previously. No alternate account created.
+- Verification: `docs/verification/question-recovery-2026-10-22.json`; GitLab and MM
+  screenshots saved under `.local/question-recovery/`. Author review only; 118 unit
+  + 46 integration checks pass. Three implementation units are separate commits;
+  no remote branch push or merge requested/performed.
+- MM inline links (2026-10-22): user requested clickable branch names, MR numbers
+  and `MR !18 · 질문 4개` within the sentence. MR titles remain plain context on
+  the next line. Branch `codex/mattermost-inline-links` from `8ef3ed3`; existing
+  no-Jira ruling applies. Pre-existing untracked `.local-ship-audit.json` is not
+  owned or modified by this task.
+- Renderer now places each URL on the named object, removes the separate push
+  link line and keeps author attribution, exact-comment destinations and partial
+  scope warning. Parentheses in new-branch URLs are percent-encoded so they stay
+  inside the Markdown link; mention escaping remains intact. RED: four display
+  checks and a reserved-character URL check failed before their fixes. GREEN:
+  120 unit + 46 disposable PostgreSQL/HTTP checks; full task diff author-reviewed.
+- Identity follow-up: actual GitLab 18.11.5 source has an admin-only user update
+  endpoint and no self-name REST mutation or token rename endpoint. Creating a
+  *new* project token named `hey` gives its new bot that name, under Maintainer
+  permissions, but changes identity, leaves old comment authors intact and keeps
+  the generated long login. This is an alternative, not a rename of the old bot.
+  Sources: https://docs.gitlab.com/user/project/settings/project_access_tokens/
+  and https://gitlab.com/gitlab-org/gitlab/-/raw/v18.11.5-ee/lib/api/users.rb .
+- MM 11.7.2 readback: `EnablePostUsernameOverride=false`,
+  `EnableBotAccountCreation=false`; bot accounts are absent from Integrations.
+  Public config also has `EnableUserCreation=false`. With the existing account,
+  webhook owner and permissions, a distinct `hey` sender needs administrator
+  support. No new account, credential or personal-profile edit performed.
+  Source: https://docs.mattermost.com/administration-guide/configure/integrations-configuration-settings .
+
+
+## 2026-10-22 — hey command cleanup production rollout and live GitLab proof
+
+- User authorized production deployment and actual GitLab checks. Deployed source
+  `9ba3be930540a06232b74d4c154eca0337dc1a2d` on feature branch
+  `codex/hey-command-cleanup`; controller and runner are healthy with zero restarts.
+  This supersedes the earlier entry's undeployed and author-review-only status.
+- Initial `3bd6109` rollout and live checks passed, but the final revision probe
+  detected another chat replacing the controller with `bbf4bb5`, which omitted the
+  command cleanup. Completion was withheld. Its Mattermost inline-link change was
+  retained by cherry-picking into this branch as `9ba3be9`; both services were
+  redeployed together and the actual GitLab checks repeated on that final source.
+- Independent `release_review` covered the original release and combined change;
+  no blocking findings. Final source passed 120 unit and 46 disposable PostgreSQL
+  integration tests. Production dependency audit has zero advisories. Both image
+  contents matched all 88 compiled/migration files and passed parser/notification
+  smoke checks. Existing credentials, environment, mounts, limits, networks and
+  PostgreSQL/n8n/tunnel container identities were preserved.
+- Protected full DB dumps and exact-image recovery are under
+  `.local/releases/hey-commands-9ba3be9-20261022/`. A real production dump was
+  restored into an isolated tmpfs DB; migration and startup of the schema-compatible
+  `3bd6109` fallback passed with question/answer/job history preserved. The initial
+  pre-removal schema/state recovery was separately tested in the initial release.
+- Actual human `/hey help` note `2908189` produced bot reply `2908191`: six rows,
+  no retired commands, and measured columns 170/98/332/211 px with no table overflow.
+  `/hey tryagain` note `2908195` produced concise reply `2908197`: confirmation and
+  help hint only, no headings or empty sections. Temporary acknowledgements were
+  removed for both requests.
+- Regeneration job `b7fe602f-bb51-42d8-9302-bbfe84f3a4cb` completed: one model
+  call, 92,450 ms generation / 93 seconds recorded review time, three basic plus
+  one advanced question. Actual GitLab note `2906252` updated at 16:14:30 KST,
+  replacing progress with all four questions; browser DOM and screenshots confirm.
+  All three final test jobs completed. Final runtime probe accepts tryagain,
+  rejects review and all eight removed commands, and confirms retired DB state is
+  absent, zero false-success jobs, no queued/active work, and both services still
+  running `9ba3be9`. Four failed targets in health are pre-existing history.
+- Sanitized proof: `docs/verification/hey-command-cleanup-live-2026-10-22.json`;
+  actual GitLab screenshots: `.local/command-cleanup/live-final-gitlab-*.png`.
+  No branch push or merge requested/performed. Production release and its
+  verification documentation are distinct work units.
+
+
+## 2026-10-22 — PR publication review: preserve bounded recovery after platform failures
+
+- User authorized feature-branch push, PR creation, merge and production rollout.
+  Published `codex/hey-command-cleanup` at `475ea3c` and opened PR #16 against
+  default branch `main` (`90f6399`). The remote has no dev/develop branch. Existing
+  work-unit commits and the feature branch name remain intact; no Jira task applies.
+- Whole-PR independent review found two release-blocking recovery edges before
+  merge: a recovery job failing before snapshot acquisition had no result and
+  permanently reused its predecessor's consumed delivery key; a same-head automatic
+  event merged into queued recovery discarded its attempt budget. Merge was held.
+- Recovery now retains explicit revision identity, includes result-less terminal
+  failures when choosing the next attempt, and preserves the same-head automatic
+  budget. Human requests and new heads reset it. Older jobs' full-snapshot target
+  remains readable. A shared revision-aware attempt calculation also resets the
+  budget on changed base/start while retaining the rate-limit's 15-minute cooldown.
+- Real PostgreSQL/controller regressions reproduced the original failures, including
+  snapshot errors, expired leases, fresh cooldowns, concurrent/restarted recovery,
+  three-attempt exhaustion, legacy jobs and manual/automatic/new-revision boundaries.
+  A separate red check caught the controller's missing 15-minute cooldown after a
+  revision change; the final test exercises actual Controller handling of a 429.
+  Final checks: 120 unit +50 PostgreSQL integration tests, zero failures. Private
+  logs and frozen review scope are under `.local/publish/20261022/`.
+- Independent `release_review` final verdict: spec/standards/quality pass, no
+  remaining blockers. Reviewed source/test diff SHA-256:
+  `57b8f6ad5a340f1d772e3f269248f75bd5bee41b528e8ca3562d3b815ee27224`.

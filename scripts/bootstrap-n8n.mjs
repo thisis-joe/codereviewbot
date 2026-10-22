@@ -9,7 +9,7 @@ function docker(args, input) {
     p.stdin.on('error',()=>{}); p.stdin.end(input); p.on('error',reject); p.on('close',code=>code===0?resolve():reject(new Error('n8n setup command failed')));
   });
 }
-const credentials = [{ id:'crbInternalAuth', name:'CodeReviewBot Internal', type:'httpHeaderAuth', data:{ name:'Authorization', value:`Bearer ${env.INTERNAL_TOKEN}` } }];
+const credentials = [{ id:'crbInternalAuth', name:'hey Internal', type:'httpHeaderAuth', data:{ name:'Authorization', value:`Bearer ${env.INTERNAL_TOKEN}` } }];
 await docker(['exec','-T','n8n','node','-e',"process.stdin.pipe(require('node:fs').createWriteStream('/tmp/crb-credentials.json',{mode:0o600}))"],JSON.stringify(credentials));
 await docker(['cp','n8n/workflows.json','n8n:/tmp/crb-workflows.json']);
 try {

@@ -8,6 +8,34 @@ import { createHash } from 'node:crypto';
 import { Workspaces } from '../dist/workspace.js';
 import { snapshot } from './fixtures.mjs';
 
+test('policy renaming prefers base .hey.yaml, falls back to the old file and ignores head policy changes', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'hey-policy-')); t.after(() => rm(root, { recursive: true, force: true }));
+  const repo = join(root, 'repo'), data = join(root, 'data'); await mkdir(repo);
+  const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
+  const git = (...args) => execFileSync(realGit, ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+  git('init', '-q'); git('config', 'user.email', 'fixture@example.invalid'); git('config', 'user.name', 'fixture');
+  await writeFile(join(repo, 'code.ts'), 'export const value = 1;\n');
+  await writeFile(join(repo, '.codereviewbot.yaml'), 'version: 1\nrequireAnswers: true\n');
+  git('add', '.'); git('commit', '-qm', 'legacy base'); const legacyBase = git('rev-parse', 'HEAD');
+  await writeFile(join(repo, '.hey.yaml'), 'version: 1\nrequireAnswers: false\n');
+  git('add', '.'); git('commit', '-qm', 'new policy'); const heyBase = git('rev-parse', 'HEAD');
+  await writeFile(join(repo, '.hey.yaml'), 'version: 1\nrequireAnswers: true\n');
+  await writeFile(join(repo, 'code.ts'), 'export const value = 2;\n');
+  git('add', '.'); git('commit', '-qm', 'untrusted head policy'); const headSha = git('rev-parse', 'HEAD');
+  const key = createHash('sha256').update('https://api.github.com:joe/demo').digest('hex');
+  await mkdir(join(data, 'cache'), { recursive: true });
+  execFileSync(realGit, ['clone', '--bare', '-q', repo, join(data, 'cache', key)]);
+  const bin = join(root, 'bin'); await mkdir(bin);
+  await writeFile(join(bin, 'git'), `#!/bin/sh\nfor arg in "$@"; do\n  if [ "$arg" = fetch ]; then exit 0; fi\ndone\nexec '${realGit}' "$@"\n`, { mode: 0o755 });
+  const oldPath = process.env.PATH; process.env.PATH = `${bin}:${oldPath}`; t.after(() => { process.env.PATH = oldPath; });
+  const provider = { config: { instance: 'https://api.github.com', platform: 'github' }, token: async () => 'fixture-token' };
+  const workspaces = new Workspaces(data);
+  for (const [baseSha, expected] of [[legacyBase, true], [heyBase, false]]) {
+    const result = await workspaces.prepare(provider, snapshot({ baseSha, startSha: baseSha, headSha }), '11111111-1111-4111-8111-111111111111', null);
+    assert.equal(result.policy.requireAnswers, expected);
+  }
+});
+
 test('real Git preparation preserves canonical rename hunks and excludes sensitive old contents', async t => {
   const root = await mkdtemp(join(tmpdir(), 'crb-prepare-')); t.after(() => rm(root, { recursive: true, force: true }));
   const repo = join(root, 'repo'); await mkdir(repo);
@@ -34,8 +62,8 @@ test('real Git preparation preserves canonical rename hunks and excludes sensiti
   const oldPath = process.env.PATH; process.env.PATH = `${bin}:${oldPath}`; t.after(() => { process.env.PATH = oldPath; });
   const provider = { config: { instance: 'https://api.github.com', platform: 'github' }, token: async () => 'fixture-token' };
   const workspaces = new Workspaces(data), prior = snapshot({ baseSha, startSha: baseSha, headSha: firstSha });
-  await workspaces.prepare(provider, prior, '11111111-1111-4111-8111-111111111111', null, []);
-  const result = await workspaces.prepare(provider, snapshot({ baseSha, startSha: baseSha, headSha }), '22222222-2222-4222-8222-222222222222', prior, []);
+  await workspaces.prepare(provider, prior, '11111111-1111-4111-8111-111111111111', null);
+  const result = await workspaces.prepare(provider, snapshot({ baseSha, startSha: baseSha, headSha }), '22222222-2222-4222-8222-222222222222', prior);
   assert.equal(result.mode, 'incremental'); assert.equal(result.context.diff['current.ts'].oldPath, 'original.ts');
   assert.match(result.context.diff['current.ts'].patch, /second = true/);
   assert.equal(result.context.changesSincePrevious.fromHeadSha, firstSha);
@@ -50,6 +78,6 @@ test('real Git preparation preserves canonical rename hunks and excludes sensiti
   assert.doesNotMatch(JSON.stringify(result.context), /old-private-value/);
   await writeFile(join(repo, 'original.ts'), 'NEW_OTHER_ONLY\n'); git('add', '.'); git('commit', '-qm', 'reuse old filename');
   execFileSync(realGit, ['-C', join(data, 'cache', key), 'fetch', '-q', repo, 'HEAD']);
-  const reused = await workspaces.prepare(provider, snapshot({ baseSha, startSha: baseSha, headSha: git('rev-parse', 'HEAD') }), '33333333-3333-4333-8333-333333333333', null, []);
+  const reused = await workspaces.prepare(provider, snapshot({ baseSha, startSha: baseSha, headSha: git('rev-parse', 'HEAD') }), '33333333-3333-4333-8333-333333333333', null);
   assert.doesNotMatch(reused.context.diff['current.ts'].patch, /NEW_OTHER_ONLY/);
 });

@@ -7,16 +7,126 @@ import { Store } from '../../dist/store.js';
 import { questionId } from '../../dist/learning.js';
 import { parsePatch, parsePositions } from '../../dist/review.js';
 import { HttpError } from '../../dist/http-client.js';
+import { ModelFailure } from '../../dist/model-failure.js';
 import { changeQuestions, initialQuestions, finding, report, snapshot } from '../fixtures.mjs';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
+
+test('same-revision recovery survives an already-consumed delivery key without duplicate model work', async t => {
+  const f = await fixture(t, 'gitlab');
+  const failure = report({ snapshot: f.snap, state: 'failed', questions: [], failure: { code: 'rate_limit', provider: 'claude', apiStatus: 429, retryAt: '2020-01-01T00:00:00.000Z' } });
+  await f.seed(failure);
+  const oldKey = `recover:questions-v2:${f.snap.headSha}:${f.snap.startSha}:${f.snap.baseSha}`;
+  const id = await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey });
+  const running = await f.store.claim(); await f.store.saveResult(id, running.owner, failure, {}, 0);
+  const publishing = await f.store.claim(); await f.store.complete(id, publishing.owner);
+  assert.equal(await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey }), null);
+  const restarted = new Controller(new Store(f.pool), [f.platform], f.workspaces, f.model);
+  await Promise.all([f.controller.recover(), restarted.recover()]);
+  const queued = (await f.pool.query("SELECT * FROM jobs WHERE state='queued'")).rows;
+  assert.equal(queued.length, 1, 'a failed revision gets one new recovery attempt instead of permanent deduplication');
+  assert.equal(queued[0].body.recoveryAttempt, 1);
+  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 4);
+  assert.equal((await f.store.health()).failed, 0);
+  await f.controller.recover(); assert.equal((await f.store.health()).queued, 0);
+});
+
+test('automatic recovery respects cooldown, a finite attempt budget and permanent authentication failure', async t => {
+  for (const [failure, recoveryAttempt] of [[{ code: 'rate_limit', retryAt: '2099-01-01T00:00:00.000Z' }, 0], [{ code: 'rate_limit', retryAt: '2020-01-01T00:00:00.000Z' }, 3], [{ code: 'authentication' }, 0]]) {
+    const f = await fixture(t, 'gitlab');
+    const id = await f.seed(report({ state: 'failed', questions: [], failure }));
+    await f.pool.query("UPDATE jobs SET body=jsonb_set(body,'{recoveryAttempt}',$2::jsonb) WHERE id=$1", [id, JSON.stringify(recoveryAttempt)]);
+    await f.controller.recover(); assert.equal((await f.store.health()).queued, 0);
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+for (const reason of ['snapshot failure', 'expired lease']) {
+  test(`recovery continues after ${reason} without a result and still exhausts its finite budget`, async t => {
+    const f = await fixture(t, 'gitlab');
+    const initial = await f.seed(report({ state: 'failed', questions: [], failure: { code: 'rate_limit', retryAt: '2020-01-01T00:00:00.000Z' } }));
+    await f.pool.query("UPDATE jobs SET updated_at=now()-interval '1 day' WHERE id=$1", [initial]);
+    const snapshot = f.platform.snapshot;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await Promise.all([f.controller.recover(), new Controller(new Store(f.pool), [f.platform], f.workspaces, f.model).recover()]);
+      const queued = (await f.pool.query("SELECT * FROM jobs WHERE state='queued'")).rows;
+      assert.equal(queued.length, 1, `recovery ${attempt} is admitted exactly once`);
+      assert.equal(queued[0].body.recoveryAttempt, attempt);
+      const job = await f.store.claim();
+      if (attempt === 1 && reason === 'snapshot failure') await f.pool.query("UPDATE jobs SET body=body-'recoverySnapshot' WHERE id=$1", [job.id]);
+      if (reason === 'snapshot failure') {
+        f.platform.snapshot = async () => { throw new HttpError(503, 'temporary outage'); };
+        for (let run = 1; run <= 3; run++) {
+          await f.controller.perform(run === 1 ? job : await f.store.claim());
+          await f.pool.query('UPDATE jobs SET due_at=now() WHERE id=$1', [job.id]);
+        }
+        f.platform.snapshot = snapshot;
+      } else {
+        await f.pool.query("UPDATE jobs SET attempts=3,lease_until=now()-interval '1 second' WHERE id=$1", [job.id]);
+        assert.equal(await f.store.claim(), null);
+      }
+      assert.equal((await f.store.getJob(job.id)).state, 'failed');
+      assert.equal((await f.store.getJob(job.id)).result, null);
+      assert.equal(await f.store.recoveryEvent(f.snap), null, 'the latest failure starts a fresh cooldown');
+      await f.controller.recover();
+      assert.equal((await f.store.health()).queued, 0);
+      await f.pool.query("UPDATE jobs SET updated_at=now()-interval '6 minutes' WHERE id=$1", [job.id]);
+    }
+    await f.controller.recover();
+    assert.equal((await f.store.health()).queued, 0, 'three recovery attempts remain the limit');
+    assert.equal(f.calls.length, 0);
+    for (const key of ['headSha', 'baseSha', 'startSha']) {
+      assert.equal(await f.store.recoveryEvent({ ...f.snap, [key]: 'e'.repeat(40) }), null, `${key} stays revision scoped`);
+    }
+  });
+}
+
+test('automatic same-head events preserve the recovery budget while manual requests and new heads reset it', async t => {
+  for (const kind of ['automatic', 'manual', 'new head']) {
+    const f = await fixture(t, 'gitlab');
+    await f.seed(report({ state: 'failed', questions: [], failure: { code: 'rate_limit', retryAt: '2020-01-01T00:00:00.000Z' } }));
+    const recovery = await f.store.recoveryEvent(f.snap);
+    const id = await f.store.enqueue({ ...recovery, recoveryAttempt: 2 });
+    await f.store.enqueue({ kind: 'review', target: f.snap, deliveryId: kind, headSha: kind === 'new head' ? 'e'.repeat(40) : f.snap.headSha, ...(kind === 'manual' ? { requested: true, regenerate: true } : {}) });
+    const job = await f.store.getJob(id);
+    assert.equal(job.body.recoveryAttempt, kind === 'automatic' ? 2 : undefined);
+    assert.deepEqual(job.body.recoverySnapshot, kind === 'automatic' ? f.snap : undefined);
+  }
+});
+
+test('a changed base or start revision gets a fresh recovery budget and the full rate-limit cooldown', async t => {
+  for (const [key, legacy] of [['baseSha', false], ['startSha', false], ['baseSha', true], ['startSha', true]]) {
+    const f = await fixture(t, 'gitlab');
+    await f.seed(report({ state: 'failed', questions: [], failure: { code: 'rate_limit', retryAt: '2020-01-01T00:00:00.000Z' } }));
+    const recovery = { ...await f.store.recoveryEvent(f.snap), recoveryAttempt: 3 };
+    if (legacy) delete recovery.recoverySnapshot;
+    const id = await f.store.enqueue(recovery), changed = { ...f.snap, [key]: 'e'.repeat(40) };
+    f.platform.snapshot = async () => ({ ...changed });
+    f.model.run = async () => { throw new ModelFailure({ code: 'rate_limit', provider: 'claude', apiStatus: 429 }); };
+    const before = Date.now();
+    await f.tick();
+    const failure = (await f.store.getJob(id)).result.failure;
+    assert.ok(Date.parse(failure.retryAt) >= before + 15 * 60000, 'the actual controller gives the new revision its 15-minute cooldown');
+    await f.drain();
+    assert.equal(await f.store.recoveryEvent(changed, before + 14 * 60000), null);
+    assert.equal((await f.store.recoveryEvent(changed, Date.parse(failure.retryAt) + 1)).recoveryAttempt, 1);
+  }
+});
+
+test('explicit retry regenerates a failed report instead of republishing the saved error notice', async t => {
+  const f = await fixture(t, 'gitlab'), id = await f.seed(report({ state: 'failed', questions: [], failure: { code: 'rate_limit' } }));
+  assert.equal(await f.store.retry(id), true);
+  assert.equal((await f.store.getJob(id)).state, 'queued');
+  assert.equal((await f.store.getJob(id)).result, null);
+  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 4);
+});
 
 async function fixture(t, name) {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL });
   t.after(() => pool.end());
   const store = new Store(pool);
   await store.migrate();
-  await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   const snap = snapshot(name === 'gitlab' ? {
     platform: 'gitlab', instance: 'https://gitlab.com', repository: 'group/demo', webUrl: 'https://gitlab.com/group/demo/-/merge_requests/1',
   } : {});
@@ -192,16 +302,19 @@ for (const name of ['github', 'gitlab']) {
     assert.equal((await f.store.health()).queued, 0);
   });
 
-  test(`${name}: an explicit review command regenerates current same-SHA questions with a full source fallback`, async t => {
+  test(`${name}: an explicit tryagain command regenerates current same-SHA questions with a full source fallback`, async t => {
     const f = await fixture(t, name);
     const current = report({ schemaVersion: '2', requireAnswers: true });
     await f.seed(current);
-    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'explicit-review', comment: {
-      id: 'explicit-review', body: '/reviewbot review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
+    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'explicit-tryagain', comment: {
+      id: 'explicit-tryagain', body: '/hey tryagain', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
     } });
     await f.tick();
     assert.equal((await f.store.getJob(commandId)).state, 'completed');
     assert.equal(f.calls.length, 0, 'The command dispatches generation through the durable queue');
+    const reply = f.writes.find(value => value.kind === 'reply').body;
+    assert.match(reply, /질문 재생성을 요청했습니다/);
+    assert.doesNotMatch(reply, /코드 근거|후속 조치|^###/m);
     const queued = (await f.pool.query("SELECT * FROM jobs WHERE kind='review' AND state='queued'")).rows;
     assert.equal(queued.length, 1);
     assert.equal(queued[0].body.regenerate, true);
@@ -226,8 +339,8 @@ for (const name of ['github', 'gitlab']) {
     assert.equal((await f.store.getJob(automatic)).state, 'superseded');
     assert.equal(f.calls.length, 0);
 
-    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'review-after-merge', comment: {
-      id: 'review-after-merge', body: '/reviewbot review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
+    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'tryagain-after-merge', comment: {
+      id: 'tryagain-after-merge', body: '/hey tryagain', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
     } });
     await f.drain();
     assert.equal((await f.store.getJob(commandId)).state, 'completed');
@@ -299,17 +412,17 @@ test('question timing estimates exclude stored two-pass review timings and prefe
   assert.deepEqual(await f.store.reviewEstimate('incremental'), { minutes: 3, measured: true });
 });
 
-for (const command of ['review', 'full']) {
+for (const command of ['tryagain']) {
   test(`same-head automatic events preserve an explicit ${command} request queued before dispatch`, async t => {
     const f = await fixture(t, 'github');
     await f.seed(report({ schemaVersion: '2' }));
-    await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: `manual-${command}`, comment: { id: `manual-${command}`, body: `/reviewbot ${command}`, author: 'joe', surface: 'issue', parentId: null, discussionId: null } });
+    await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: `manual-${command}`, comment: { id: `manual-${command}`, body: `/hey ${command}`, author: 'joe', surface: 'issue', parentId: null, discussionId: null } });
     await f.tick();
     await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: `auto-after-${command}` });
     const queued = (await f.pool.query("SELECT body FROM jobs WHERE state='queued' AND kind='review'")).rows[0].body;
     assert.equal(queued.regenerate, true);
     assert.equal(queued.requested, true);
-    assert.equal(queued.force, command === 'full');
+    assert.equal(queued.force, false);
     await f.drain();
     assert.deepEqual(f.calls.map(c => c.phase), ['initial_questions']);
   });
@@ -333,7 +446,7 @@ test('grading an unversioned current summary retains its questions and leaves ol
   const old = { id: 'older-legacy', author: 'bot', body: legacy(report({ snapshot: { ...f.snap, headSha: 'd'.repeat(40) } })) };
   const saved = old.body;
   f.comments.push(old, { id: 'current-legacy', author: 'bot', body: legacy(current) });
-  await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'legacy-answer', comment: { id: 'legacy-answer', body: '/reviewbot answer Q1 B', author: 'joe', surface: 'issue', parentId: null, discussionId: null } });
+  await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'legacy-answer', comment: { id: 'legacy-answer', body: '/hey answer Q1 B', author: 'joe', surface: 'issue', parentId: null, discussionId: null } });
   await f.drain();
   assert.equal(old.body, saved);
   assert.match(f.comments.find(c => c.id === 'current-legacy').body, /답변 1\/3/);
@@ -360,7 +473,7 @@ for (const name of ['github', 'gitlab']) {
     assert.equal(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).length, 2);
     const latest = (await f.store.getTarget(f.snap)).report;
     const first = latest.questions[0];
-    await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'answer-latest-push', comment: { id: 'answer-latest', body: `/reviewbot answer Q1 ${first.key.answer}`, author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null } });
+    await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'answer-latest-push', comment: { id: 'answer-latest', body: `/hey answer Q1 ${first.key.answer}`, author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null } });
     await f.drain();
     assert.equal(older.body, saved);
     assert.match(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).at(-1).body, /답변 1\/4/);

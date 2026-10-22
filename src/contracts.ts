@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { FailureInfo } from './model-failure.js';
 
 export const categories = ['정확성', '보안', '신뢰성', '성능', '호환성', '테스트', '규칙'] as const;
 export const checkNames = ['정확성·신뢰성', '보안', '성능', '호환성', '테스트', '팀 규칙·요구사항', 'CI·정적 검사'] as const;
@@ -26,7 +27,7 @@ export const CheckSchema = z.strictObject({
 // Every question is multiple choice with exactly four options so answers stay one letter.
 export const optionIds = ['A', 'B', 'C', 'D'] as const;
 const inOrder = (v: { id: string }[]) => v.map(o => o.id).join('') === optionIds.join('');
-// The answer key is fixed when the question is written so grading stays consistent; only grading and /reviewbot showanswer publish it.
+// The answer key is fixed when the question is written so grading stays consistent; only grading and /hey showanswer publish it.
 export const AnswerKeySchema = z.strictObject({
   answer: z.enum(optionIds), explanation: z.string().trim().min(1).max(1500),
   options: z.array(z.strictObject({ id: z.enum(optionIds), explanation: z.string().trim().min(1).max(500) })).length(4).refine(inOrder, 'Explain options A–D in order'),
@@ -43,7 +44,7 @@ export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10
 export const INITIAL_QUESTION_COUNT = 4;
 export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(INITIAL_QUESTION_COUNT)
   .refine(v => v.filter(q => q.level === 'basic').length === INITIAL_QUESTION_COUNT - 1, 'Write three basic questions and one advanced question') });
-// Each /reviewbot morequestion batch is fixed at five questions.
+// Each /hey morequestion batch is fixed at five questions.
 export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
 export const GradeSchema = z.strictObject({
@@ -87,6 +88,7 @@ export interface Report extends Omit<Analysis, 'findings' | 'resolutions' | 'que
   mode: 'full' | 'incremental'; findings: Finding[]; reviewedFiles: string[]; excludedFiles: string[];
   questions: ChangeQuestion[];
   questionsUnavailableReason?: string;
+  failure?: FailureInfo;
   // Copied from the base-branch policy so publishing and grading can update the merge gate.
   requireAnswers?: boolean;
 }

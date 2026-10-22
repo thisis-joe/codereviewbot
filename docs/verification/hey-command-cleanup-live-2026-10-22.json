@@ -1,0 +1,310 @@
+{
+  "date": "2026-10-22",
+  "timezone": "Asia/Seoul",
+  "branch": "codex/hey-command-cleanup",
+  "source": "9ba3be930540a06232b74d4c154eca0337dc1a2d",
+  "deployment": {
+    "status": "deployed",
+    "source": "9ba3be930540a06232b74d4c154eca0337dc1a2d",
+    "at": "2026-10-22T07:12:00.748586+00:00",
+    "servicesChanged": [
+      "controller",
+      "runner"
+    ],
+    "environmentMountsNetworksAndLimitsPreserved": true,
+    "supportingContainersPreserved": true,
+    "health": {
+      "failed": 4,
+      "queued": 0,
+      "active": false
+    }
+  },
+  "services": {
+    "controller": {
+      "containerId": "5bf5d06def2ed0f59f013285cf7b9d1de6b50dd441fe2a007fb1530dd619d48d",
+      "imageId": "sha256:a3546f9b21bfd51b46ae3d1ed1385bb781b3564f146cf91c72ac5f439be0bb13",
+      "tag": "hey-controller:commands-9ba3be9",
+      "revision": "9ba3be930540a06232b74d4c154eca0337dc1a2d",
+      "health": "healthy",
+      "restarts": 0
+    },
+    "runner": {
+      "containerId": "0122d613285ea9cae9ec1f045625d495c67221b71477211f6fa81292fa4f9b37",
+      "imageId": "sha256:eaa8662ddf2d365d37c19a2e009a73dc054af09d7613a4b1f025908bcbff0dde",
+      "tag": "hey-runner:commands-9ba3be9",
+      "revision": "9ba3be930540a06232b74d4c154eca0337dc1a2d",
+      "health": "healthy",
+      "restarts": 0
+    }
+  },
+  "checks": {
+    "unitTests": 120,
+    "postgresIntegrationTests": 46,
+    "failures": 0,
+    "productionDependencyAdvisories": 0,
+    "candidateFiles": {
+      "controller": {
+        "filesMatched": 88,
+        "commandAndNotificationSmoke": "passed"
+      },
+      "runner": {
+        "filesMatched": 88,
+        "commandAndNotificationSmoke": "passed"
+      }
+    },
+    "independentReview": {
+      "status": "passed",
+      "reviewer": "release_review",
+      "scopes": [
+        "adb3c43..3bd6109",
+        "3bd6109..9ba3be9"
+      ],
+      "blockingFindings": 0
+    },
+    "finalRuntime": {
+      "verifiedAt": "2026-10-22T07:15:41.013015+00:00",
+      "services": {
+        "controller": {
+          "containerId": "5bf5d06def2ed0f59f013285cf7b9d1de6b50dd441fe2a007fb1530dd619d48d",
+          "imageId": "sha256:a3546f9b21bfd51b46ae3d1ed1385bb781b3564f146cf91c72ac5f439be0bb13",
+          "tag": "hey-controller:commands-9ba3be9",
+          "revision": "9ba3be930540a06232b74d4c154eca0337dc1a2d",
+          "health": "healthy",
+          "restarts": 0
+        },
+        "runner": {
+          "containerId": "0122d613285ea9cae9ec1f045625d495c67221b71477211f6fa81292fa4f9b37",
+          "imageId": "sha256:eaa8662ddf2d365d37c19a2e009a73dc054af09d7613a4b1f025908bcbff0dde",
+          "tag": "hey-runner:commands-9ba3be9",
+          "revision": "9ba3be930540a06232b74d4c154eca0337dc1a2d",
+          "health": "healthy",
+          "restarts": 0
+        }
+      },
+      "runtimeSettingsPreserved": true,
+      "supportingContainerIdentitiesPreserved": true,
+      "parser": {
+        "tryagainAccepted": true,
+        "retiredCommandsRejected": [
+          "full",
+          "pause",
+          "resume",
+          "explain",
+          "dismiss",
+          "learn",
+          "approve",
+          "reject",
+          "review"
+        ]
+      },
+      "database": {
+        "retiredStateAbsent": true,
+        "falseSuccessJobs": 0,
+        "testJobs": [
+          {
+            "id": "675b6273-26f4-4ed2-b3d2-06c0739b51bf",
+            "kind": "command",
+            "state": "completed",
+            "attempts": 1,
+            "reviewSeconds": null,
+            "questions": null
+          },
+          {
+            "id": "03d8563b-7b6d-41d0-99b2-e7fe49cb4bcd",
+            "kind": "command",
+            "state": "completed",
+            "attempts": 1,
+            "reviewSeconds": null,
+            "questions": null
+          },
+          {
+            "id": "b7fe602f-bb51-42d8-9302-bbfe84f3a4cb",
+            "kind": "review",
+            "state": "completed",
+            "attempts": 1,
+            "reviewSeconds": 93,
+            "questions": 4
+          }
+        ]
+      },
+      "health": {
+        "failed": 4,
+        "queued": 0,
+        "active": false
+      }
+    }
+  },
+  "recovery": {
+    "initialMigrationRecovery": {
+      "passed": true,
+      "realProductionDumpRestored": true,
+      "candidateMigrationPassed": true,
+      "retiredStateRestored": true,
+      "questionAnswerJobHistoryPreserved": true,
+      "oldControllerStartedHealthy": true,
+      "counts": {
+        "targets": 18,
+        "jobs": 63,
+        "commands": 1,
+        "questions": 37
+      }
+    },
+    "combinedFallback": {
+      "passed": true,
+      "realProductionDumpRestored": true,
+      "candidateMigrationPassed": true,
+      "schemaCompatibleFallback": true,
+      "questionAnswerJobHistoryPreserved": true,
+      "fallbackControllerStartedHealthy": true,
+      "counts": {
+        "targets": 19,
+        "jobs": 67,
+        "commands": 1,
+        "questions": 37
+      }
+    },
+    "protectedReleaseDirectory": "/Users/Joseph/workspaces/codereviewbot/.local/releases/hey-commands-9ba3be9-20261022",
+    "rollbackCommand": "python3 /Users/Joseph/workspaces/codereviewbot/.local/releases/hey-commands-9ba3be9-20261022/rollout.py --rollback",
+    "fallbackSource": "3bd6109",
+    "databaseBackup": "reviewbot-before.dump",
+    "runtimeEnvironmentMountsNetworksLimitsPreserved": true,
+    "supportingContainersPreserved": true
+  },
+  "liveGitlab": {
+    "humanCommandsPostedThrough": "existing authenticated Chrome GitLab UI",
+    "mergeRequest": "https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/15",
+    "remoteReadback": {
+      "help": {
+        "request": {
+          "id": 2908189,
+          "createdAt": "2026-10-22T16:12:19.236+09:00",
+          "updatedAt": "2026-10-22T16:12:20.434+09:00",
+          "url": "https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/15#note_2908189"
+        },
+        "reply": {
+          "id": 2908191,
+          "createdAt": "2026-10-22T16:12:20.989+09:00",
+          "updatedAt": "2026-10-22T16:12:20.989+09:00",
+          "url": "https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/15#note_2908191"
+        },
+        "rows": 6,
+        "hasRemovedCommands": false,
+        "ackRemaining": false
+      },
+      "tryagain": {
+        "request": {
+          "id": 2908195,
+          "createdAt": "2026-10-22T16:12:42.277+09:00",
+          "updatedAt": "2026-10-22T16:12:43.749+09:00",
+          "url": "https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/15#note_2908195"
+        },
+        "reply": {
+          "id": 2908197,
+          "createdAt": "2026-10-22T16:12:45.104+09:00",
+          "updatedAt": "2026-10-22T16:12:45.104+09:00",
+          "url": "https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/15#note_2908197"
+        },
+        "body": "<!-- codereviewbot:reply:note-2908195 -->\n질문 재생성을 요청했습니다\\. 완료되면 질문 댓글에 반영됩니다\\.\n\n명령어 안내: `/hey help`",
+        "ackRemaining": false
+      },
+      "summary": {
+        "id": 2906252,
+        "createdAt": "2026-10-22T12:16:35.030+09:00",
+        "updatedAt": "2026-10-22T16:14:30.716+09:00",
+        "url": "https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/15#note_2906252",
+        "questionCount": 4,
+        "progress": false
+      }
+    },
+    "tableDOM": {
+      "columns": [
+        {
+          "label": "명령어",
+          "width": 170
+        },
+        {
+          "label": "뜻",
+          "width": 98
+        },
+        {
+          "label": "설명",
+          "width": 332
+        },
+        {
+          "label": "사용 예시",
+          "width": 211
+        }
+      ],
+      "overflow": false,
+      "rows": 6,
+      "width": 826
+    },
+    "confirmationDOM": {
+      "headingCount": 0,
+      "tag": "P",
+      "text": "질문 재생성을 요청했습니다. 완료되면 질문 댓글에 반영됩니다.\n\n명령어 안내: /hey help"
+    },
+    "generation": {
+      "job": {
+        "id": "b7fe602f-bb51-42d8-9302-bbfe84f3a4cb",
+        "state": "completed",
+        "attempts": 1,
+        "seconds": 93,
+        "resultState": "completed",
+        "questionCount": 4,
+        "questionLevels": [
+          "basic",
+          "basic",
+          "basic",
+          "advanced"
+        ],
+        "requested": true,
+        "regenerate": true,
+        "headSha": "9be9a757c5c454ea8c6419929ab8bd3180e72df2",
+        "error": null,
+        "createdAt": "2026-10-22T16:12:44.86234+09:00",
+        "updatedAt": "2026-10-22T16:14:31.461797+09:00"
+      },
+      "events": [
+        {
+          "jobId": "b7fe602f-bb51-42d8-9302-bbfe84f3a4cb",
+          "event": "questions_generated",
+          "prepareMs": 950,
+          "generateMs": 92450,
+          "modelCalls": 1
+        },
+        {
+          "jobId": "b7fe602f-bb51-42d8-9302-bbfe84f3a4cb",
+          "event": "questions_published",
+          "publishMs": 1096
+        }
+      ]
+    },
+    "screenshots": {
+      "help": {
+        "file": ".local/command-cleanup/live-final-gitlab-help.png",
+        "sha256": "c7d94c3f831fa049d7d9c461aaee2d3fde000fbeed4f3234c16b011edd057787"
+      },
+      "tryagain": {
+        "file": ".local/command-cleanup/live-final-gitlab-tryagain.png",
+        "sha256": "509004d7fc5bfb421dea21ae833040f38d9c9c466712176f45a1a30c4ae59b9d"
+      },
+      "questions": {
+        "file": ".local/command-cleanup/live-final-gitlab-questions.png",
+        "sha256": "43e1713f3301159cfe08a0f925975880a5fac99cc82a2699e02f20a055681ded"
+      }
+    }
+  },
+  "concurrentDeployment": {
+    "detectedSource": "bbf4bb509320213098e8cdf4526936ecbef2a7b9",
+    "effect": "The concurrent controller replacement lacked the command cleanup. Completion was withheld.",
+    "resolution": "Cherry-picked its inline notification links as 9ba3be9, reviewed and tested the combined source, deployed both services, then repeated both human GitLab commands.",
+    "sourcePreserved": "bbf4bb5"
+  },
+  "notes": [
+    "Health reports four pre-existing failed targets; final test jobs all completed, with no queued or active work.",
+    "Historical command/help comments were retained; validation targets the fresh replies posted after the final deployment.",
+    "This record supersedes the earlier undeployed/self-review-only state in hey-command-cleanup-2026-10-22.json.",
+    "No branch push or merge was requested or performed."
+  ]
+}

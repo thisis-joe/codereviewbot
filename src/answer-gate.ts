@@ -3,6 +3,7 @@ import type { Store } from './store.js';
 import { reviewed, type Report } from './contracts.js';
 import { renderReport } from './render.js';
 
+// Existing branch protection rules require this exact status context.
 export const GATE_CONTEXT = 'codereviewbot/questions';
 export interface GateStatus { state: 'pending' | 'success'; description: string }
 

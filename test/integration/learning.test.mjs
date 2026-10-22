@@ -11,7 +11,7 @@ import { questionId } from '../../dist/learning.js';
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
 test('signed learning webhooks generate, resume, grade and reconcile lost replies through real PostgreSQL', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha });
   const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, report(), {}, 0);
   const publishing = await store.claim(); await store.complete(publishing.id, publishing.owner);
@@ -37,7 +37,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
     assert.equal((await fetch(base + '/webhooks/github', { method: 'POST', headers, body: raw })).status, 202);
   };
   const tick = async () => { assert.equal((await fetch(base + '/internal/tick', { method: 'POST', headers: { authorization: 'Bearer internal-test-secret' } })).status, 202); await controller.active; };
-  await submit('100', '/reviewbot morequestion'); await submit('100', '/reviewbot morequestion'); await tick();
+  await submit('100', '/hey morequestion'); await submit('100', '/hey morequestion'); await tick();
   assert.equal(calls.length, 1); assert.equal(replies.length, 1);
   const saved = (await pool.query("SELECT * FROM jobs WHERE kind='command'")).rows;
   assert.equal(saved.length, 1); assert.equal(saved[0].state, 'queued'); assert.equal(saved[0].command_result.questions.length, 5);
@@ -46,26 +46,26 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   await new Promise(resolve => server.close(resolve)); controller = new Controller(new Store(pool), [platform], workspaces, model); base = await start();
   await tick(); assert.equal(replies.length, 1); assert.equal(calls.length, 1); assert.equal((await store.getJob(saved[0].id)).state, 'completed');
   const id = replies[0].body.match(/codereviewbot:question:(Q-[a-f0-9]{12})/)[1];
-  await submit('101', `/reviewbot answer ${id} A 같은 요청을 식별합니다`); await tick();
+  await submit('101', `/hey answer ${id} A 같은 요청을 식별합니다`); await tick();
   assert.equal(calls[1].phase, 'grade'); assert.equal(replies.length, 2); assert.match(replies[1].body, /정답/);
   assert.match(replies[1].body, /\*\*A\.\*\* 중복 요청 식별 \(내 답·정답\)/); assert.match(replies[1].body, /\*\*B\.\*\* 호출마다 새 승인/);
   assert.equal(replies[1].parent, null); assert.equal((await store.learningBatches(snapshot())).length, 1);
   // Same numeric ID in the other GitHub comment resource is a different command.
-  await submit('100', `/reviewbot answer ${id} A 같은 요청을 식별합니다`, 'review-collision', false, 'review'); await tick();
+  await submit('100', `/hey answer ${id} A 같은 요청을 식별합니다`, 'review-collision', false, 'review'); await tick();
   assert.equal(calls.length, 3); assert.equal(replies[2].parent, '50');
   assert.ok(replies[2].body.includes('codereviewbot:reply:review-100'));
   assert.ok(replies[2].body.includes('[요청 댓글](https://github.com/joe/demo/pull/1#discussion_r100)'));
   snap = snapshot({ headSha: 'c'.repeat(40) });
-  await submit('102', `/reviewbot answer ${id} A 같은 요청을 식별합니다`); await tick();
+  await submit('102', `/hey answer ${id} A 같은 요청을 식별합니다`); await tick();
   assert.equal(calls.length, 3); assert.match(replies[3].body, /최신 질문/);
-  await submit('103', '/reviewbot morequestion', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
+  await submit('103', '/hey morequestion', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
   // Each admitted human command got one received notice, and every notice was removed once its command finished.
   assert.equal(acks.length, 4); assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
 });
 
 test('answering every published question, right or wrong, clears the merge gate', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   const seeded = report({ requireAnswers: true });
   await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha });
   const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, seeded, {}, 0);
@@ -94,11 +94,11 @@ test('answering every published question, right or wrong, clears the merge gate'
   await tick();
   assert.deepEqual(statuses.map(s => s.description), ['질문 답변 0/3']);
   const ids = seeded.questions.map(q => questionId(seeded.snapshot, q));
-  await submit('200', `/reviewbot answer ${ids[0]} A`);
-  await submit('201', `/reviewbot answer ${ids[0]} B`);
-  await submit('202', `/reviewbot answer ${ids[1]} C`);
+  await submit('200', `/hey answer ${ids[0]} A`);
+  await submit('201', `/hey answer ${ids[0]} B`);
+  await submit('202', `/hey answer ${ids[1]} C`);
   assert.equal(statuses.at(-1).state, 'pending'); assert.match(statuses.at(-1).description, /2\/3/);
-  await submit('203', `/reviewbot answer ${ids[2]} B`);
+  await submit('203', `/hey answer ${ids[2]} B`);
   assert.equal(statuses.at(-1).state, 'success');
   assert.deepEqual(statuses.map(s => s.description.match(/\d\/3|모두/)[0]), ['0/3', '1/3', '2/3', '모두']);
   // Periodic recovery re-syncs the gate but does not repost an unchanged status.

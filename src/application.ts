@@ -21,16 +21,17 @@ export function application(controller: Controller, repositories: RepositoryConf
       const webhook = path.match(/^\/webhooks\/(github|gitlab)$/);
       if (req.method === 'POST' && webhook) {
         if (!req.headers['content-type']?.startsWith('application/json')) { send(res, 415, { error: 'JSON required' }); return; }
-        const raw = await readBody(req); let events;
-        try { events = normalize(authenticate(webhook[1] as 'github' | 'gitlab', req.headers, raw, repositories, env)); }
+        const raw = await readBody(req); let events, input;
+        try { input = authenticate(webhook[1] as 'github' | 'gitlab', req.headers, raw, repositories, env); events = normalize(input); }
         catch { send(res, 401, { error: 'Invalid webhook' }); return; }
+        const notified = await controller.notifications?.capture(input);
         const accepted: { event: (typeof events)[number]; id: string }[] = [];
         for (const event of events) { const id = await controller.store.enqueue(event); if (id) accepted.push({ event, id }); }
         const admitted = accepted.length;
         send(res, 202, { admitted });
         // Post the received notice before waking the queue so the command usually finds it to delete.
         for (const { event, id } of accepted) await controller.acknowledge(event, id).catch(() => console.error(JSON.stringify({ repository: event.target.repository, number: event.target.number, error: 'ack_failed' })));
-        if (admitted && env.N8N_WAKE_URL && env.INTERNAL_TOKEN) void fetch(env.N8N_WAKE_URL, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(3000), headers: { authorization: `Bearer ${env.INTERNAL_TOKEN}` } }).then(r => r.body?.cancel()).catch(() => {});
+        if ((admitted || notified) && env.N8N_WAKE_URL && env.INTERNAL_TOKEN) void fetch(env.N8N_WAKE_URL, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(3000), headers: { authorization: `Bearer ${env.INTERNAL_TOKEN}` } }).then(r => r.body?.cancel()).catch(() => {});
         return;
       }
       if (path.startsWith('/internal/')) {

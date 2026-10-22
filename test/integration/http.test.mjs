@@ -11,7 +11,7 @@ import { parsePatch } from '../../dist/review.js';
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
 test('signed HTTP admission, database work, single-pass questions and replay-safe publication work end to end', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   const comments = [], inline = [], statuses = [];
   const config = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', botLogin: 'bot', webhookSecretEnv: 'HOOK_SECRET', webhookAuth: 'hmac', tokenEnv: 'TOKEN', enabled: true };
   const platform = { config, target: n => ({ ...snapshot(), number: n }), snapshot: async () => snapshot(), checks: async () => [], linkedIssues: async () => [], permission: async () => 'write',
@@ -36,10 +36,10 @@ test('signed HTTP admission, database work, single-pass questions and replay-saf
   const tick = async () => { const response = await fetch(base+'/internal/tick', { method:'POST', headers:{ authorization:'Bearer internal-test-secret' } }); assert.equal(response.status,202); await controller.active; };
   await tick(); await tick(); await tick();
   assert.equal(comments.length,1); assert.equal(inline.length,0);
-  assert.match(comments[0].body,/변경 이해 질문/); assert.doesNotMatch(comments[0].body,/CRB-|수정 필요/); assert.deepEqual(calls,['initial_questions']);
+  assert.match(comments[0].body,/hey! 이건 알고 머지하는거지\? 😏/); assert.doesNotMatch(comments[0].body,/CRB-|수정 필요/); assert.deepEqual(calls,['initial_questions']);
   assert.equal((await store.health()).queued,0);
   assert.equal((await store.getTarget(snapshot())).report.questions.length, 4);
-  assert.match(comments[0].body, /### CodeReviewBot 변경 이해 질문/);
+  assert.match(comments[0].body, /^#### hey! 이건 알고 머지하는거지\? 😏$/m);
   // The base-branch policy reaches the published merge gate.
   assert.equal((await store.getTarget(snapshot())).report.requireAnswers, true);
   assert.deepEqual(statuses.map(s => s.state), ['pending']); assert.match(statuses[0].description, /0\/4/);

@@ -4,6 +4,7 @@ import { Codex } from './codex.js';
 import { ClaudeCode } from './claude.js';
 import { readBody, send } from './application.js';
 import { equal } from './webhooks.js';
+import { failureInfo } from './model-failure.js';
 
 if ((process.env.RUNNER_TOKEN?.length ?? 0) < 32) throw new Error('RUNNER_TOKEN must contain at least 32 characters');
 const provider = process.env.MODEL_PROVIDER || 'codex', data = process.env.DATA_ROOT ?? '/data';
@@ -25,7 +26,7 @@ const server = createServer(async (req, res) => {
     // Messages are our own; parser errors are classified because theirs can quote model output.
     const reason = error instanceof z.ZodError ? 'structured output did not match the schema' : error instanceof SyntaxError ? 'invalid JSON output' : error instanceof Error ? error.message : 'unknown';
     console.error(JSON.stringify({ service: 'runner', provider, error: reason.slice(0, 200) }));
-    send(res, 422, { error: `${provider} execution or structured output validation failed` });
+    send(res, 422, { error: 'model_failure', failure: failureInfo(error, provider) });
   }
   finally { busy = false; }
 });

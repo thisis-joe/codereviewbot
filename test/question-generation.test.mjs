@@ -5,7 +5,7 @@ import { report, snapshot, changeQuestions, initialQuestions, finding } from './
 import { readPolicy } from '../dist/policy.js';
 
 const context = () => ({ files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false, sourceDir: '/snapshot/source' });
-const generate = (model, ctx = context(), previous = null) => engine.generateQuestions(model, 'workspace', snapshot(), readPolicy(), ctx, previous, [], [], [], 'full');
+const generate = (model, ctx = context(), previous = null) => engine.generateQuestions(model, 'workspace', snapshot(), readPolicy(), ctx, previous, [], [], 'full');
 
 test('initial generation makes one bounded question-only call and archives prior findings', async () => {
   const calls = [], old = finding({ id: 'CRB-0001', status: 'open' });
@@ -37,7 +37,7 @@ test('incremental generation supplies the exact push delta and asks evidence-bac
   const calls = [];
   const previous = report();
   await engine.generateQuestions({ run: async (...args) => { calls.push(args); return { questions: initialQuestions() }; } },
-    'workspace', snapshot(), readPolicy(), ctx, previous, [], [], [], 'incremental');
+    'workspace', snapshot(), readPolicy(), ctx, previous, [], [], 'incremental');
   const prompt = calls[0][1], data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
   assert.deepEqual(data.changesSincePrevious, ctx.changesSincePrevious);
   assert.deepEqual(data.previousQuestions, previous.questions.map(q => q.question));

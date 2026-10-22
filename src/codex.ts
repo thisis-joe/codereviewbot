@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { AnalysisSchema, VerificationSchema, AnswerSchema, InitialQuestionsSchema, QuestionBatchSchema, GradeSchema } from './contracts.js';
 import { execute } from './process.js';
+import { ModelFailure, RunnerFailureSchema } from './model-failure.js';
 import type { Model, ModelPhase } from './review.js';
 import { redact } from './redact.js';
 
@@ -23,7 +24,7 @@ export class Codex implements Model {
   constructor(readonly root: string, readonly home: string, readonly binary = 'codex', readonly model = '', readonly baseUrl = '') {}
   async run(phase: ModelPhase, prompt: string, id: string, timeoutMs = 600000): Promise<unknown> {
     const source = await workspaceSource(this.root, id);
-    const dir = await mkdtemp(join(tmpdir(), 'codereviewbot-run-'));
+    const dir = await mkdtemp(join(tmpdir(), 'hey-run-'));
     await mkdir(this.home, { recursive: true, mode: 0o700 });
     const schema = phaseSchemas[phase];
     const schemaFile = join(dir, 'schema.json'), output = join(dir, 'answer.json');
@@ -51,7 +52,13 @@ export class HttpModel implements Model {
   constructor(readonly url: string, readonly token: string) {}
   async run(phase: ModelPhase, prompt: string, workspaceId: string, timeoutMs = 600000): Promise<unknown> {
     const response = await fetch(`${this.url}/run`, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(timeoutMs + 5000), headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ phase, prompt, workspaceId, timeoutMs }) });
-    if (!response.ok) throw new Error(`Isolated runner failed (${response.status})`);
+    if (!response.ok) {
+      const text = await response.text();
+      let parsed;
+      try { parsed = text.length <= 4000 ? RunnerFailureSchema.safeParse(JSON.parse(text)) : undefined; } catch { /* legacy or invalid runner response */ }
+      if (parsed?.success) throw new ModelFailure(parsed.data.failure);
+      throw new ModelFailure({ code: response.status >= 500 || response.status === 409 ? 'unavailable' : [401, 403].includes(response.status) ? 'authentication' : 'unknown' });
+    }
     return response.json();
   }
 }

@@ -25,7 +25,7 @@ test('GitLab signing validation checks timestamp and does not fall back to a sec
   assert.throws(() => authenticate('gitlab', { ...headers, 'webhook-signature': 'wrong' }, Buffer.from(body), [config], env, 1700000000));
 });
 test('bot comments and metadata-only MR updates cannot create review loops', () => {
-  const event = { repo, deliveryId: 'd', event: 'issue_comment', body: { action: 'created', issue: { number: 1, pull_request: {} }, comment: { id: 1, body: '/reviewbot full', user: { login: 'reviewbot[bot]', type: 'Bot' } } } };
+  const event = { repo, deliveryId: 'd', event: 'issue_comment', body: { action: 'created', issue: { number: 1, pull_request: {} }, comment: { id: 1, body: '/hey tryagain', user: { login: 'reviewbot[bot]', type: 'Bot' } } } };
   assert.deepEqual(normalize(event), []);
   assert.deepEqual(normalize({ ...event, repo: { ...repo, platform: 'gitlab' }, event: 'Merge Request Hook', body: { object_kind: 'merge_request', object_attributes: { iid: 1, action: 'update' } } }), []);
 });

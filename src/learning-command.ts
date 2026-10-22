@@ -53,17 +53,17 @@ function clamp(grade: Grade, p: Chosen): Grade {
   if (p.picked !== p.q.key.answer) return { ...grade, verdict: 'incorrect' };
   return { ...grade, verdict: grade.verdict === 'partial' ? 'partial' : grade.verdict === 'incorrect' ? 'partial' : 'correct' };
 }
-async function gradeAll(picks: Chosen[], snap: Snapshot, job: Job, platform: Platform, workspaces: Workspaces, model: Model, learnings: () => Promise<string[]>, lease: () => Promise<void>): Promise<{ items: GradeItem[]; truncated: boolean } | string> {
-  const items: GradeItem[] = []; let truncated = false, prepared: Awaited<ReturnType<Workspaces['prepare']>> | undefined, approved: string[] = [];
+async function gradeAll(picks: Chosen[], snap: Snapshot, job: Job, platform: Platform, workspaces: Workspaces, model: Model, lease: () => Promise<void>): Promise<{ items: GradeItem[]; truncated: boolean } | string> {
+  const items: GradeItem[] = []; let truncated = false, prepared: Awaited<ReturnType<Workspaces['prepare']>> | undefined;
   for (const p of picks) {
     if (p.q.key && !reasoned(p)) { items.push({ ...p, grade: keyGrade(p) }); continue; }
-    if (!prepared) { approved = await learnings(); prepared = await workspaces.prepare(platform, snap, job.id, null, approved); }
+    if (!prepared) prepared = await workspaces.prepare(platform, snap, job.id, null);
     const context = prepared.context;
     if (!readable(p.q, context)) {
       if (p.q.key) { items.push({ ...p, grade: keyGrade(p) }); continue; }
       return `${p.label} 질문의 코드 근거를 현재 검토 자료에서 읽을 수 없어 채점을 보류합니다. 최신 질문를 다시 요청하세요.`;
     }
-    const payload = learningInput({ snapshot: snap, question: p.q, developerAnswer: redact(p.text), policy: prepared.policy, approvedLearnings: approved });
+    const payload = learningInput({ snapshot: snap, question: p.q, developerAnswer: redact(p.text), policy: prepared.policy });
     if (!payload) return `${p.label} 채점 입력이 한도를 초과해 판정을 보류합니다. 질문과 답변 범위를 나누어 주세요.`;
     truncated ||= payload.truncated;
     await lease();
@@ -84,7 +84,7 @@ function learningInput(data: Record<string, unknown>): { json: string; truncated
     return { text, truncated: text.length < raw.length };
   };
   // Keep all prior question text and the complete chosen question/answer; source tools retain full code.
-  const compact = { ...data, policy: excerpt(data.policy, 40000), approvedLearnings: excerpt(data.approvedLearnings, 40000), ...(data.diff ? { diff: excerpt(data.diff, 180000) } : {}), contextNote: '자료 일부가 축약되어 있습니다. 코드 근거는 review_source 도구로 직접 확인하세요.' };
+  const compact = { ...data, policy: excerpt(data.policy, 40000), ...(data.diff ? { diff: excerpt(data.diff, 180000) } : {}), contextNote: '자료 일부가 축약되어 있습니다. 코드 근거는 review_source 도구로 직접 확인하세요.' };
   const json = JSON.stringify(compact); return json.length <= 470000 ? { json, truncated: true } : null;
 }
 export async function handleLearning(command: Command, job: Job, platform: Platform, store: Store, workspaces: Workspaces, model: Model, all: RemoteComment[], lease: () => Promise<void>): Promise<void> {
@@ -103,7 +103,6 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
     const current = report && hasChangeQuestions(report) && sameRevision(report.snapshot, snap) ? report.questions : [];
     const numbers = numbering(current, batches);
     const prior = [...new Map([...current, ...await store.questionHistory(snap), ...batches.flatMap(b => b.questions ?? [])].map(q => [questionId(snap, q), q])).values()];
-    const learnings = () => store.learnings(target);
     if (!prior.length) {
       body = notice(['현재 코드 기준의 학습 질문이 준비되지 않았습니다. 최신 질문 생성이 완료된 후 질문 번호로 답하세요.', '', COMMAND_HELP_HINT].join('\n'));
     } else if (command.action === 'questions' && batches.length >= MAX_BATCHES) {
@@ -117,7 +116,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
         return q ? [{ q, label }] : [];
       }) : current.map((q, i) => ({ q, label: `Q${i + 1}` }));
       if (problems.length) body = notice([...problems.map(p => `- ${p}`), '', COMMAND_HELP_HINT].join('\n'));
-      else if (!items.length) body = notice('현재 코드 버전에 변경 이해 질문이 없습니다. 심화 질문은 `/reviewbot showanswer 심화1`처럼 번호를 붙이세요.');
+      else if (!items.length) body = notice('현재 코드 버전에 변경 이해 질문이 없습니다. 심화 질문은 `/hey showanswer 심화1`처럼 번호를 붙이세요.');
       else body = renderReveal(items, snap, key);
     } else if (command.action === 'answer') {
       const problems: string[] = [], picks: Chosen[] = [];
@@ -132,7 +131,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
       }
       if (problems.length) body = notice([...problems.map(p => `- ${p}`), '', COMMAND_HELP_HINT].join('\n'));
       else {
-        const graded = await gradeAll(picks, snap, job, platform, workspaces, model, learnings, lease);
+        const graded = await gradeAll(picks, snap, job, platform, workspaces, model, lease);
         if (typeof graded === 'string') body = notice(graded);
         else {
           grades = graded.items.map(i => ({ id: questionId(snap, i.q), verdict: i.grade.verdict }));
@@ -140,11 +139,10 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
         }
       }
     } else if (command.action === 'questions') {
-      const approved = await learnings();
-      const prepared = await workspaces.prepare(platform, snap, job.id, null, approved), context = prepared.context;
+      const prepared = await workspaces.prepare(platform, snap, job.id, null), context = prepared.context;
             if (!hasQuestionSource(context)) body = notice('이번 변경의 읽을 수 있는 코드 근거가 없어 심화 질문을 생성하지 못했습니다.');
             else {
-              const payload = learningInput({ snapshot: snap, priorQuestions: prior.map(q => q.question), diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), policy: prepared.policy, approvedLearnings: approved });
+              const payload = learningInput({ snapshot: snap, priorQuestions: prior.map(q => q.question), diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), policy: prepared.policy });
               if (!payload) body = notice('질문 이력이 입력 한도를 초과해 추가 생성을 보류합니다. 이미 나온 질문에 답하거나 변경 범위를 나누어 주세요.');
               else {
                 const prompt = instruction(context) + `이번 PR/MR의 실제 변경에 연결된 기술 학습용 심화 질문을 정확히 5개 만드세요. 이미 나온 질문과 바꿔 말한 질문을 제외하세요. 기존 질문을 바탕으로 한 단계 깊게, 기술의 동작 원리·설계 트레이드오프·동시성·실패 복구·성능·테스트 전략 등 이 변경에서 배울 가치가 있는 주제를 선택하세요. 관련 없는 CS 상식이나 면접 상식을 채우지 마세요. 실제 함수·설정·흐름을 질문에 명시하고 diff 키 path·유효한 line·side를 연결하세요. 삭제는 LEFT, 순수 이름 변경은 이동된 소스의 줄을 사용하세요. 모든 질문은 객관식입니다. 정답이 정확히 하나인 서로 구별되는 보기 4개를 A·B·C·D 순서의 {id,text}로 작성하세요. 오답 보기는 그럴듯한 오해를 담고, 질문마다 정답 위치를 섞으세요. 질문과 보기 문장에 정답·해설을 노출하지 마세요. 정답은 key에 따로 기록합니다: key.answer는 정답 보기 id, key.explanation은 코드에 근거한 핵심 원리와 정답 이유, key.options는 A~D 순서로 각 보기가 맞거나 틀린 이유입니다. 정답은 코드로 확인한 것만 쓰세요. level은 모두 advanced입니다. 자료가 제한되면 확인한 범위에서만 질문하세요.\n` + payload.json;

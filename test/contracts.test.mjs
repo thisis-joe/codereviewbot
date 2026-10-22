@@ -16,7 +16,7 @@ test('legacy analysis contracts remain readable and initial questions reject rev
 test('all lifecycle outcomes have question-only comments and no review verdict', () => {
   for (const state of ['completed', 'partial', 'failed']) {
     const text = renderReport(report({ state }));
-    assert.match(text, /^### CodeReviewBot 변경 이해 질문$/m);
+    assert.match(text, /^#### hey! 이건 알고 머지하는거지\? 😏$/m);
     assert.doesNotMatch(text, /^### \d\.|수정 필요|지적 없음|판단 보류|검증·주의사항/m);
   }
 });
@@ -39,7 +39,7 @@ test('legacy inline and answer templates retain safe suggestion blocks and evide
   const text = renderFinding(finding({ id: 'CRB-0001', suggestion: { startLine: 4, endLine: 4, replacement: 'return `x`;\n```' } }), snapshot());
   for (const label of ['문제', '발생 조건', '영향', '근거', '수정 방향', '추천 검증', '코드 제안']) assert.match(text, new RegExp(`\\*\\*${label}\\*\\*`));
   assert.match(text, /````suggestion/);
-  assert.match(renderAnswer({ answer: '설명', evidence: ['src/pay.ts:4'], next: '검증 필요' }, 'reply-1'), /### 답변[\s\S]*### 코드 근거[\s\S]*### 후속 조치·한계/);
+  assert.match(renderAnswer({ answer: '설명', evidence: ['src/pay.ts:4'], next: '검증 필요' }, 'reply-1'), /설명[\s\S]*#### 코드 근거[\s\S]*#### 참고/);
 });
 
 test('question-only report keeps snapshot links and omits all legacy CI and summary content', () => {
@@ -52,7 +52,7 @@ test('question-only report keeps snapshot links and omits all legacy CI and summ
 test('failed reports cannot manufacture or reuse learning questions', () => {
   const failed = renderReport(report({ state: 'failed' }));
   assert.match(failed, /질문 생성에 실패/);
-  assert.doesNotMatch(failed, /#### Q1\.|\/reviewbot answer|\/reviewbot showanswer/);
+  assert.doesNotMatch(failed, /#### Q1\.|\/hey answer|\/hey showanswer/);
 });
 
 test('oversized escaped questions retain four complete questions and visible compaction', () => {

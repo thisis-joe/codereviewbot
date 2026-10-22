@@ -1,4 +1,4 @@
-# CodeReviewBot
+# hey
 
 [![한국어](https://img.shields.io/badge/%EC%96%B8%EC%96%B4-%ED%95%9C%EA%B5%AD%EC%96%B4-red.svg)](README.md)
 [![English](https://img.shields.io/badge/lang-English-blue.svg)](README.en.md)
@@ -6,6 +6,8 @@
 **A self-hosted question bot for GitHub pull requests and GitLab merge requests.**
 Authors review code quality while writing code. The bot uses n8n and the Codex CLI or Claude Code CLI to read the change and related callers, ask Korean multiple-choice questions, and grade replies with explanations.
 It no longer performs automatic code review, generates findings or reports CI results.
+
+The project name is `hey`, with `/hey` commands and `@hey` questions. Existing `/reviewbot` and `@reviewbot` instructions remain supported.
 
 > [!NOTE]
 > The bot never commits code, approves or merges. It only posts comments.
@@ -33,9 +35,9 @@ It no longer performs automatic code review, generates findings or reports CI re
 | Change understanding | Exactly four questions (three basic, one advanced), four choices A–D, with a `[심화]` tag on the advanced one. |
 | Answer grading | Reply with question numbers and choices for grades, explanations and per-option notes. A bare option letter works in a single-question inline thread. |
 | Deeper learning | Each request adds five deeper questions, excluding those already asked. |
-| Command help | Ordinary question, follow-up and grading comments show one help entry point. `/reviewbot help` returns the complete four-column table of 14 commands. |
+| Command help | Ordinary question, follow-up and grading comments show one help entry point. `/hey help` returns the complete four-column table of 6 commands. |
 | Merge after answering | Optional commit status requires answers to the initial questions visible in the current summary before merging. |
-| Repository context | Maintainer-approved repository rules inform questions and explanations. |
+| Repository context | Base-branch policy and guide files inform questions and explanations. |
 
 ## How it works
 
@@ -114,10 +116,10 @@ Repository connections are off by default. To connect real GitHub or GitLab repo
 The comment opens with one line on how to answer and one on how to reveal answers and explanations; each question is a `####` heading. Only advanced questions carry a `[심화]` tag. Source commit and answer progress sit below the questions; the state label appears only for partial or failed runs. The old summary, findings and checks/caveats sections, review verdict and CI report have been removed. The question heading has no section number.
 
 ```markdown
-### CodeReviewBot 변경 이해 질문
+#### hey! 이건 알고 머지하는거지? 😏
 
-답변 달기: `/reviewbot answer Q1 B` — 여러 개는 `/reviewbot answer Q1 B Q2 C`
-정답·해설 한 번에 보기: `/reviewbot showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인
+답변 달기: `/hey answer Q1 B` — 여러 개는 `/hey answer Q1 B Q2 C`
+정답·해설 한 번에 보기: `/hey showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인
 
 #### Q1. pay의 재시도에 첫 요청의 멱등 키를 전달하는 이유는 무엇인가요?
     A. 재시도마다 새 승인을 만들기 위해
@@ -144,7 +146,7 @@ The comment opens with one line on how to answer and one on how to reveal answer
     D. 주문 저장보다 승인이 항상 느리기 때문에
 
 기준 커밋 bbbbbbbb · 답변 0/4
-명령어 안내: `/reviewbot help`
+명령어 안내: `/hey help`
 ```
 
 In actual comments, the source commit is linked and each choice occupies its own line. The question list carries no code locations; grading and reveal replies link to the exact source revision. The payment behavior above is an illustrative fixture assumption.
@@ -152,7 +154,7 @@ In actual comments, the source commit is linked and each choice occupies its own
 Questions on publishable diff lines also receive an inline thread. Questions that cannot be positioned in the diff remain in the summary. New findings and code-fix suggestions are not published.
 
 - Topics fit the change: behavior and invariants, design choices, edge cases, failure recovery and relevant technical principles.
-- Each initial batch has exactly four questions, three basic and one advanced (always last, Q4), with one correct answer among A–D. The key and explanations stay private until grading or `/reviewbot showanswer`.
+- Each initial batch has exactly four questions, three basic and one advanced (always last, Q4), with one correct answer among A–D. The key and explanations stay private until grading or `/hey showanswer`.
 - Code validates question/key structure and source locations. There is no extra model verification pass to guarantee semantic correctness; live evaluation is still needed.
 - Binary-only or excluded-only changes show why questions are unavailable. Failures and source limits are shown as generation state and a short reason.
 - Comment compaction is disclosed and preserves all four initial questions and their choices.
@@ -160,49 +162,38 @@ Questions on publishable diff lines also receive an inline thread. Questions tha
 ### Transition from existing results
 
 New results use `schemaVersion: "2"`. A previous result is converted once even when head/base/start SHAs are unchanged; subsequent runs reuse the question result. Old results awaiting publication are regenerated as questions and never repost historical findings.
-The existing database, published questions and answer history are retained. Explicit explain/dismiss commands still handle historical findings. Previously published remote comments are kept.
+The existing database, published questions and answer history are retained. Previously published remote comments are kept.
 
 ## Comment commands
 
 Control the bot with PR/MR comments. Requires Write (GitHub) or Developer (GitLab) access or higher.
 
-Ordinary bot comments show only `명령어 안내: /reviewbot help`; the question summary also shows the answer and reveal lines. Help runs without a model and works even when no questions exist or generation is paused. Its four columns are command, meaning, description and example; all 14 commands are included.
+Ordinary bot comments show only `명령어 안내: /hey help`; the question summary also shows the answer and reveal lines. Help runs without a model and works even when no questions exist. Its four columns are command, meaning, description and example; all 6 commands are included.
 
 | Command | Action |
 |---|---|
-| `/reviewbot help` | Show the complete command table |
-| `/reviewbot review` | Regenerate questions for the latest change scope |
-| `/reviewbot full` | Regenerate questions for the entire PR/MR |
-| `/reviewbot pause` | Pause automatic question generation |
-| `/reviewbot resume` | Resume automatic question generation |
-| `/reviewbot explain` | Explain historical review findings: the current finding thread or all remaining findings from an ordinary comment; an explicit ID selects one |
-| `/reviewbot dismiss reason` | Dismiss a historical finding in its thread; use `/reviewbot dismiss CRB-0001 reason` from an ordinary comment |
-| `@reviewbot question` | Answer a question using code evidence |
-| `/reviewbot morequestion` | Add five deeper questions |
-| `/reviewbot answer Q1 B Q2 C` | Answer one or several questions by number and option, then receive grades and explanations |
-| `/reviewbot showanswer` | Reveal answers and explanations for every review question without answering. Name questions (`/reviewbot showanswer Q1 심화2`) to reveal only those, follow-ups included |
-| `/reviewbot learn rule` | Propose a repository rule |
-| `/reviewbot approve UUID` | Approve a rule (maintainers) |
-| `/reviewbot reject UUID` | Reject a rule (maintainers) |
-
-Approving or rejecting rules requires GitHub Maintain/Admin or GitLab Maintainer or higher.
-Ordinary conversation and dismissals never become rules automatically.
+| `/hey help` | Show the complete command table |
+| `/hey tryagain` | Regenerate questions for the latest change scope |
+| `@hey question` | Answer a question using code evidence |
+| `/hey morequestion` | Add five deeper questions |
+| `/hey answer Q1 B Q2 C` | Answer one or several questions by number and option, then receive grades and explanations |
+| `/hey showanswer` | Reveal answers and explanations for every review question without answering. Name questions (`/hey showanswer Q1 심화2`) to reveal only those, follow-ups included |
 
 ## Learning through comments
 
 ### Answering a question
 
 Every question has four options. Answer with the question number (`Q1`) and an option letter (`A`–`D`), optionally followed by your reasoning.
-Initial questions are numbered `Q1`, `Q2`…; questions from `/reviewbot morequestion` are numbered separately as `심화1`, `심화2`… so the two never collide. Follow-up numbers continue across requests within one code revision (심화1–5, then 심화6–10). Hash IDs like `Q-0123456789ab` from older comments still work.
+Initial questions are numbered `Q1`, `Q2`…; questions from `/hey morequestion` are numbered separately as `심화1`, `심화2`… so the two never collide. Follow-up numbers continue across requests within one code revision (심화1–5, then 심화6–10). Hash IDs like `Q-0123456789ab` from older comments still work.
 
 ```text
-/reviewbot answer Q1 B
-/reviewbot answer Q1 B Q2 C Q3 A Q4 D
-/reviewbot answer 심화1 B 심화2 C
+/hey answer Q1 B
+/hey answer Q1 B Q2 C Q3 A Q4 D
+/hey answer 심화1 B 심화2 C
 ```
 
 - Each initial question is also posted as an inline thread on its code line; replying with just `B` there is graded.
-- The answer key is fixed when the question is written and stays out of question comments until grading or `/reviewbot showanswer`. A bare option letter is graded from the key without a model call; added reasoning is assessed by the model, but the key alone decides right or wrong.
+- The answer key is fixed when the question is written and stays out of question comments until grading or `/hey showanswer`. A bare option letter is graded from the key without a model call; added reasoning is assessed by the model, but the key alone decides right or wrong.
 - After grading, the summary comment marks the question (`✅ 정답`, `🟡 부분 정답`, `❌ 오답`, `⏸ 판정 보류`) and updates `답변 n/m`.
 
 The bot replies in this order:
@@ -213,15 +204,15 @@ Design questions accept any reasonable alternative. If the code evidence is not 
 
 ### Reveal answers and explanations
 
-Comment `/reviewbot showanswer` to get the answer, code location, explanation and per-option notes for every review question in one reply, without answering. Add numbers (`/reviewbot showanswer Q1 심화2`, up to 10) to reveal only those; follow-up questions appear only when named.
+Comment `/hey showanswer` to get the answer, code location, explanation and per-option notes for every review question in one reply, without answering. Add numbers (`/hey showanswer Q1 심화2`, up to 10) to reveal only those; follow-up questions appear only when named.
 
 - It is built from the stored key, so no model is called.
 - It is not grading, so it does not change `답변 n/m` or the `requireAnswers` merge gate.
-- Older questions stored without a key point the reader to `/reviewbot answer` instead.
+- Older questions stored without a key point the reader to `/hey answer` instead.
 
 ### Getting deeper questions
 
-Comment `/reviewbot morequestion` to get five deeper questions, excluding ones already asked, in the same format as initial questions. The comment opens with an answer example and a `/reviewbot showanswer 심화1 심화2 …` line using that batch's own numbers, so all five can be revealed at once.
+Comment `/hey morequestion` to get five deeper questions, excluding ones already asked, in the same format as initial questions. The comment opens with an answer example and a `/hey showanswer 심화1 심화2 …` line using that batch's own numbers, so all five can be revealed at once.
 They cover how the technique works, design choices, failure recovery, concurrency, performance and test strategy.
 
 - 5 questions at a time, up to 5 requests per code version across the whole PR/MR
@@ -229,7 +220,7 @@ They cover how the technique works, design choices, failure recovery, concurrenc
 
 ### Merge only after every question is answered (optional)
 
-Add `requireAnswers: true` to `.codereviewbot.yaml` and the bot posts a `codereviewbot/questions` status on the PR's latest commit.
+Add `requireAnswers: true` to `.hey.yaml` and the bot posts a `codereviewbot/questions` status on the PR's latest commit.
 When a repository admin makes that status a required check, the merge button stays blocked until every initial question visible in the current summary is answered.
 
 | Situation | Status |
@@ -237,10 +228,10 @@ When a repository admin makes that status a required check, the merge button sta
 | Some questions are unanswered | Pending · `질문 답변 1/3` (1 of 3 answered) |
 | Every question shown in the report is answered (correct, incorrect or undecided all count) | Success |
 | No questions could be made, e.g. only binary files changed | Success |
-| Question generation failed | Pending · request again with `/reviewbot full` |
+| Question generation failed | Pending · request again with `/hey tryagain` |
 
 - An answer counts once its grading reply is posted. A wrong answer still counts, since it gets an explanation.
-- Deeper questions from `/reviewbot morequestion` are not required.
+- Deeper questions from `/hey morequestion` are not required.
 - A new push starts over with the newly generated questions.
 - See the [connection guide](docs/connections.md) (Korean) for setup.
 
@@ -259,7 +250,8 @@ When a repository admin makes that status a required check, the merge button sta
 
 ## Repository policy
 
-Put `.codereviewbot.yaml` on the target repository’s base branch to configure source scope and question context.
+Put `.hey.yaml` on the target repository’s base branch to configure source scope and question context.
+If it is absent, the existing `.codereviewbot.yaml` is used. When both exist, `.hey.yaml` takes precedence.
 
 ```yaml
 version: 1
@@ -272,7 +264,7 @@ pathInstructions:
 ```
 
 - The policy is read from the base branch. Changing it in a PR does not change that PR's question policy.
-- `AGENTS.md` and `docs/coding-standards.md` on the base branch, linked issues and approved repository rules are also used.
+- `AGENTS.md` and `docs/coding-standards.md` on the base branch and linked issues are also used.
 - Generated files, binaries, agent configs and credential files are excluded from question sources. An explicit reason is shown when no readable change remains.
 - Limits: 1,500 files, 12 MiB total, 200 KB per file, 150 KB of diff. Anything beyond that marks question generation as partial.
 

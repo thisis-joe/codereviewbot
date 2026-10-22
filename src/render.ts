@@ -1,7 +1,9 @@
 import { INITIAL_QUESTION_COUNT, isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
 import { createHash } from 'node:crypto';
 import { questionId } from './learning.js';
+import { failureMessage } from './model-failure.js';
 
+// Persisted markers retain their namespace so old comments reconcile after the rename.
 export const SUMMARY_MARKER = '<!-- codereviewbot:summary:v1 -->';
 /** One summary per exact diff revision; the common marker remains readable by older tooling. */
 export function summaryMarker(s: Snapshot): string {
@@ -35,28 +37,23 @@ function clip(value: string, length: number): string { return value.length > len
 function lines(values: string[]): string[] { return values.map((v, i) => i < values.length - 1 ? v + '\\' : v); }
 // Four literal spaces would start a Markdown code block, so options are indented with non-breaking spaces.
 const indent = '&nbsp;'.repeat(4);
-export const COMMAND_HELP_HINT = '명령어 안내: `/reviewbot help`';
-const answerHelp = ['답변 달기: `/reviewbot answer Q1 B` — 여러 개는 `/reviewbot answer Q1 B Q2 C`', '정답·해설 한 번에 보기: `/reviewbot showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인'];
+export const COMMAND_HELP_HINT = '명령어 안내: `/hey help`';
+const answerHelp = ['답변 달기: `/hey answer Q1 B` — 여러 개는 `/hey answer Q1 B Q2 C`', '정답·해설 한 번에 보기: `/hey showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인'];
 const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '🟡 부분 정답', incorrect: '❌ 오답', unverifiable: '⏸ 판정 보류' };
 /** Latest grade per question ID; null marks an answer graded before verdicts were recorded. */
 export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
-  ['/reviewbot answer', '답변', '변경 이해 질문은 Q번호, 심화 질문은 심화번호와 보기(A~D)로 답하면 채점·해설, 여러 개를 한 번에 답할 수 있음', '/reviewbot answer Q1 B Q2 C'],
-  ['/reviewbot showanswer', '정답 보기', '답하지 않고 변경 이해 질문 전체의 정답·해설을 표시, 질문 번호를 붙이면 그 질문만(심화 질문 포함), 답변 수에는 포함하지 않음', '/reviewbot showanswer Q1 심화2'],
-  ['/reviewbot morequestion', '심화 질문', '이미 나온 질문을 빼고 더 깊은 질문 5개, 심화1·심화2…로 번호를 붙임', '/reviewbot morequestion'],
-  ['/reviewbot review', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/reviewbot review'],
-  ['/reviewbot full', '전체 질문 재생성', 'PR/MR 전체 범위의 질문을 다시 생성', '/reviewbot full'],
-  ['/reviewbot pause', '일시정지', '푸시마다 하는 자동 질문 생성을 멈춤', '/reviewbot pause'],
-  ['/reviewbot resume', '재개', '멈춘 자동 질문 생성을 다시 시작', '/reviewbot resume'],
-  ['/reviewbot explain', '과거 지적 설명', '과거 리뷰의 지적 댓글에 답글로 쓰면 그 지적, 일반 댓글이면 남은 지적 전체를 코드로 다시 확인해 설명', '/reviewbot explain'],
-  ['/reviewbot dismiss', '과거 지적 기각', '과거 리뷰의 지적 댓글에 답글로 사유를 남기면 이 PR/MR에서 제외, 일반 댓글은 ID 필요', '/reviewbot dismiss 의도된 동작'],
-  ['@reviewbot', '코드 질문', '코드 근거를 확인해 답변', '@reviewbot 재시도는 왜 3회인가요?'],
-  ['/reviewbot learn', '규칙 제안', '저장소 규칙 제안, 관리자 승인 후 적용', '/reviewbot learn 금액은 정수로 다룬다'],
-  ['/reviewbot approve', '규칙 승인', '관리자가 규칙 제안을 승인', '/reviewbot approve 규칙ID'],
-  ['/reviewbot reject', '규칙 거절', '관리자가 규칙 제안을 거절', '/reviewbot reject 규칙ID'],
-  ['/reviewbot help', '명령어 안내', '전체 명령어의 뜻·설명·사용 예시를 표시', '/reviewbot help'],
+  ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화 질문: 심화1 B', '/hey answer Q1 B'],
+  ['/hey showanswer', '정답 보기', '전체 정답·해설 보기. 번호를 붙이면 해당 질문만 표시<br>예: Q1 심화2 · 답변 수와 머지 조건에는 반영하지 않음', '/hey showanswer'],
+  ['/hey morequestion', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey morequestion'],
+  ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],
+  ['@hey', '코드 질문', '관련 코드를 확인해 질문에 답변', '@hey 키를 재사용하는 이유는?'],
+  ['/hey help', '명령어 안내', '사용 가능한 명령과 예시 확인', '/hey help'],
 ];
-const commandTable = ['| 명령어 | 뜻 | 설명 | 사용 예시 |', '|---|---|---|---|', ...commands.map(([c, m, d, e]) => `| \`${c}\` | ${m} | ${d} | \`${e}\` |`)];
+// GitLab strips width/style attributes. Unbroken names and bounded description lines
+// keep short columns readable without relying on renderer-specific CSS.
+const commandCode = (value: string) => `<code>${value.replace(/^\/hey /, '/hey&nbsp;')}</code>`;
+const commandTable = ['| 명령어 | 뜻 | 설명 | 사용 예시 |', '|---|---|---|---|', ...commands.map(([c, m, d, e]) => `| ${commandCode(c)} | ${m.replaceAll(' ', '&nbsp;')} | ${d} | ${commandCode(e)} |`)];
 export function renderCommandHelp(commentId: string): string { return [replyMarker(commentId), '### 명령어 안내', '', ...commandTable].join('\n'); }
 function list(values: string[]): string { return values.length ? values.map(x => `- ${plain(x)}`).join('\n') : '없음'; }
 export function renderReport(r: Report, results: AnswerResults = new Map()): string {
@@ -70,17 +67,17 @@ export function renderReport(r: Report, results: AnswerResults = new Map()): str
 function renderReportBody(r: Report, results: AnswerResults): string {
   const available = hasChangeQuestions(r), s = r.snapshot;
   const questions = available ? renderQuestions(r.questions, s, 1, results)
-    : [plain(r.questionsUnavailableReason ?? (r.state === 'failed' ? '질문 생성에 실패했습니다. 실행기 상태를 확인한 뒤 다시 요청하세요.' : '출제할 수 있는 코드 근거가 없어 질문을 생성하지 못했습니다.'))];
+    : [plain(r.state === 'failed' && r.failure ? failureMessage(r.failure) : r.questionsUnavailableReason ?? (r.state === 'failed' ? '질문 생성에 실패했습니다. /hey tryagain 명령으로 다시 요청하거나 봇 운영자에게 알려주세요.' : '출제할 수 있는 코드 근거가 없어 질문을 생성하지 못했습니다.'))];
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
   const meta = [...(r.state === 'completed' ? [] : [status[r.state]]), `기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`,
     ...(available ? [`답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`] : [])].join(' · ');
-  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v5 -->', '### CodeReviewBot 변경 이해 질문', '', ...(available ? [...lines(answerHelp), ''] : []),
+  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v5 -->', '#### hey! 이건 알고 머지하는거지? 😏', '', ...(available ? [...lines(answerHelp), ''] : []),
     ...questions, ...(r.limitations.length && available ? ['', ...r.limitations.slice(0, 3).map(l => `- ${plain(clip(l, 200))}`)] : []), '', ...lines([meta, COMMAND_HELP_HINT])].join('\n');
 }
 export interface ReviewEstimate { minutes: number; measured: boolean }
 /** Posted in place of the summary as soon as a review starts; the finished report overwrites it. */
 export function renderProgress(s: Snapshot, estimate: ReviewEstimate, previous?: { report: Report; results: AnswerResults }): string {
-  const head = [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:progress:v1 -->', '### CodeReviewBot 변경 이해 질문', '',
+  const head = [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:progress:v1 -->', '#### hey! 이건 알고 머지하는거지? 😏', '',
     `**질문 생성 중** · 기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, '',
     `질문 생성을 시작했습니다. 예상 소요 시간은 약 ${estimate.minutes}분입니다${estimate.measured ? ' (최근 질문 생성 기준)' : ''}. 생성이 끝나면 이 댓글이 결과로 바뀝니다.`].join('\n');
   if (!previous || !isQuestionReport(previous.report) || previous.report.state === 'failed') return head;
@@ -112,8 +109,11 @@ function renderFindingBody(f: Finding, s: Snapshot): string {
     '', COMMAND_HELP_HINT].join('\n');
 }
 export function renderAnswer(a: { answer: string; evidence: string[]; next: string }, marker: string): string {
-  return [`<!-- codereviewbot:reply:${marker.replace(/[^\w-]/g, '')} -->`, '### 답변', '', plain(a.answer), '',
-    '### 코드 근거', '', list(a.evidence), '', '### 후속 조치·한계', '', ...(a.next !== COMMAND_HELP_HINT ? [plain(a.next), ''] : []), COMMAND_HELP_HINT].join('\n');
+  const next = a.next.trim();
+  const followUp = next && next !== COMMAND_HELP_HINT && !/^(?:없음|해당 없음)[.!。]?$/.test(next);
+  return [replyMarker(marker), plain(a.answer),
+    ...(a.evidence.length ? ['', '#### 코드 근거', '', list(a.evidence)] : []),
+    ...(followUp ? ['', '#### 참고', '', plain(next)] : []), '', COMMAND_HELP_HINT].join('\n');
 }
 // Q-IDs stay in hidden markers for threading and the merge gate; readers see revision-wide numbers.
 // Basic is the default, so only advanced review questions carry a tag; 심화N labels already say so.
@@ -132,7 +132,7 @@ function renderQuestions(questions: ChangeQuestion[], s: Snapshot, start = 1, re
 }
 /** One inline thread per question, so a bare option letter replied in the thread is graded. */
 export function renderQuestionThread(q: ChangeQuestion, s: Snapshot, number: number): string {
-  return [...questionLines(q, s, `Q${number}`), '', ...lines(['이 스레드에 보기 문자(A~D)만 답글로 달아도 채점합니다. 이유를 덧붙여도 됩니다.', `정답·해설 보기: \`/reviewbot showanswer Q${number}\``])].join('\n');
+  return [...questionLines(q, s, `Q${number}`), '', ...lines(['이 스레드에 보기 문자(A~D)만 답글로 달아도 채점합니다. 이유를 덧붙여도 됩니다.', `정답·해설 보기: \`/hey showanswer Q${number}\``])].join('\n');
 }
 export function replyMarker(id: string): string { return `<!-- codereviewbot:reply:${id.replace(/[^\w-]/g, '')} -->`; }
 export function ackMarker(id: string): string { return `<!-- codereviewbot:ack:${id.replace(/[^\w-]/g, '')} -->`; }
@@ -147,8 +147,8 @@ export function renderAck(id: string, state: AckState = 'received'): string { re
 // Follow-ups are never revealed by a bare showanswer, so the batch names its own labels for one-step reveal.
 export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
   const labels = questions.map((_, i) => `심화${start + i}`);
-  const help = [`답변 달기: \`/reviewbot answer ${labels[0]} B\` — 여러 개는 \`/reviewbot answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
-    `정답·해설 한 번에 보기: \`/reviewbot showanswer ${labels.join(' ')}\``];
+  const help = [`답변 달기: \`/hey answer ${labels[0]} B\` — 여러 개는 \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
+    `정답·해설 한 번에 보기: \`/hey showanswer ${labels.join(' ')}\``];
   return [replyMarker(commentId), '### 심화 질문', '', ...lines(help), '', ...renderQuestions(questions, s, start, new Map(), '심화'), '',
     ...lines([`기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, COMMAND_HELP_HINT])].join('\n');
 }
@@ -179,7 +179,7 @@ function renderGradeSection({ q, grade, label, picked }: GradeItem, s: Snapshot)
     '**코드 근거**', ...(grade.evidence.length ? grade.evidence.map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, 700))}`) : ['확인 가능한 코드 근거가 부족해 정답·오답을 확정하지 않았습니다.'])].join('\n');
 }
 export interface RevealItem { q: ChangeQuestion; label: string }
-/** Answer sheet for /reviewbot showanswer: the stored key only, so no model runs and nothing is graded. */
+/** Answer sheet for /hey showanswer: the stored key only, so no model runs and nothing is graded. */
 export function renderReveal(items: RevealItem[], s: Snapshot, commentId: string): string {
   const levels: [number, number, string][] = [[1500, 500, ''], [600, 200, '댓글 길이 제한으로 해설을 축약했습니다.'], [200, 80, '댓글 길이 제한으로 해설을 크게 축약했습니다.']];
   for (const [text, option, note] of levels) {
@@ -191,7 +191,7 @@ export function renderReveal(items: RevealItem[], s: Snapshot, commentId: string
 }
 function renderRevealSection({ q, label }: RevealItem, s: Snapshot, text: number, option: number): string {
   const key = q.key, head = `#### ${label}. ${levelTag(q, label)}${plain(q.question)}`;
-  if (!key) return [head, '', '저장된 정답이 없는 이전 질문입니다. `/reviewbot answer`로 답하면 채점과 해설을 받을 수 있습니다.'].join('\n');
+  if (!key) return [head, '', '저장된 정답이 없는 이전 질문입니다. `/hey answer`로 답하면 채점과 해설을 받을 수 있습니다.'].join('\n');
   return [head, '', `정답: **${key.answer}** · 코드 위치: ${ref(s, q.path, q.line, q.side, 80)}`, '', '**문제 해설**', plain(clip(key.explanation, text)),
     ...((q.options ?? []).length ? ['', '**보기별 해설**', ...q.options.flatMap(o => ['', `**${o.id}.** ${plain(o.text)}${o.id === key.answer ? ' (정답)' : ''} — ${plain(clip(key.options.find(e => e.id === o.id)?.explanation ?? '해설 없음', option))}`])] : [])].join('\n');
 }

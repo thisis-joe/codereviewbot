@@ -1,4 +1,10 @@
-# CodeReviewBot question-bot transition contract
+# hey question-bot transition contract
+
+Naming update accepted 2026-10-22: the product, comments, package and image names use
+`hey`; `/hey` and `@hey` are canonical. Existing command aliases, comment markers,
+answer/status history, deployed storage identity and n8n IDs remain compatible.
+Base `.hey.yaml` takes precedence over legacy `.codereviewbot.yaml`. No remote
+repository/account/domain rename or production deployment is part of this change.
 
 Accepted: 2026-10-21. Base: `2db847897c9c291ce36999ef72e68d759bc9d6c5`.
 
@@ -15,15 +21,17 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
   anchor. Basic/advanced levels and actual change relevance remain required.
 - Schema version 2 results display only a commit, generation state, answer progress,
-  code-linked questions and one `/reviewbot help` entry point. Old sections 1–3, review
+  code-linked questions and one `/hey help` entry point. Old sections 1–3, review
   verdicts, repeated command examples and automatic finding comments disappear.
-- `/reviewbot help` alone displays the full four-column command table, including
-  all prior commands and help. It needs no report, snapshot export or model call,
-  works while paused, respects existing permissions and reconciles owned markers.
-- `review` regenerates questions on current code, bypassing same-SHA cache. With no
-  newer revision to compare it falls back to full-PR source. `full` always uses the
-  full scope. `pause`/`resume`, `answer`, `morequestion`, `@reviewbot` and approved
-  repository context remain supported. `explain`/`dismiss` handle historical findings.
+- `/hey help` displays six commands: `answer`, `showanswer`, `morequestion`,
+  `tryagain`, `@hey` and `help`. It needs no report, snapshot export or model call,
+  respects existing permissions and reconciles owned markers.
+- `tryagain` regenerates questions on current code, bypassing the same-SHA cache.
+  With no newer revision to compare it falls back to full-PR source.
+- Removed commands (`full`, `pause`, `resume`, `explain`, `dismiss`, `learn`,
+  `approve`, `reject` and the former `review` spelling) return the help hint and
+  trigger no code/model/state effects. Pause state and feedback storage are retired;
+  repository policy and guide files remain the source of instructions.
 - `showanswer` reveals stored answer keys and explanations without a model call; it
   records no grade, so answer progress and the merge gate are unchanged.
 - Question IDs, same-ref history, supplementary numbering, durable grading replies,
@@ -34,7 +42,8 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 - Version 1 cache entries refresh even at identical refs. Legacy ready/publishing
   jobs enqueue versioned replacement generation before posting anything. Recovery
   uses a new versioned delivery key so permanent old delivery deduplication cannot
-  suppress migration. Historical data is retained without a destructive DB migration.
+  suppress migration. Question, answer and report history is retained. The command cleanup removes only
+  the obsolete pause column and feedback table with an idempotent migration.
 - New pushes and expired leases fence writes. Lost publication responses reconcile
   existing owned markers. Failed/no-source runs explicitly explain unavailability.
 - Timing estimates use only version 2 generation measurements. Logs record preparation,
@@ -85,5 +94,5 @@ sampling requires an authenticated model run and remains an explicit deployment
 validation item when unavailable locally.
 
 Keep historical data and additive contracts for recovery. On a rollout failure,
-pause automatic generation while retaining answer history; repair and retry without
+stop the controller while retaining answer history; repair and retry without
 resetting the database. Deploy controller and runner built from the same revision.

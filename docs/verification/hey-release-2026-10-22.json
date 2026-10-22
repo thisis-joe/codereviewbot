@@ -1,0 +1,79 @@
+{
+  "releaseSource": "eb559b97fb880ef8561e847cf894e751f0b15b40",
+  "deployedAt": "2026-10-22T02:36:50.442323+00:00",
+  "applicationDeployment": "healthy",
+  "localVerification": {
+    "unitTests": 111,
+    "postgresHttpIntegrationTests": 37,
+    "controllerAndRunnerImageSmokes": true,
+    "rollbackDatabaseRestoreAndOldControllerHealth": true
+  },
+  "productionVerification": {
+    "helpRows": 14,
+    "newAndLegacyCommands": true,
+    "heyProgress": true,
+    "revisionMarkersPreserved": true,
+    "n8nDispatchStatus": 202,
+    "runner": {
+      "ok": true,
+      "busy": false
+    },
+    "controller": {
+      "failed": 0,
+      "queued": 0,
+      "active": false
+    },
+    "publicWebhook": [
+      401,
+      202
+    ],
+    "databaseCounts": {
+      "jobs": 50,
+      "targets": 13,
+      "deliveries": 68,
+      "feedback": 0
+    },
+    "normalClosedDeliveriesSincePreflight": 1,
+    "supportingContainerIdsPreserved": true,
+    "runtimeEnvironmentPreserved": true,
+    "nativeModel": {
+      "status": "blocked_by_provider_session_limit",
+      "apiStatus": 429,
+      "reproducedWithDirectCli": true,
+      "reportedReset": "2026-10-22T13:40:00+09:00"
+    },
+    "externalTestCommentsPosted": false
+  },
+  "gitlabAvatar": {
+    "updated": true,
+    "accountId": 33767,
+    "verification": "Upload returned 200 and current-user API returned the new avatar URL. Direct image retrieval requires GitLab web authentication; no pixel-readback claim."
+  },
+  "n8n": {
+    "displayNames": [
+      "hey — durable dispatch",
+      "hey — recovery"
+    ],
+    "workflowIdsPreserved": true,
+    "active": true,
+    "nodesSchedulesConnectionsSettingsPreserved": true,
+    "restartedExistingContainer": true
+  },
+  "rollback": {
+    "command": "python3 .local/releases/hey-eb559b9-20261022/deploy.py --rollback",
+    "applicationImagesRetained": true,
+    "protectedDatabaseAndAuthBackupsRetained": true,
+    "databaseRestoreIsSeparate": true
+  },
+  "review": {
+    "mode": "author review",
+    "independentReview": "unavailable"
+  },
+  "notes": [
+    "Native model acceptance is blocked by the existing Claude session quota. Direct CLI call without app code also returned 429, reporting 13:40 Asia/Seoul reset. No provider, model, credentials or quota settings changed.",
+    "No GitLab test comments were posted.",
+    "A legitimate closed-MR webhook arrived during preflight, adding one delivery and no job.",
+    "Temporary rollback test initially raced PostgreSQL initialization; waiting for TCP SQL readiness and restoring without ownership metadata passed.",
+    "n8n first import could not read the copied private temporary file; owner corrected, both workflows imported/published and runtime dispatch verified."
+  ]
+}
