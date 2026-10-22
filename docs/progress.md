@@ -557,3 +557,30 @@
   returned 403; project token UI only exposes revoke/rotate, not rename. GitLab's
   documented user modification endpoint requires an instance administrator.
   No credential rotation, access expansion or replacement account was attempted.
+
+## 2026-10-22 — hey command cleanup and concise replies
+
+- Branch `codex/hey-command-cleanup`, base `df8672188e131995ae3769d9b062e713d019a548`.
+  The original `codex/question-failure-recovery` checkout and its pending changes
+  remain intact. No Jira task exists; the established `codex/` naming rule applies.
+- `f58a2f5`: removed full/pause/resume/explain/dismiss/learn/approve/reject and their
+  handlers, feedback storage/context injection and pause scheduling. Regeneration
+  is `/hey tryagain`; the former review spelling is rejected. Help has six commands,
+  with unbroken names and short description lines that survive GitLab sanitization.
+  The migration retires only obsolete command state and preserves question, answer,
+  report and queued-work history, including previously paused targets.
+- `38aa97a`: confirmation replies contain a short message and the help hint. Code
+  answers show evidence and follow-up sections only when populated, using smaller
+  headings. No empty evidence or follow-up headings appear on regeneration replies.
+- Red checks reproduced unsupported tryagain/accepted retired commands, the old
+  14-command help and empty reply headings. Closure: 116 unit tests and 41 disposable
+  PostgreSQL/HTTP integration tests passed. The first work-unit snapshot separately
+  passed 115 unit and 41 integration tests; tmpfs PostgreSQL recovered its repeated
+  integration run from Docker disk exhaustion during image export.
+- Both images built and passed isolated module smoke checks; Compose configuration,
+  fixture demo and whitespace checks passed. Actual GitLab (201) and GitHub (200)
+  Markdown rendering retained the six-row table; GitLab confirmation output and a
+  local browser preview confirm the compact reply and balanced columns.
+- Author review covered the complete task diff; no blocking findings remain.
+  Independent review was not performed. Running services, production DB and remote
+  comments were not changed. Evidence: `docs/verification/hey-command-cleanup-2026-10-22.json`.

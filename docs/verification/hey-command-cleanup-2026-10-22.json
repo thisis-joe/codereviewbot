@@ -1,0 +1,426 @@
+{
+  "date": "2026-10-22",
+  "timezone": "Asia/Seoul",
+  "branch": "codex/hey-command-cleanup",
+  "base": "df8672188e131995ae3769d9b062e713d019a548",
+  "commits": {
+    "commands": "f58a2f5",
+    "conciseReplies": "38aa97a"
+  },
+  "removedCommands": [
+    "full",
+    "pause",
+    "resume",
+    "explain",
+    "dismiss",
+    "learn",
+    "approve",
+    "reject"
+  ],
+  "regenerationCommand": "/hey tryagain",
+  "retiredAlias": "/hey review",
+  "retainedCommands": [
+    "/hey answer",
+    "/hey showanswer",
+    "/hey morequestion",
+    "/hey tryagain",
+    "@hey",
+    "/hey help"
+  ],
+  "checks": [
+    {
+      "name": "npm test",
+      "status": "passed",
+      "tests": 116,
+      "log": ".local-final-unit.log"
+    },
+    {
+      "name": "node scripts/integration.mjs",
+      "status": "passed",
+      "tests": 41,
+      "log": ".local-final-integration.log",
+      "database": "disposable PostgreSQL 17"
+    },
+    {
+      "name": "first work-unit snapshot",
+      "status": "passed",
+      "unitTests": 115,
+      "integrationTests": 41,
+      "note": "Integration rerun used tmpfs PostgreSQL after Docker disk allocation filled during image export."
+    },
+    {
+      "name": "migration",
+      "status": "passed",
+      "observed": [
+        "obsolete pause column and feedback table removed",
+        "repeat migration succeeds",
+        "graded answers preserved",
+        "previously paused queued work runs"
+      ]
+    },
+    {
+      "name": "compose configuration and fixture demo",
+      "status": "passed"
+    },
+    {
+      "name": "controller and runner image builds and module smoke",
+      "status": "passed",
+      "tags": [
+        "hey-controller:command-cleanup",
+        "hey-runner:command-cleanup"
+      ]
+    },
+    {
+      "name": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "rendering": {
+    "gitlab": {
+      "status": 201,
+      "helpTableRows": 7,
+      "helpHtmlSha256": "2cf70bd40f6b966e8e15976d690ba57022ab0b227add6aa7f69ffa6c54c9faa9",
+      "confirmationHtmlSha256": "a48020e6f4455e592e6b29e2190c8614f29b71e20e1605028ed745830c305e4d"
+    },
+    "github": {
+      "status": 200,
+      "helpTableRows": 7
+    },
+    "visual": "Actual GitLab API HTML inspected in a local comment-style preview; six rows have unbroken command/meaning cells and short wrapped descriptions. The confirmation has only its message and help hint.",
+    "screenshot": ".local/command-cleanup/preview.png"
+  },
+  "review": {
+    "mode": "author self-review",
+    "scope": "All committed, staged, unstaged and untracked task changes relative to the base; original dirty checkout excluded. No blocking findings.",
+    "independentReview": "not performed",
+    "snapshot": {
+      "schema": 1,
+      "repository": "/Users/Joseph/.codex/worktrees/hey-command-cleanup/codereviewbot",
+      "requested_base": "df8672188e131995ae3769d9b062e713d019a548",
+      "base_commit": "df8672188e131995ae3769d9b062e713d019a548",
+      "comparison_commit": "df8672188e131995ae3769d9b062e713d019a548",
+      "head": "38aa97a1682e6d7ade0fec3410221def3d93a479",
+      "task_paths": [],
+      "has_changes": true,
+      "files": [
+        {
+          "path": "README.en.md",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "0e7a9029b8f25d1dd1d3c28c3d130913154d9cfbe48a85b658ab3cc81ab64bdd"
+        },
+        {
+          "path": "README.md",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "159080964070fc3d5126fb1f3ebbeb31723c9156d0771808fa4dc5845788a949"
+        },
+        {
+          "path": "docs/connections.md",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "3753da4ee7f7a6df2782603e129ff2d91666ae25ee72bdb03432b1158cdb5a7d"
+        },
+        {
+          "path": "docs/operations.md",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "0c9ca08612c8ef91e98ec7d8590d0b1f08b7ac770b6ef130e2fd729359d5ff17"
+        },
+        {
+          "path": "docs/plan.md",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "7b4f3aaf24b63e527e895456ede003e78ff942ee70bd5f4abf547121dc8ce5df"
+        },
+        {
+          "path": "migrations/001_initial.sql",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "041294c5c3328b8288f48125809a2ed668323c27dc811f6f612c5433d32e5fa9"
+        },
+        {
+          "path": "src/commands.ts",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "c98ebd71f93cdbc608cbcf007eb29d17cbaed97e3f48692c03870fc5b90e267e"
+        },
+        {
+          "path": "src/controller.ts",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "1b1e58269ed08b6599a258734ee15c0fa57f79a823457c66b013380d9caa4a9f"
+        },
+        {
+          "path": "src/learning-command.ts",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "5043ec02d688db35975c656cd9412de6c77dc340f6ed4e3ae9bf84747cefd3be"
+        },
+        {
+          "path": "src/policy.ts",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "f18025e484591e515071a5c2e8b1c861f40cf94654510102f3842d0a7f8bd9d9"
+        },
+        {
+          "path": "src/render.ts",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "ccc7c6cb9b7648c38d51029eaa40d04a8279c4d2471da4ab3581970dec31dfcc"
+        },
+        {
+          "path": "src/review.ts",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "eca6594bf4c54ab36c7ae8ec1a1c31a5629aa359179fcc8d189a8acc4afca2f4"
+        },
+        {
+          "path": "src/store.ts",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "0231e603b2f1f1ef20fa010e1fd4e8efd170bef2aef57d736c3cc00a2efc937c"
+        },
+        {
+          "path": "src/workspace.ts",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "ce78143e2c329c91e3bedcbc4c72a950a9d683fd97f07650a3fd809b2d7d8a58"
+        },
+        {
+          "path": "test/ack.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "5cf1a7db7baddc06fce1226d8135446da0333e823876d75ba23e07c68d928a0b"
+        },
+        {
+          "path": "test/answer-gate.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "10545e0b116ad862cbad4ead24145f419372aaaeb6778542324eff8dd8a59277"
+        },
+        {
+          "path": "test/commands.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "64f409dac776b13227da6bc92d33c8b01a00065cf2d0f30a49a09693c3364fce"
+        },
+        {
+          "path": "test/contracts.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "d2a0ffdfcc52ef439740a840cd030754f6565ce9d228e9a64bf86bddf1d86f73"
+        },
+        {
+          "path": "test/engine.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "2e12c8adca2e42e02e57164301acdc5310d06394c7c04ab461bc837a63964869"
+        },
+        {
+          "path": "test/failure-logging.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "7e87b4403b043e45d4cd7f79e2b742b1a921c4825af39ed00429b929c80735f8"
+        },
+        {
+          "path": "test/integration/help.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "9abf235a9fe3b9215ba8d4a4b700b17ff51c51fa356b3869fafa8065f13f98bc"
+        },
+        {
+          "path": "test/integration/http.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "d4d70f51654d3bf6aa9abb0c5f2d4a7eb5bcf299f1a499f3106676cf82349e02"
+        },
+        {
+          "path": "test/integration/learning.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "ccdc837668807edbab3aa14e2b710bad2823b7c2f89f67d781d0483d3b2593cd"
+        },
+        {
+          "path": "test/integration/mattermost.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "b57e70aa14b50631f5fad530204c6572129d08b0ecc4acd9ba8cc9ef2c19cd10"
+        },
+        {
+          "path": "test/integration/store.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "4b12c5edfb8fea02a2fa500ce4f2ace29475bf9a022409a571b79b40fc93d574"
+        },
+        {
+          "path": "test/integration/transition.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "47dc0e4cec4e11bf76e736ec7fcd2fee81d3ef8da3e458d5c49e9bde2073bf5c"
+        },
+        {
+          "path": "test/platforms.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "4e34b0ffba24e13ee3ec635fe7a6e1d50f9b607bfc871b637df801aa6b881cde"
+        },
+        {
+          "path": "test/publish.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "8c462870d83b59eb8f6eb4e8a7665b8c82c321b2fad03cd5bf0affe3612508f8"
+        },
+        {
+          "path": "test/question-generation.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "67b6857f9ace22427794c4376431f1e0b7a0a377e3d9e3fe1cf9c84c418252fa"
+        },
+        {
+          "path": "test/question-render.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "7691acfdbc388a3a764ca237cb42500b677a4e7aea91f58515a6c2ad95d002e0"
+        },
+        {
+          "path": "test/workspace.test.mjs",
+          "layers": [
+            "committed"
+          ],
+          "statuses": {
+            "committed": "M"
+          },
+          "current_sha256": "c6cd0183d926c0a12bbc373daec2087e7782e1536ab6b2c9451d7df59a3b02b7"
+        }
+      ],
+      "snapshot": "446ae85c68a9e8215b5cb4905f0e9094a59338cf78710f5b1a7f47e93ffcccbe"
+    }
+  },
+  "production": {
+    "deployed": false,
+    "databaseMigrated": false,
+    "remoteCommentsChanged": false
+  },
+  "preservedCheckout": "/Users/Joseph/workspaces/codereviewbot"
+}
