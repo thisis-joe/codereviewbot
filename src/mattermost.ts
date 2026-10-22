@@ -9,7 +9,8 @@ import { redact } from './redact.js';
 
 type Notification = { kind: 'opened' | 'reopened' | 'merged' | 'closed'; title: string }
   | { kind: 'questions'; title: string; count: number; noteId: string }
-  | { kind: 'commented'; title: string; noteId: string };
+  | { kind: 'commented'; title: string; noteId: string }
+  | { kind: 'push'; branch: string; count: number; author: string; before: string; after: string };
 interface Pending { key: string; target: Target; payload: Notification; owner: string; attempts: number }
 const repositoryKey = (t: Pick<Target, 'platform' | 'instance' | 'repository'>) => JSON.stringify([t.platform, t.instance, t.repository]);
 
@@ -23,10 +24,17 @@ export function givenName(display: string): string {
 }
 
 export function renderNotification(target: Target, notification: Notification, author: string): string {
+  const project = `${target.instance}/${target.repository.split('/').map(encodeURIComponent).join('/')}`;
+  if (notification.kind === 'push') {
+    const who = plain(givenName(notification.author)), branch = plain(redact(notification.branch));
+    const headline = notification.count ? `📦 ${who}님이 ${branch}에 커밋 ${notification.count}개를 푸시했어요` : `📦 ${who}님이 ${branch} 브랜치를 올렸어요`;
+    const link = /^0+$/.test(notification.before) ? `${project}/-/commits/${encodeURIComponent(notification.branch)}` : `${project}/-/compare/${notification.before}...${notification.after}`;
+    return `**${headline}**\n[변경 내용 보기](${link})`;
+  }
   const who = plain(givenName(author)), mr = `${who}님의 MR !${target.number}`;
   const labels = { opened: `📬 ${mr}이 열렸어요`, reopened: `🔄 ${mr}이 다시 열렸어요`, merged: `🎉 ${mr} 머지 완료`, closed: `🚪 ${mr}이 닫혔어요`, commented: `💬 ${mr} · 새 댓글이 달렸어요` };
   const headline = notification.kind === 'questions' ? `😏 ${mr} · 질문 ${notification.count}개 준비됐어요` : labels[notification.kind];
-  const url = `${target.instance}/${target.repository.split('/').map(encodeURIComponent).join('/')}/-/merge_requests/${target.number}`;
+  const url = `${project}/-/merge_requests/${target.number}`;
   const link = 'noteId' in notification ? `${url}#note_${notification.noteId}` : url;
   return `**${headline}**\n[${plain(redact(notification.title).slice(0, 500))}](${link})`;
 }
@@ -53,6 +61,14 @@ export class Mattermost {
   async capture(input: Authenticated): Promise<boolean> {
     if (!this.destinations.has(repositoryKey(input.repo))) return false;
     const { body: b, repo, deliveryId } = input, a = b.object_attributes;
+    if (b.object_kind === 'push') {
+      if (typeof b.ref !== 'string' || !b.ref.startsWith('refs/heads/') || b.ref.length > 250 || !/^[a-f0-9]{40,64}$/.test(b.before) || !/^[a-f0-9]{40,64}$/.test(b.after) || /^0+$/.test(b.after)) return false;
+      const count = Number.isSafeInteger(b.total_commits_count) && b.total_commits_count >= 0 ? b.total_commits_count : Array.isArray(b.commits) ? b.commits.length : 0;
+      return this.enqueue({ platform: repo.platform, instance: repo.instance, repository: repo.repository, number: 0 }, `push:${deliveryId}`, {
+        kind: 'push', branch: b.ref.slice('refs/heads/'.length), count,
+        author: typeof b.user_name === 'string' ? b.user_name.slice(0, 200) : '', before: b.before, after: b.after,
+      });
+    }
     const number = b.object_kind === 'merge_request' ? a?.iid : b.merge_request?.iid;
     if (!Number.isSafeInteger(number) || number <= 0) return false;
     const target: Target = { platform: repo.platform, instance: repo.instance, repository: repo.repository, number };
@@ -94,11 +110,13 @@ export class Mattermost {
     };
     const destination = this.destinations.get(repositoryKey(job.target));
     if (!destination) { await settle('failed', 'destination_unavailable'); return; }
-    let author: string;
-    try {
-      const mr = await destination.platform.api.request(`${destination.platform.root}/merge_requests/${job.target.number}`);
-      author = typeof mr.author?.name === 'string' ? mr.author.name : '';
-    } catch { await settle(job.attempts < 3 ? 'queued' : 'failed', 'author_lookup_failed'); return; }
+    let author = '';
+    if (job.payload.kind !== 'push') {
+      try {
+        const mr = await destination.platform.api.request(`${destination.platform.root}/merge_requests/${job.target.number}`);
+        author = typeof mr.author?.name === 'string' ? mr.author.name : '';
+      } catch { await settle(job.attempts < 3 ? 'queued' : 'failed', 'author_lookup_failed'); return; }
+    }
     const payload = { username: 'hey', text: renderNotification(job.target, job.payload, author), ...(destination.platform.config.mattermostChannel ? { channel: destination.platform.config.mattermostChannel } : {}) };
     try {
       const response = await this.transport(destination.url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload), redirect: 'error', signal: AbortSignal.timeout(5000) });

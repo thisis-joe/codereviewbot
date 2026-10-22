@@ -97,3 +97,21 @@ test('MM delivery survives a restart without repeating unknown writes and retrie
   await f.flush(restarted); assert.equal(f.received.length, 2);
   assert.equal((await f.pool.query("SELECT count(*) FROM mattermost_notifications WHERE state='uncertain'")).rows[0].count, '2');
 });
+
+test('push events preserve the total count, deduplicate replay and ignore branch deletion and tags', async t => {
+  const f = await fixture(t);
+  const push = { repo: f.config, deliveryId: 'push-1', event: 'Push Hook', body: { object_kind: 'push', user_name: '박찬형[소속]팀원', user_username: 'must_not_appear', ref: 'refs/heads/feature/data', before: 'a'.repeat(40), after: 'b'.repeat(40), total_commits_count: 24, commits: Array(20).fill({}) } };
+  const server = application(new Controller(f.store, [f.platform], {}, {}, f.notifications), [f.config], f.env);
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => new Promise(resolve => server.close(resolve)));
+  for (let replay = 0; replay < 2; replay++) {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/webhooks/gitlab`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-gitlab-token': f.env.HOOK_SECRET, 'x-gitlab-event-uuid': push.deliveryId }, body: JSON.stringify({ ...push.body, project: { path_with_namespace: f.config.repository } }) });
+    assert.equal(response.status, 202); assert.deepEqual(await response.json(), { admitted: 0 });
+  }
+  assert.equal((await f.pool.query('SELECT count(*) FROM mattermost_notifications')).rows[0].count, '1');
+  await f.flush(); assert.equal(f.received.length, 1);
+  assert.match(f.received[0].text, /찬형님이 feature\/data에 커밋 24개를 푸시했어요/);
+  assert.doesNotMatch(f.received[0].text, /must_not_appear|박찬형/);
+  assert.equal(f.authorReads.length, 0, 'a push must not look up an MR author');
+  for (const body of [{ ...push.body, after: '0'.repeat(40) }, { ...push.body, ref: 'refs/tags/v1' }, { ...push.body, after: 'https://evil.example' }])
+    assert.equal(await f.notifications.capture({ ...push, deliveryId: 'ignored', body }), false);
+});

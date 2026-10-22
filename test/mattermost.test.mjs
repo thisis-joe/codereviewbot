@@ -35,3 +35,12 @@ test('MM destinations are opt-in per repository and refuse unsafe configured URL
     assert.throws(() => new Mattermost({}, [platform], { MM_URL: url }), /Mattermost/);
   assert.doesNotThrow(() => new Mattermost({}, [platform], { MM_URL: 'https://mm.example/hooks/abc' }));
 });
+
+test('push notifications show the pusher given name, branch and full commit count with hashes only in the URL', () => {
+  const after = 'a'.repeat(40), before = 'b'.repeat(40);
+  const text = renderNotification({ ...target, number: 0 }, { kind: 'push', branch: 'feature/data', count: 24, author: '박찬형[소속]팀원', before, after }, '');
+  assert.equal(text, `**📦 찬형님이 feature/data에 커밋 24개를 푸시했어요**\n[변경 내용 보기](https://gitlab.example/team/project/-/compare/${before}...${after})`);
+  const created = renderNotification({ ...target, number: 0 }, { kind: 'push', branch: 'feature/new', count: 0, author: '우동균', before: '0'.repeat(40), after }, '');
+  assert.match(created, /동균님이 feature\/new 브랜치를 올렸어요/);
+  assert.ok(created.endsWith('/-/commits/feature%2Fnew)'));
+});

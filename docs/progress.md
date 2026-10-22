@@ -501,3 +501,13 @@
 - Observed missing-module RED; GREEN: 115 unit tests and 40 disposable PostgreSQL/HTTP
   integration tests. Author review only; independent review unavailable. Live activation
   remains pending destination configuration and final runtime checks.
+
+- MR/question notification implementation committed as `c37dc85`. User extended
+  scope to push notifications: sender given name, branch, complete commit count,
+  comparison link; new branches link to commits, while deletion/tag events are skipped.
+  Push support is a separate work unit on the same notification feature branch.
+- Push RED reproduced unsupported notification rendering; GREEN: 116 unit tests and
+  41 disposable PostgreSQL/HTTP integration tests. Real local HTTP receives the MM
+  payload; authenticated push delivery/replay, counts above GitLab's 20-item payload,
+  author attribution, unsafe links, disallowed repositories, loss/restart and 429
+  cases pass. Author review found no remaining blockers; live activation pending.
