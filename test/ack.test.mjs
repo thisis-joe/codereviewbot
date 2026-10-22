@@ -54,7 +54,7 @@ test('the last failed attempt turns the notice into a failure notice', async () 
   assert.equal(h.data.edited.length, 1); assert.match(h.data.edited[0].text, /요청을 처리하지 못했습니다/);
 });
 
-test('a command on a closed or merged PR/MR rewrites the notice instead of silently deleting it', async () => {
+test('if a command still sees a closed PR/MR, the notice is rewritten instead of silently deleted', async () => {
   const h = harness('/reviewbot review'); await h.controller.acknowledge(h.event, h.job.id);
   h.controller.platforms[0].snapshot = async () => { const { HttpError } = await import('../dist/http-client.js'); throw new HttpError(410, 'PR/MR is closed'); };
   const logs = await captureErrors(() => h.controller.perform(h.job));

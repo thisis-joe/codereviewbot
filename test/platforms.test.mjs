@@ -50,6 +50,21 @@ test('provider preserves native GitLab refs and creates correctly positioned dis
   assert.equal(posted.position.new_line, 9);
 });
 
+test('closed or merged PR/MRs are refused by default and readable when a command asks for them', async t => {
+  let state = 'merged', webRoot;
+  const server = createServer((req, res) => {
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ iid: 4, state, title: 'change', description: '', web_url: webRoot + '/group/demo/-/merge_requests/4', diff_refs: { base_sha: 'a'.repeat(40), start_sha: 'c'.repeat(40), head_sha: 'b'.repeat(40) } }));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
+  webRoot = `https://127.0.0.1:${server.address().port}`;
+  const provider = new Platform({ ...repo, platform: 'gitlab', instance: `http://127.0.0.1:${server.address().port}`, repository: 'group/demo' }, async () => 'test-token');
+  for (state of ['merged', 'closed']) {
+    await assert.rejects(() => provider.snapshot(4), e => e.status === 410);
+    assert.equal((await provider.snapshot(4, true)).headSha, 'b'.repeat(40));
+  }
+});
+
 test('GitHub Maintainer role and GitLab unchanged hunk coordinates preserve native semantics', async t => {
   const { parsePositions } = await import('../dist/review.js');
   let posted;

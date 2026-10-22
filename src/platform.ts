@@ -14,10 +14,10 @@ export class Platform {
     this.root = config.platform === 'github' ? `/repos/${config.repository.split('/').map(encodeURIComponent).join('/')}` : `/projects/${encodeURIComponent(config.repository)}`;
   }
   target(number: number): Target { return { platform: this.config.platform, instance: this.config.instance, repository: this.config.repository, number }; }
-  async snapshot(number: number): Promise<Snapshot> {
+  async snapshot(number: number, allowClosed = false): Promise<Snapshot> {
     const gh = this.config.platform === 'github';
     const pr = await this.api.request(`${this.root}/${gh ? 'pulls' : 'merge_requests'}/${number}`);
-    if ((gh && (pr.state !== 'open' || pr.merged)) || (!gh && pr.state !== 'opened')) throw new HttpError(410, 'PR/MR is closed');
+    if (!allowClosed && ((gh && (pr.state !== 'open' || pr.merged)) || (!gh && pr.state !== 'opened'))) throw new HttpError(410, 'PR/MR is closed');
     let baseSha: string, headSha: string, startSha: string;
     if (gh) {
       headSha = Sha.parse(pr.head?.sha); startSha = Sha.parse(pr.base?.sha);
