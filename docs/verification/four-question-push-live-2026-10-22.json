@@ -1,0 +1,217 @@
+{
+  "at": "2026-10-22T00:32:19.287719+00:00",
+  "sourceCommit": "3660af59dd1536002b61faa07345704ee2307e8f",
+  "decision": "GO",
+  "features": [
+    "four initial questions: three basic and one advanced",
+    "new summary comment for each exact push revision",
+    "preserve earlier questions and grade marks",
+    "incremental purpose/rationale plus behavior questions",
+    "current closed/merged command handling retained"
+  ],
+  "modelUsageReported": [
+    "claude-opus-5-5"
+  ],
+  "cli": "Claude Code 2.1.290",
+  "sampleCount": 5,
+  "questionCount": 20,
+  "sourceCases": [
+    "controlled real-Git retry helper before/after push (3 trials)",
+    "archived production KMP bootstrap (1 trial, partial source context correctly reported)",
+    "archived production documentation policy (1 trial)"
+  ],
+  "generationTiming": {
+    "medianMs": 58455,
+    "minMs": 41986,
+    "maxMs": 91040
+  },
+  "timingScope": "RPC/model/validation excludes queue waiting, source preparation and remote publication.",
+  "comparison": "No speedup comparison or percentage claimed.",
+  "quality": {
+    "source": "3660af59dd1536002b61faa07345704ee2307e8f",
+    "materialErrors": 0,
+    "sets": [
+      {
+        "trial": 1,
+        "passed": true,
+        "questions": 4,
+        "evidence": [
+          "bounded attempt/delay/last-error flow",
+          "runtime parameter checks and non-finite failure risk",
+          "integer-cent format examples",
+          "return-await versus rejected Promise catch behavior",
+          "RangeError now qualified as locally created validation error, not all propagated errors"
+        ]
+      },
+      {
+        "trial": 2,
+        "passed": true,
+        "questions": 4,
+        "evidence": [
+          "new required TypeScript properties",
+          "nonretryable error identity/no wait",
+          "capped per-wait exponential sequence",
+          "external predicate exception propagation",
+          "all four focus on incremental retry changes, no old formatter question"
+        ]
+      },
+      {
+        "trial": 3,
+        "passed": true,
+        "questions": 4,
+        "evidence": [
+          "Wasm actual name through Greeting and Compose text",
+          "Xcode IDE override versus Gradle framework task and phase order",
+          "root apply-false declared classloader rationale and explicit child application",
+          "shared webMain JS/Wasm targets and matching shared variants"
+        ],
+        "references": [
+          "https://docs.gradle.org/current/userguide/plugins_intermediate.html",
+          "https://kotlinlang.org/docs/whatsnew2220.html#shared-source-set-for-js-and-wasmjs-targets"
+        ],
+        "limits": "source context partial, report correctly partial; not a build/run of external KMP project"
+      },
+      {
+        "trial": 4,
+        "passed": true,
+        "questions": 4,
+        "evidence": [
+          "root-only directory gitignore with explicit untracked assumption",
+          "one Task file combines plan/progress/decision log",
+          "rejected alternative versus independently rejected ADR status",
+          "personal TIL versus shared docs purpose with default-ignore qualifier"
+        ]
+      },
+      {
+        "trial": 5,
+        "passed": true,
+        "questions": 4,
+        "evidence": [
+          "capped 100/200/400/500 delay sequence and four waits",
+          "nonretryable original error identity/no wait",
+          "per-wait cap purpose rather than cumulative timeout",
+          "predicate exception plus final-attempt short-circuit count",
+          "all questions stay within new retry changes, none about prior formatter"
+        ]
+      }
+    ],
+    "reviewer": "root source audit, no independent semantic reviewer"
+  },
+  "diagnosticHistory": {
+    "timeout": {
+      "initialAttempt": {
+        "failed": true,
+        "budgetMs": 120000,
+        "elapsedMs": 120127,
+        "error": "Process time budget exceeded"
+      },
+      "smallRealModelProbe": {
+        "passed": true,
+        "ms": 5919
+      },
+      "sameInputProfile": {
+        "passed": true,
+        "ms": 35778,
+        "mcpConnectedMs": 435,
+        "firstSourceReadMs": 2089
+      },
+      "cause": "unestablished; authentication/source path and same unchanged four-question request subsequently passed",
+      "decision": "repeat full declared five-trial plan once; retain all diagnostic failure evidence"
+    },
+    "qualityHold": {
+      "sourceBeforeFix": "9f90664",
+      "issue": "An option explanation overgeneralized RangeError provenance; an external callback can propagate RangeError with valid maxAttempts.",
+      "executedCounterexample": {
+        "calls": 3,
+        "validMaxAttempts": true,
+        "errorType": "RangeError",
+        "sameCallbackError": true
+      },
+      "fixCommit": "3660af59dd1536002b61faa07345704ee2307e8f",
+      "fix": "Concise per-option source conditions; distinguish locally created and externally propagated errors.",
+      "controlledAbort": "Stopped remaining pre-fix samples after the source audit; cancelled case not counted as a completed quality/timing sample."
+    }
+  },
+  "checks": {
+    "unitTests": 109,
+    "databaseHttpIntegrationTests": 37,
+    "dependencyAdvisories": 0,
+    "controllerRunnerBuilds": "passed with exact source labels",
+    "publicationWithRealModelReports": {
+      "source": "3660af59dd1536002b61faa07345704ee2307e8f",
+      "passed": true,
+      "realModelReports": true,
+      "questionsPerRevision": 4,
+      "preservedEarlierComment": true,
+      "reconciledLostResponse": true,
+      "currentRevisionGrading": true,
+      "legacyFourQuestionGrading": true,
+      "helpRows": 14,
+      "boundary": "External platform writes intercepted locally; no real MR/PR comments posted"
+    },
+    "retrySourceExecution": {
+      "passed": true,
+      "capAndAttemptLimit": {
+        "calls": 5,
+        "predicates": 4,
+        "delays": [
+          100,
+          200,
+          400,
+          500
+        ]
+      },
+      "nonRetryable": {
+        "calls": 1,
+        "waits": 0,
+        "sameError": true
+      },
+      "predicateThrows": "TypeError propagated",
+      "formatter": "unchanged"
+    },
+    "demo": "passed",
+    "composeConfiguration": "passed",
+    "diffCheck": "passed"
+  },
+  "recovery": {
+    "passed": true,
+    "counts": {
+      "jobs": 42,
+      "targets": 10,
+      "deliveries": 55,
+      "feedback": 0
+    },
+    "rollbackControllerStartupHealth": true,
+    "rollbackImageId": "sha256:e657160a02b5c355f43ae0813c51492f48927789b83cb3d2d4029af9a27bc9dc"
+  },
+  "deployment": {
+    "status": "ready",
+    "scope": [
+      "controller",
+      "runner"
+    ],
+    "preserveCurrentRuntimeEnvironment": true,
+    "preserveSupportingContainers": true,
+    "preserveOriginalCheckout": true,
+    "rollbackTrigger": "health/image/config drift or failed post-deploy functional check; one bounded canary retry only for a transient model timeout",
+    "targetRecoveryMinutes": 3,
+    "dataRollback": "No schema change; application rollback keeps data. Separate protected dump retained."
+  },
+  "limitations": [
+    "Five corrected samples and source audit do not guarantee all future model outputs.",
+    "Independent semantic reviewer unavailable; root audited every question, choice and key against source/runtime probes/primary documentation.",
+    "No external MR/PR test comments posted; platform publication effects were intercepted locally."
+  ],
+  "privateEvidenceHashes": {
+    "results.json": "eb5f66c14bff70c758dc7dcc40bf498e481bc31f3b1d0e7f9cb158f05566e015",
+    "summary.json": "fd7d2ddad74f15387a790eb3855203bf70bb466dc877bccc11bfee94ab289124",
+    "quality.json": "dcf20373c10eb4c8b33692cc49756dcb036ecc4b5166fbcca10e749bfcf31f98",
+    "diagnostic-results.json": "03c5ba35c540f0e09461b91a2634f59bf35128729577f456ecf5a8a6ebf7ac52",
+    "pre-fix-results.json": "f7350165e79512d88efdcef9bc95399ad4c506e2972ca1bbcf95bc39b22f7ae7",
+    "profile-result.json": "322214f5455e65849d2751c2ce3ca8330c39c8e9b83f333e88f880848c064fe2",
+    "retry-source-probes.json": "2b8f9d94a544363f1758cd5b601f53592f7178f418eb9089e3044ee45db3cdda",
+    "publication.json": "bb60e4eba96f058ad12cda3b560100a226ce4ca828f254e9839b9de7dda8e679",
+    "unit.log": "59d76d88f0c8d62b944c3f44324d8ef5d7acd5ab9c60ded8ccbe4052e696ee98",
+    "integration.log": "62015cc6a1d0949b1c20c7e5f981d632cb357a7993ec4fd7df0b1a0c956d7c14"
+  }
+}

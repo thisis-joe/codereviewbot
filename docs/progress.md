@@ -377,3 +377,13 @@
   callback/API errors, and keep key explanations concise. Prompt-boundary regression
   observed red before the change. Full unit/DB suites pass again; final live samples
   must be regenerated on the corrected candidate before GO.
+- Corrected candidate `3660af5` passed five real-model runs: 20 questions, each three
+  basic/one advanced, one initial_questions RPC. CLI modelUsage: claude-opus-5-5;
+  CLI 2.1.290. Median 58.455s, range 41.986–91.040s. No timeout/schema/source failures
+  in this corrected cohort. Full source/choice/key audit passed; initial diagnostics
+  (120s timeout, overbroad explanation, controlled pre-fix cancellation) retained.
+  Incremental questions in both repeated runs cover only changed retry behavior.
+  Actual-source probes verify capped waits, no-wait nonretryable errors and predicate
+  exception propagation. Actual model reports pass local publication/progress/retry/
+  grading/legacy-four-question history checks. Independent semantic review unavailable.
+  GO report: docs/verification/four-question-push-live-2026-10-22.json; rollout pending.
