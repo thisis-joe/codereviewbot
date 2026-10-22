@@ -452,3 +452,29 @@
   rollout, preserving both revision markers and the hey display/command names.
   Integration checks pass: 111 unit tests, 37 disposable PostgreSQL/HTTP tests.
   Existing feature commits remain separate; production activation is pending.
+
+- Authorized hey production rollout completed 2026-10-22 02:36:50 UTC (11:36 KST)
+  from integrated source `eb559b97fb880ef8561e847cf894e751f0b15b40`. Controller and
+  runner use matching immutable hey images, remain healthy, and preserve exact
+  runtime environment/mounts and PostgreSQL/n8n/tunnel container IDs. Rollback
+  plans and restoration of a production DB dump into an isolated old controller
+  passed; protected DB/auth backups and exact old images remain available.
+- Production checks: new/legacy help both return 14 hey commands, hey progress
+  titles and per-revision markers remain, authenticated n8n dispatch returns 202,
+  public webhook rejects invalid auth (401) and accepts an ignored authenticated
+  event (202, admitted0). Controller failed0/queued0/inactive; runner healthy/idle.
+  Existing 50 jobs/13 targets/0 feedback remain. One real closed-MR delivery during
+  preflight explains deliveries67→68; no job was created by that closed event.
+- n8n workflow display names updated to hey with existing IDs, nodes, schedules,
+  connections and settings preserved; both active after restarting the same n8n
+  container. GitLab bot avatar replaced with the user's final selected JPEG; upload
+  returned 200 and current-user API readback confirmed the new avatar URL. The
+  earlier withdrawn image was not used. No GitLab test comments were posted.
+- Native model acceptance remains blocked by Claude session quota: two source-read
+  canaries returned API429; a direct CLI request without application code also
+  returned 429 and reported reset at 2026-10-22 13:40 Asia/Seoul. Authentication is
+  logged in. Kept the healthy hey deployment because the limit is independent of
+  the rename; provider/model/credential settings are unchanged. No model success
+  or post-reset recovery is claimed. Full evidence: docs/verification/hey-release-2026-10-22.json.
+  Rollback: `python3 .local/releases/hey-eb559b9-20261022/deploy.py --rollback`.
+  Author review only; independent review unavailable. No remote push or main merge.
