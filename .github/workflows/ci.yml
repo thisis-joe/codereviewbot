@@ -10,7 +10,7 @@ jobs:
         image: postgres:17-alpine
         env:
           POSTGRES_PASSWORD: local-test-only
-          POSTGRES_DB: codereviewbot_test
+          POSTGRES_DB: hey_test
         ports: ["5432:5432"]
         options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
@@ -23,5 +23,5 @@ jobs:
       - run: npm test
       - run: npm run test:integration
         env:
-          TEST_DATABASE_URL: postgres://postgres:local-test-only@127.0.0.1:5432/codereviewbot_test
+          TEST_DATABASE_URL: postgres://postgres:local-test-only@127.0.0.1:5432/hey_test
       - run: node scripts/setup.mjs && docker compose config --quiet

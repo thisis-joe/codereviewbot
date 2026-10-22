@@ -1,4 +1,10 @@
-# CodeReviewBot question-bot transition contract
+# hey question-bot transition contract
+
+Naming update accepted 2026-10-22: the product, comments, package and image names use
+`hey`; `/hey` and `@hey` are canonical. Existing command aliases, comment markers,
+answer/status history, deployed storage identity and n8n IDs remain compatible.
+Base `.hey.yaml` takes precedence over legacy `.codereviewbot.yaml`. No remote
+repository/account/domain rename or production deployment is part of this change.
 
 Accepted: 2026-10-21. Base: `2db847897c9c291ce36999ef72e68d759bc9d6c5`.
 
@@ -15,14 +21,14 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
   anchor. Basic/advanced levels and actual change relevance remain required.
 - Schema version 2 results display only a commit, generation state, answer progress,
-  code-linked questions and one `/reviewbot help` entry point. Old sections 1–3, review
+  code-linked questions and one `/hey help` entry point. Old sections 1–3, review
   verdicts, repeated command examples and automatic finding comments disappear.
-- `/reviewbot help` alone displays the full four-column command table, including
+- `/hey help` alone displays the full four-column command table, including
   all prior commands and help. It needs no report, snapshot export or model call,
   works while paused, respects existing permissions and reconciles owned markers.
 - `review` regenerates questions on current code, bypassing same-SHA cache. With no
   newer revision to compare it falls back to full-PR source. `full` always uses the
-  full scope. `pause`/`resume`, `answer`, `morequestion`, `@reviewbot` and approved
+  full scope. `pause`/`resume`, `answer`, `morequestion`, `@hey` and approved
   repository context remain supported. `explain`/`dismiss` handle historical findings.
 - `showanswer` reveals stored answer keys and explanations without a model call; it
   records no grade, so answer progress and the merge gate are unchanged.

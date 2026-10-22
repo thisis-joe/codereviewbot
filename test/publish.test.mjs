@@ -27,15 +27,15 @@ test('changed head or a lost lease prevents all remote writes', async () => {
   assert.equal(p.stored.comments.length, 0);
 });
 test('commands distinguish explicit dismiss/learning approval from ordinary conversation', () => {
-  assert.deepEqual(parseCommand('/reviewbot dismiss CRB-0002 intentional fallback'), { action: 'dismiss', id: 'CRB-0002', text: 'intentional fallback' });
-  assert.equal(parseCommand('/reviewbot dismiss CRB-0002'), null);
-  assert.deepEqual(parseCommand('/reviewbot dismiss 의도된 동작'), { action: 'dismiss', id: null, text: '의도된 동작' }, 'a thread reply supplies the finding');
-  assert.deepEqual(parseCommand('/reviewbot explain'), { action: 'explain', id: null });
-  assert.deepEqual(parseCommand('/reviewbot explain CRB-0003'), { action: 'explain', id: 'CRB-0003' });
-  assert.equal(parseCommand('/reviewbot explain why'), null);
-  assert.deepEqual(parseCommand('/reviewbot approve 11111111-1111-4111-8111-111111111111'), { action: 'approve', id: '11111111-1111-4111-8111-111111111111' });
+  assert.deepEqual(parseCommand('/hey dismiss CRB-0002 intentional fallback'), { action: 'dismiss', id: 'CRB-0002', text: 'intentional fallback' });
+  assert.equal(parseCommand('/hey dismiss CRB-0002'), null);
+  assert.deepEqual(parseCommand('/hey dismiss 의도된 동작'), { action: 'dismiss', id: null, text: '의도된 동작' }, 'a thread reply supplies the finding');
+  assert.deepEqual(parseCommand('/hey explain'), { action: 'explain', id: null });
+  assert.deepEqual(parseCommand('/hey explain CRB-0003'), { action: 'explain', id: 'CRB-0003' });
+  assert.equal(parseCommand('/hey explain why'), null);
+  assert.deepEqual(parseCommand('/hey approve 11111111-1111-4111-8111-111111111111'), { action: 'approve', id: '11111111-1111-4111-8111-111111111111' });
   assert.equal(parseCommand('unrelated comment'), null);
-  assert.equal(parseCommand('@reviewbot why is this unsafe?').action, 'ask');
+  assert.equal(parseCommand('@hey why is this unsafe?').action, 'ask');
 });
 
 test('archived review output never posts findings and cannot crowd out questions', async () => {

@@ -2,8 +2,8 @@ version: 1
 repositories:
   - platform: github
     instance: https://api.github.com
-    repository: thisis-joe/codereviewbot
-    botLogin: codereviewbot[bot]
+    repository: your-org/your-repo
+    botLogin: hey[bot]
     webhookSecretEnv: GITHUB_WEBHOOK_SECRET
     webhookAuth: hmac
     # Recommended: set tokenEnv to "", configure a GitHub App in .env.
@@ -13,7 +13,7 @@ repositories:
   - platform: gitlab
     instance: https://gitlab.com
     repository: your-group/your-project
-    botLogin: your-reviewbot-user
+    botLogin: your-hey-user
     webhookSecretEnv: GITLAB_WEBHOOK_SECRET
     webhookAuth: signing
     tokenEnv: GITLAB_TOKEN

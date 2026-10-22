@@ -117,7 +117,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
         return q ? [{ q, label }] : [];
       }) : current.map((q, i) => ({ q, label: `Q${i + 1}` }));
       if (problems.length) body = notice([...problems.map(p => `- ${p}`), '', COMMAND_HELP_HINT].join('\n'));
-      else if (!items.length) body = notice('현재 코드 버전에 변경 이해 질문이 없습니다. 심화 질문은 `/reviewbot showanswer 심화1`처럼 번호를 붙이세요.');
+      else if (!items.length) body = notice('현재 코드 버전에 변경 이해 질문이 없습니다. 심화 질문은 `/hey showanswer 심화1`처럼 번호를 붙이세요.');
       else body = renderReveal(items, snap, key);
     } else if (command.action === 'answer') {
       const problems: string[] = [], picks: Chosen[] = [];

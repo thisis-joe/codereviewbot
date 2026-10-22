@@ -60,7 +60,9 @@ export class Workspaces {
       GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.extraHeader', GIT_CONFIG_VALUE_0: `Authorization: Basic ${basic}`,
     });
     let policyText: string | undefined;
-    try { policyText = (await git(cache, ['show', `${snapshot.startSha}:.codereviewbot.yaml`])).toString('utf8'); } catch { /* no base policy */ }
+    for (const path of ['.hey.yaml', '.codereviewbot.yaml']) {
+      try { policyText = (await git(cache, ['show', `${snapshot.startSha}:${path}`])).toString('utf8'); break; } catch { /* optional base policy */ }
+    }
     const policy = readPolicy(policyText);
     const guidelines: string[] = [];
     for (const path of ['AGENTS.md', 'docs/coding-standards.md']) {

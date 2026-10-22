@@ -105,7 +105,7 @@ export class Controller {
     if (all.some(c => platform.owned(c) && c.body.includes(marker))) return;
     const usage = async (answer: string) => { await lease(); await platform.reply(job.body.target.number, [marker, plain(answer), '', COMMAND_HELP_HINT].join('\n'), comment.parentId, comment.discussionId); };
     if (command?.action === 'help') { await lease(); await platform.reply(job.body.target.number, renderCommandHelp(key), comment.parentId, comment.discussionId); return; }
-    if (!command && /^\/reviewbot\b/i.test(normalized.trim())) { await usage('명령을 확인하세요.'); return; }
+    if (!command && /^\/(?:hey|reviewbot)\b/i.test(normalized.trim())) { await usage('명령을 확인하세요.'); return; }
     if (!command && (comment.parentId || comment.discussionId)) {
       const ids = new Set(all.filter(c => platform.owned(c) && c.surface === comment.surface && (c.id === comment.parentId || (comment.parentId && c.parentId === comment.parentId) || (comment.discussionId && c.discussionId === comment.discussionId))).flatMap(c => [...c.body.matchAll(/<!-- codereviewbot:question:(Q-[a-f0-9]{12}) -->/g)].map(m => m[1]!)));
       if (ids.size === 1) command = { action: 'answer', id: [...ids][0]!, text: comment.body.slice(0, 8000) };
@@ -166,7 +166,7 @@ export class Controller {
   async acknowledge(event: Event, jobId: string): Promise<void> {
     const comment = event.comment; if (event.kind !== 'command' || !comment) return;
     const platform = this.platform(event.target), normalized = normalizeMention(platform, comment.body);
-    if (!parseCommand(normalized) && !/^\/reviewbot\b/i.test(normalized.trim())) return;
+    if (!parseCommand(normalized) && !/^\/(?:hey|reviewbot)\b/i.test(normalized.trim())) return;
     if (await platform.permission(comment.author) === 'none') return;
     await platform.reply(event.target.number, renderAck(commentKey(comment)), comment.parentId, comment.discussionId);
     // A command that finished while the notice was being posted could not find it, so settle it here.
@@ -234,7 +234,7 @@ export class Controller {
 }
 function normalizeMention(platform: Platform, body: string): string {
   const mention = platform.config.botLogin.replace(/\[bot\]$/, '');
-  return body.replace(new RegExp(`^@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), '@reviewbot ');
+  return body.replace(new RegExp(`^@${mention.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), '@hey ');
 }
 
 // Names the failure for operators without echoing model output: schema errors keep field paths and issue codes only.

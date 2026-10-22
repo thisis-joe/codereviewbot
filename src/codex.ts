@@ -23,7 +23,7 @@ export class Codex implements Model {
   constructor(readonly root: string, readonly home: string, readonly binary = 'codex', readonly model = '', readonly baseUrl = '') {}
   async run(phase: ModelPhase, prompt: string, id: string, timeoutMs = 600000): Promise<unknown> {
     const source = await workspaceSource(this.root, id);
-    const dir = await mkdtemp(join(tmpdir(), 'codereviewbot-run-'));
+    const dir = await mkdtemp(join(tmpdir(), 'hey-run-'));
     await mkdir(this.home, { recursive: true, mode: 0o700 });
     const schema = phaseSchemas[phase];
     const schemaFile = join(dir, 'schema.json'), output = join(dir, 'answer.json');

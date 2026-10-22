@@ -196,7 +196,7 @@ for (const name of ['github', 'gitlab']) {
     const current = report({ schemaVersion: '2', requireAnswers: true });
     await f.seed(current);
     const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'explicit-review', comment: {
-      id: 'explicit-review', body: '/reviewbot review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
+      id: 'explicit-review', body: '/hey review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
     } });
     await f.tick();
     assert.equal((await f.store.getJob(commandId)).state, 'completed');
@@ -226,7 +226,7 @@ for (const name of ['github', 'gitlab']) {
     assert.equal(f.calls.length, 0);
 
     const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'review-after-merge', comment: {
-      id: 'review-after-merge', body: '/reviewbot review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
+      id: 'review-after-merge', body: '/hey review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
     } });
     await f.drain();
     assert.equal((await f.store.getJob(commandId)).state, 'completed');
@@ -302,7 +302,7 @@ for (const command of ['review', 'full']) {
   test(`same-head automatic events preserve an explicit ${command} request queued before dispatch`, async t => {
     const f = await fixture(t, 'github');
     await f.seed(report({ schemaVersion: '2' }));
-    await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: `manual-${command}`, comment: { id: `manual-${command}`, body: `/reviewbot ${command}`, author: 'joe', surface: 'issue', parentId: null, discussionId: null } });
+    await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: `manual-${command}`, comment: { id: `manual-${command}`, body: `/hey ${command}`, author: 'joe', surface: 'issue', parentId: null, discussionId: null } });
     await f.tick();
     await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: `auto-after-${command}` });
     const queued = (await f.pool.query("SELECT body FROM jobs WHERE state='queued' AND kind='review'")).rows[0].body;

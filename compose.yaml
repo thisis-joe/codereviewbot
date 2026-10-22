@@ -1,3 +1,4 @@
+# Keep the deployed project identity so existing volumes and networks are reused.
 name: codereviewbot
 services:
   postgres:
@@ -12,7 +13,7 @@ services:
     command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=40", "-c", "timezone=${TZ:-Asia/Seoul}", "-c", "log_timezone=${TZ:-Asia/Seoul}"]
     volumes:
       - database:/var/lib/postgresql/data
-      - ./ops/init-db.sh:/docker-entrypoint-initdb.d/10-reviewbot.sh:ro
+      - ./ops/init-db.sh:/docker-entrypoint-initdb.d/10-hey.sh:ro
     networks: [control]
     mem_limit: 512m
     healthcheck:
@@ -23,7 +24,7 @@ services:
 
   runner:
     build: { context: ., target: runner }
-    image: codereviewbot-runner:0.1.0
+    image: hey-runner:0.1.0
     restart: unless-stopped
     init: true
     read_only: true
@@ -61,7 +62,7 @@ services:
 
   controller:
     build: { context: ., target: controller }
-    image: codereviewbot-controller:0.1.0
+    image: hey-controller:0.1.0
     restart: unless-stopped
     init: true
     read_only: true

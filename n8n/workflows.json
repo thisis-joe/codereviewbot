@@ -1,7 +1,7 @@
 [
   {
     "id": "crbDispatch",
-    "name": "CodeReviewBot — durable dispatch",
+    "name": "hey — durable dispatch",
     "active": false,
     "nodes": [
       {
@@ -50,7 +50,7 @@
         "credentials": {
           "httpHeaderAuth": {
             "id": "crbInternalAuth",
-            "name": "CodeReviewBot Internal"
+            "name": "hey Internal"
           }
         }
       },
@@ -75,7 +75,7 @@
         "credentials": {
           "httpHeaderAuth": {
             "id": "crbInternalAuth",
-            "name": "CodeReviewBot Internal"
+            "name": "hey Internal"
           }
         },
         "retryOnFail": true,
@@ -114,7 +114,7 @@
   },
   {
     "id": "crbRecovery",
-    "name": "CodeReviewBot — recovery and CI refresh",
+    "name": "hey — recovery",
     "active": false,
     "nodes": [
       {
@@ -158,7 +158,7 @@
         "credentials": {
           "httpHeaderAuth": {
             "id": "crbInternalAuth",
-            "name": "CodeReviewBot Internal"
+            "name": "hey Internal"
           }
         },
         "retryOnFail": true,

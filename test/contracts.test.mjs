@@ -16,7 +16,7 @@ test('legacy analysis contracts remain readable and initial questions reject rev
 test('all lifecycle outcomes have question-only comments and no review verdict', () => {
   for (const state of ['completed', 'partial', 'failed']) {
     const text = renderReport(report({ state }));
-    assert.match(text, /^### CodeReviewBot 변경 이해 질문$/m);
+    assert.match(text, /^### hey 변경 이해 질문$/m);
     assert.doesNotMatch(text, /^### \d\.|수정 필요|지적 없음|판단 보류|검증·주의사항/m);
   }
 });
@@ -52,7 +52,7 @@ test('question-only report keeps snapshot links and omits all legacy CI and summ
 test('failed reports cannot manufacture or reuse learning questions', () => {
   const failed = renderReport(report({ state: 'failed' }));
   assert.match(failed, /질문 생성에 실패/);
-  assert.doesNotMatch(failed, /#### Q1\.|\/reviewbot answer|\/reviewbot showanswer/);
+  assert.doesNotMatch(failed, /#### Q1\.|\/hey answer|\/hey showanswer/);
 });
 
 test('oversized escaped questions retain four complete questions and visible compaction', () => {

@@ -1,8 +1,8 @@
-# Prepare later, after cloudflared tunnel create codereviewbot.
+# Prepare later, after cloudflared tunnel create hey.
 tunnel: REPLACE_WITH_TUNNEL_UUID
 credentials-file: /run/secrets/tunnel.json
 ingress:
-  - hostname: codereviewbot.thisis-joe.com
+  - hostname: hey.example.com
     path: ^/webhooks/(github|gitlab)$
     service: http://controller:8092
   - service: http_status:404

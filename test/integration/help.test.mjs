@@ -34,8 +34,8 @@ for (const provider of ['github', 'gitlab']) test(`${provider} signed help comma
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;
   const raw = JSON.stringify(provider === 'github'
-    ? { action: 'created', repository: { full_name: 'joe/demo' }, issue: { number: 1, pull_request: {} }, comment: { id: 100, body: '/reviewbot help', user: { login: 'joe', type: 'User' } } }
-    : { object_kind: 'note', project: { path_with_namespace: 'joe/demo' }, merge_request: { iid: 1 }, user: { username: 'joe' }, object_attributes: { id: 100, note: '/reviewbot help', noteable_type: 'MergeRequest', action: 'create', discussion_id: 'help-discussion' } });
+    ? { action: 'created', repository: { full_name: 'joe/demo' }, issue: { number: 1, pull_request: {} }, comment: { id: 100, body: '/hey help', user: { login: 'joe', type: 'User' } } }
+    : { object_kind: 'note', project: { path_with_namespace: 'joe/demo' }, merge_request: { iid: 1 }, user: { username: 'joe' }, object_attributes: { id: 100, note: '/hey help', noteable_type: 'MergeRequest', action: 'create', discussion_id: 'help-discussion' } });
   const timestamp = String(Math.floor(Date.now() / 1000));
   const headers = { 'content-type': 'application/json', ...(provider === 'github'
     ? { 'x-github-event': 'issue_comment', 'x-github-delivery': 'help-delivery', 'x-hub-signature-256': 'sha256=' + createHmac('sha256', hookSecret).update(raw).digest('hex') }
@@ -54,7 +54,7 @@ for (const provider of ['github', 'gitlab']) test(`${provider} signed help comma
   assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
   assert.equal(acks[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
   assert.match(replies[0].body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
-  assert.equal([...replies[0].body.matchAll(/^\| (?:`\/reviewbot|`@reviewbot)/gm)].length, 14);
+  assert.equal([...replies[0].body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 14);
   assert.equal(replies[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
   const state = await store.getTarget(target); assert.equal(state.paused, true); assert.equal(state.report, null);
   assert.equal((await pool.query("SELECT state FROM jobs WHERE kind='review'")).rows[0].state, 'queued');

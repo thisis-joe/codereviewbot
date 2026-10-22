@@ -14,8 +14,8 @@ export function parseCommand(body: string): Command | null {
   const text = body.trim();
   const reply = text.match(/^(Q-[a-f0-9]{12})\s*[:：]\s*(\S[\s\S]*)$/i);
   if (reply) return { action: 'answer', id: reply[1]!.toLowerCase().replace(/^q-/, 'Q-'), text: reply[2]!.slice(0, 8000) };
-  const match = text.match(/^\/reviewbot\s+(\w+)(?:\s+([\s\S]+))?$/i);
-  if (!match) { const question = text.match(/^@reviewbot\s+([\s\S]+)$/i); return question ? { action: 'ask', text: question[1]!.slice(0, 4000) } : null; }
+  const match = text.match(/^\/(?:hey|reviewbot)\s+(\w+)(?:\s+([\s\S]+))?$/i);
+  if (!match) { const question = text.match(/^@(?:hey|reviewbot)\s+([\s\S]+)$/i); return question ? { action: 'ask', text: question[1]!.slice(0, 4000) } : null; }
   const action = match[1]!.toLowerCase(), args = (match[2] ?? '').trim();
   if (['review', 'full', 'pause', 'resume', 'help'].includes(action) && !args) return { action } as Command;
   if (action === 'morequestion' && !args) return { action: 'questions' };

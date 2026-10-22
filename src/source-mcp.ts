@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 if (!process.argv[2]) throw new Error('Source root required');
 const reader = new RepositoryReader(process.argv[2]);
 const base = new RepositoryReader(join(dirname(process.argv[2]), 'base'));
-const server = new McpServer({ name: 'codereviewbot-source', version: '1.0.0' });
+const server = new McpServer({ name: 'hey-source', version: '1.0.0' });
 const output = async (fn: () => Promise<unknown>) => {
   try { return { content: [{ type: 'text' as const, text: JSON.stringify(await fn()) }] }; }
   catch { return { isError: true, content: [{ type: 'text' as const, text: 'Source request refused or unavailable' }] }; }

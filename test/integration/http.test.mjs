@@ -39,7 +39,7 @@ test('signed HTTP admission, database work, single-pass questions and replay-saf
   assert.match(comments[0].body,/변경 이해 질문/); assert.doesNotMatch(comments[0].body,/CRB-|수정 필요/); assert.deepEqual(calls,['initial_questions']);
   assert.equal((await store.health()).queued,0);
   assert.equal((await store.getTarget(snapshot())).report.questions.length, 4);
-  assert.match(comments[0].body, /### CodeReviewBot 변경 이해 질문/);
+  assert.match(comments[0].body, /### hey 변경 이해 질문/);
   // The base-branch policy reaches the published merge gate.
   assert.equal((await store.getTarget(snapshot())).report.requireAnswers, true);
   assert.deepEqual(statuses.map(s => s.state), ['pending']); assert.match(statuses[0].description, /0\/4/);
