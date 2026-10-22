@@ -12,9 +12,11 @@ import { renderReport } from '../dist/render.js';
 import { report } from './fixtures.mjs';
 
 test('failed comments explain quota, authentication and timeout separately without blaming the runner', () => {
-  for (const [code, word] of [['rate_limit', '사용량 제한'], ['authentication', '인증'], ['timeout', '시간']]) {
+  for (const [code, word] of [['rate_limit', '사용량 제한'], ['authentication', '인증'], ['timeout', '시간'], ['unavailable', '연결'], ['invalid_output', '형식'], ['unknown', '오류']]) {
     const body = renderReport(report({ state: 'failed', questions: [], failure: { code, provider: 'claude', ...(code === 'rate_limit' ? { apiStatus: 429, retryAt: '2026-10-22T07:00:00.000Z' } : {}) } }));
     assert.ok(body.includes(word)); assert.doesNotMatch(body, /실행기 상태를 확인/);
+    assert.match(body, /\/hey tryagain/);
+    assert.doesNotMatch(body, /\/hey (?:full|review)\b/);
     if (code === 'rate_limit') { assert.ok(body.includes('429')); assert.ok(body.includes('자동 재시도')); }
   }
 });

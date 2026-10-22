@@ -560,27 +560,35 @@
 
 ## 2026-10-22 — hey command cleanup and concise replies
 
-- Branch `codex/hey-command-cleanup`, base `df8672188e131995ae3769d9b062e713d019a548`.
-  The original `codex/question-failure-recovery` checkout and its pending changes
-  remain intact. No Jira task exists; the established `codex/` naming rule applies.
-- `f58a2f5`: removed full/pause/resume/explain/dismiss/learn/approve/reject and their
+- Branch `codex/hey-command-cleanup`, initially based on `df86721`, rebased onto
+  `adb3c43` after the existing failure-recovery work committed independently.
+  Recovery commits `08d5e9b`/`fee3cb6` and partial-notification commit `adb3c43`
+  remain included. The original checkout was not reset or edited by this task.
+  No Jira task exists; the established `codex/` naming rule applies.
+- `ee002a8`: removed full/pause/resume/explain/dismiss/learn/approve/reject and their
   handlers, feedback storage/context injection and pause scheduling. Regeneration
-  is `/hey tryagain`; the former review spelling is rejected. Help has six commands,
-  with unbroken names and short description lines that survive GitLab sanitization.
-  The migration retires only obsolete command state and preserves question, answer,
-  report and queued-work history, including previously paused targets.
-- `38aa97a`: confirmation replies contain a short message and the help hint. Code
+  is `/hey tryagain`; the former review spelling is rejected, including in failure
+  guidance. Help has six commands, with unbroken names and short description lines
+  that survive GitLab sanitization. The migration retires only obsolete command
+  state and preserves question, answer, report and queued-work history.
+- `0cbf4e2`: confirmation replies contain a short message and the help hint. Code
   answers show evidence and follow-up sections only when populated, using smaller
   headings. No empty evidence or follow-up headings appear on regeneration replies.
 - Red checks reproduced unsupported tryagain/accepted retired commands, the old
-  14-command help and empty reply headings. Closure: 116 unit tests and 41 disposable
-  PostgreSQL/HTTP integration tests passed. The first work-unit snapshot separately
-  passed 115 unit and 41 integration tests; tmpfs PostgreSQL recovered its repeated
-  integration run from Docker disk exhaustion during image export.
-- Both images built and passed isolated module smoke checks; Compose configuration,
-  fixture demo and whitespace checks passed. Actual GitLab (201) and GitHub (200)
-  Markdown rendering retained the six-row table; GitLab confirmation output and a
-  local browser preview confirm the compact reply and balanced columns.
-- Author review covered the complete task diff; no blocking findings remain.
-  Independent review was not performed. Running services, production DB and remote
-  comments were not changed. Evidence: `docs/verification/hey-command-cleanup-2026-10-22.json`.
+  14-command help and empty reply headings. Before integration, 116 unit and 41
+  PostgreSQL/HTTP tests passed; the first staged work-unit snapshot separately
+  passed 115 unit and 41 integration tests. After integration, 118 unit and 46
+  PostgreSQL/HTTP tests passed, including bounded recovery and partial notifications.
+  All six failure variants point to tryagain; restoring full in an isolated compiled
+  copy made that regression check fail. Docker disk exhaustion during an image export
+  was bypassed with disposable tmpfs PostgreSQL for the repeated integration checks.
+- Both original Dockerfile images built and passed isolated module smoke checks.
+  Final compiled code/migrations were overlaid on those images after integration,
+  then both final images passed command/failure/reply smoke checks. Dependencies
+  and runtime configuration were unchanged. Compose, demo and whitespace checks pass.
+- Actual GitLab (201) and GitHub (200) Markdown rendering retained the six-row table;
+  GitLab confirmation output and a local browser preview confirm the compact reply
+  and balanced columns. Author review covered the complete integrated diff; no
+  blocking findings remain. Independent review was not performed. This branch was
+  not deployed; production DB and remote comments were not changed by this task.
+  Evidence: `docs/verification/hey-command-cleanup-2026-10-22.json`.

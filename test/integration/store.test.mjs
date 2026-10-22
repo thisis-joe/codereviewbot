@@ -8,7 +8,7 @@ const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('Set TEST_DATABASE_URL to a disposable PostgreSQL database');
 test('publishing an error notice remains failed and health stops counting it only after successful regeneration', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   const target = snapshot(), id = await store.enqueue({ kind: 'review', target, deliveryId: 'quota-failure', headSha: target.headSha });
   const running = await store.claim();
   await store.saveResult(id, running.owner, report({ state: 'failed', questions: [], failure: { code: 'rate_limit', provider: 'claude', apiStatus: 429 } }), {}, 0);
