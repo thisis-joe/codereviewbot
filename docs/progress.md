@@ -387,3 +387,33 @@
   exception propagation. Actual model reports pass local publication/progress/retry/
   grading/legacy-four-question history checks. Independent semantic review unavailable.
   GO report: docs/verification/four-question-push-live-2026-10-22.json; rollout pending.
+- Authorized rollout reconciled concurrent PR #14 deployment: original checkout moved
+  to main `5fb7a07`, with runtime JS byte-identical to `288c62f`, already included in
+  this candidate. Initial preflight held before changing services; refreshed rollback
+  image references to this new baseline, preserving its functionality/configuration.
+- First candidate activation passed health/image/environment checks, but native model
+  canary returned API401. Rolled application back to the refreshed baseline. CLI auth
+  status showed production logged out while the isolated validation copy was logged
+  in. CLI identity checks against the original protected backup confirmed the same
+  existing account/organization/subscription. Restored only opaque current credential
+  state atomically, retaining original backups and without printing/parsing tokens.
+  Actual baseline production source query then passed in 6.607s. Credential-state
+  divergence is observed; refresh-token rotation from the copy is an inference.
+- Final rollout: runtime source `3660af5`, 2026-10-22 00:38:17 UTC (09:38 KST).
+  Both matching images healthy; complete runtime environment and PostgreSQL/n8n/tunnel
+  container identities unchanged. Final native production canary passed in 36.032s,
+  four questions (basic3/advanced1), all choices/keys audited. Public configured webhook
+  invalid/valid auth:401/202, ignored event admitted0. Controller failed0/queued0/inactive;
+  runner ready/idle. Database remains jobs42/targets10/deliveries55/feedback0.
+  Original tracked diff/local config hashes unchanged; original branch/main merge was
+  by the concurrent task. Current source branch and work-unit history remain isolated.
+  Operational guidance now prevents independently rotating copied OAuth stores and
+  requires actual-model verification after restoring the same account state.
+- Cleanup/completion: removed the owned model container, both isolated OAuth volumes,
+  four unreferenced validation snapshots, one owned fixture Git cache and temporary
+  canary files. Preserved protected initial/current backups, rollback images, immutable
+  deployed version tags and private evidence. Production authentication directory is
+  writable for normal refresh. Final image/health and original source/config hash
+  checks pass. No uncommitted user files staged/reset/restored; no branch push or PR
+  mutation performed here. Detailed report records concurrent deployment, the failed
+  auth canary, actual rollback, same-account repair and successful final native canary.

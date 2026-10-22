@@ -182,10 +182,30 @@
       "feedback": 0
     },
     "rollbackControllerStartupHealth": true,
-    "rollbackImageId": "sha256:e657160a02b5c355f43ae0813c51492f48927789b83cb3d2d4029af9a27bc9dc"
+    "rollbackImageId": "sha256:e657160a02b5c355f43ae0813c51492f48927789b83cb3d2d4029af9a27bc9dc",
+    "currentRollbackImages": {
+      "controller": {
+        "oldImageId": "sha256:1dc918b02308ba417953b7bae521f6a5f0e118de83615248f1ce63d3fe6f6255",
+        "oldTag": "codereviewbot-controller:0.1.0",
+        "oldContainerId": "e4f08f5c350b87320ee01542e92d00a3182a84dac6be195c983514278abfa360",
+        "candidateTag": "codereviewbot-controller:four-push-candidate",
+        "rollbackTag": "codereviewbot-controller:rollback-four-push-20261022",
+        "candidateImageId": "sha256:9ee117fd885ef03112f62152a56b34376dfb17c5793fabfd0a5d94d90fbd55cb"
+      },
+      "runner": {
+        "oldImageId": "sha256:82540065baf38428e65b864b7ca3cabdf3a34f9db0d0868533f4c05299c15436",
+        "oldTag": "codereviewbot-runner:0.1.0",
+        "oldContainerId": "c9f5c98fe825ba63469dc772526fd025f411f3270a5db88cecdf9bbbab091324",
+        "candidateTag": "codereviewbot-runner:four-push-candidate",
+        "rollbackTag": "codereviewbot-runner:rollback-four-push-20261022",
+        "candidateImageId": "sha256:a2590c3dcf6b441d9ee9a5721a050a1905b0e73a203b3416ee609999793fbb28"
+      }
+    },
+    "rollbackCommand": "python3 /Users/Joseph/.codex/worktrees/question-generation/codereviewbot/.local/releases/four-push-3660af5-20261022/deploy.py --rollback",
+    "actualApplicationRollbackDuringAuthHold": "passed; restored both current-baseline images and healthy services"
   },
   "deployment": {
-    "status": "ready",
+    "status": "deployed",
     "scope": [
       "controller",
       "runner"
@@ -195,7 +215,104 @@
     "preserveOriginalCheckout": true,
     "rollbackTrigger": "health/image/config drift or failed post-deploy functional check; one bounded canary retry only for a transient model timeout",
     "targetRecoveryMinutes": 3,
-    "dataRollback": "No schema change; application rollback keeps data. Separate protected dump retained."
+    "dataRollback": "No schema change; application rollback keeps data. Separate protected dump retained.",
+    "at": "2026-10-22T00:38:17.131905+00:00",
+    "source": "3660af59dd1536002b61faa07345704ee2307e8f",
+    "services": {
+      "controller": "sha256:9ee117fd885ef03112f62152a56b34376dfb17c5793fabfd0a5d94d90fbd55cb",
+      "runner": "sha256:a2590c3dcf6b441d9ee9a5721a050a1905b0e73a203b3416ee609999793fbb28"
+    },
+    "supportingContainersUnchanged": true,
+    "runtimeEnvironmentUnchanged": true,
+    "localTime": "2026-10-22T09:38:17.131905+09:00",
+    "postChecks": {
+      "at": "2026-10-22T00:39:24.194Z",
+      "webhook": [
+        401,
+        202
+      ],
+      "admitted": 0,
+      "health": {
+        "failed": 0,
+        "queued": 0,
+        "active": false
+      },
+      "runner": {
+        "ok": true,
+        "busy": false
+      },
+      "helpRows": 14,
+      "questionCount": 4,
+      "canary": {
+        "source": "3660af59dd1536002b61faa07345704ee2307e8f",
+        "ms": 36032,
+        "state": "completed"
+      },
+      "externalCommentPublication": "not exercised; no test comments posted",
+      "productionCanarySemanticAudit": {
+        "passed": true,
+        "questions": 4,
+        "evidence": [
+          "root-only ignore rule with untracked assumption",
+          "one Task plan/progress/decision record",
+          "alternative versus independent ADR rejection",
+          "personal/shared-document purpose with explicit no-force-add assumption"
+        ]
+      },
+      "databaseCounts": {
+        "jobs": 42,
+        "targets": 10,
+        "deliveries": 55,
+        "feedback": 0
+      },
+      "noNewServiceErrorsAfterFinalDeploy": true,
+      "originalCheckoutPreservation": {
+        "branch": "main",
+        "head": "5fb7a07b9c478ba8c5f384dddaf21ae3f173a914",
+        "status": "",
+        "trackedPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "localSettingsUnchanged": true
+      }
+    },
+    "concurrentDeployReconciliation": {
+      "committedSource": "288c62f",
+      "mergedMain": "5fb7a07",
+      "sourceFilesUnchangedByMainMerge": true,
+      "runtimeMatches": {
+        "controller": true,
+        "runner": true
+      }
+    },
+    "authenticationHold": {
+      "firstCanary": "failed with API 401; production auth status reported no login",
+      "applicationRolledBack": true,
+      "restoredApplicationSource": "288c62f",
+      "rollbackOutcome": "rolled_back",
+      "repair": {
+        "sameExistingAccountVerified": true,
+        "originalBackupsRetained": true,
+        "productionLoggedInAfterAtomicRestore": true,
+        "credentialsNotPrintedOrParsed": true,
+        "onlyCredentialStoreRestored": true,
+        "sourceAndLocalSettingsUntouched": true,
+        "at": "2026-10-22T00:37:45.199653+00:00",
+        "originalCandidateCanaryFailure": "API 401; CLI auth status subsequently reported no login",
+        "applicationRolledBackBeforeRepair": true,
+        "restoredApplicationSource": "288c62f",
+        "actualRepairedProductionProbeMs": 6607,
+        "actualRepairedProductionProbePassed": true,
+        "cause": "credential state divergence observed; refresh-token rotation from isolated copy is a plausible inference, not an issuer audit trace"
+      },
+      "finalRedeployAndActualCanaryPassed": true
+    },
+    "cleanup": {
+      "ownedModelContainerRemoved": true,
+      "ownedAuthVolumesRemoved": true,
+      "onlyFourOwnedSnapshotsAndOneOwnedCacheRemoved": true,
+      "protectedBackupsAndEvidenceRetained": true,
+      "activeAuthStoreReadableAndWritable": true
+    },
+    "finalObservedAt": "2026-10-22T00:42:06.474326+00:00"
   },
   "limitations": [
     "Five corrected samples and source audit do not guarantee all future model outputs.",
@@ -212,6 +329,11 @@
     "retry-source-probes.json": "2b8f9d94a544363f1758cd5b601f53592f7178f418eb9089e3044ee45db3cdda",
     "publication.json": "bb60e4eba96f058ad12cda3b560100a226ce4ca828f254e9839b9de7dda8e679",
     "unit.log": "59d76d88f0c8d62b944c3f44324d8ef5d7acd5ab9c60ded8ccbe4052e696ee98",
-    "integration.log": "62015cc6a1d0949b1c20c7e5f981d632cb357a7993ec4fd7df0b1a0c956d7c14"
+    "integration.log": "62015cc6a1d0949b1c20c7e5f981d632cb357a7993ec4fd7df0b1a0c956d7c14",
+    "post-health.json": "25b762330f9f0ae8c2f38f7b968ba5b21d534832117e4813ad945273ad646b96",
+    "production-canary.json": "24f65c29fbd8e3656431b4f7f2122a14071670df2b694dcdfe497993749da2d2",
+    "concurrent-deploy-source-proof.json": "84e06dd33f6203a9ffb582afb8a0e3dd98ed245a8dc5ac457490f6b99fe17b6a",
+    "auth-identity-proof.json": "4bb3fbf8c9c975bbfbedc810afb1cd5121368d9e82a38f0215651ab7d2a88665",
+    "auth-repair.json": "aea9e2bfe855c2162118c63c0ce6739f6366382b7b1d39394897d2a1a7c05f4e"
   }
 }
