@@ -10,6 +10,28 @@
 - Compose 프로젝트 이름(`codereviewbot`), DB 이름·사용자(`reviewbot`), n8n 워크플로·자격 증명 ID는 기존 볼륨과 설정을 재사용하도록 유지한다. 새 이미지 이름은 `hey-controller:0.1.0`, `hey-runner:0.1.0`이다.
 - 실행 중인 배포와 실제 GitHub/GitLab 봇 계정, 저장소 주소, 터널·DNS는 별도 운영 설정이다. `botLogin`에는 실제 댓글 작성 계정을 유지하고, 연결 가이드의 `hey.example.com`은 소유한 도메인으로 바꾼다.
 
+## Mattermost 알림
+
+GitLab 저장소 설정의 `mattermostWebhookEnv: MATTERMOST_WEBHOOK_URL`로 알림을 켠다.
+`.env`의 해당 변수에는 기존 채널의 Incoming Webhook URL을 넣는다. URL 전체가
+비밀 값이므로 저장소·로그에 남기지 않는다. `mattermostChannel`로 채널을 지정할 수 있다.
+
+- MR 오픈·재오픈·머지·닫힘은 다른 문구로 표시하고 MR 제목을 링크로 연결한다.
+- 이름은 MR의 실제 작성자 표시 이름에서 성·소속을 제외한다. 머지한 사람이나
+  계정 ID를 작성자 이름으로 대신 쓰지 않는다. 영문 이름은 첫 단어를 사용한다.
+- 질문은 GitLab 게시가 끝난 정상 완료 결과만 알린다. 동일 변경 범위는 한 번만
+  알리며 진행·실패·부분 완료·채점 갱신·봇 답글은 전송하지 않는다.
+- 사람 댓글은 본문을 복사하지 않고 새 댓글 안내와 해당 댓글 링크를 보낸다.
+- 수신 인증·저장소 허용 목록을 통과한 이벤트만 큐에 저장한다. 웹훅 URL은
+  서버 설정에서만 읽고 전송 중에는 리다이렉트를 허용하지 않는다.
+- n8n의 기존 tick이 알림 큐도 구동한다. 명시적 429 거절은 최대 3회 시도하고,
+  응답 유실·재시작으로 전송 여부가 불명확하면 `uncertain`으로 남겨 자동 중복을 막는다.
+  `mattermost_delivery` 로그와 `mattermost_notifications` 테이블에서 상태를 확인한다.
+
+연결 검증 후 GitLab 기본 Mattermost 연동의 MR·Comment 알림만 끈다. 사람 댓글도
+새 경로가 처리하며, Pipeline·Deployment 설정은 유지한다. 기존 댓글의 내부 태그는
+GitLab에서 질문·답변 이력 연결에 계속 사용하되 MM 본문에는 포함하지 않는다.
+
 ## 확인 명령
 
 ```sh

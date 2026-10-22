@@ -17,4 +17,8 @@ repositories:
     webhookSecretEnv: GITLAB_WEBHOOK_SECRET
     webhookAuth: signing
     tokenEnv: GITLAB_TOKEN
+    # Optional: concise MR/comment and completed-question notifications to this repository's MM channel.
+    # Store the full incoming webhook URL only in .env; keep it out of this file.
+    # mattermostWebhookEnv: MATTERMOST_WEBHOOK_URL
+    # mattermostChannel: your-channel
     enabled: false

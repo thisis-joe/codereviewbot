@@ -13,18 +13,21 @@ import { handleLearning } from './learning-command.js';
 import { commentKey, type Comment, type Event } from './webhooks.js';
 import { syncAnswerGate } from './answer-gate.js';
 import { sameRevision, questionId } from './learning.js';
+import type { Mattermost } from './mattermost.js';
 
 export class Controller {
   active: Promise<void> | null = null;
   reconciling = false;
   stopping = false;
-  constructor(readonly store: Store, readonly platforms: Platform[], readonly workspaces: Workspaces, readonly model: Model) {}
+  constructor(readonly store: Store, readonly platforms: Platform[], readonly workspaces: Workspaces, readonly model: Model, readonly notifications?: Mattermost) {}
   platform(t: Target): Platform {
     const platform = this.platforms.find(p => p.config.platform === t.platform && p.config.instance === t.instance && p.config.repository === t.repository);
     if (!platform) throw new Error('Repository no longer allowed'); return platform;
   }
   async tick(): Promise<string | null> {
-    if (this.active || this.stopping) return null;
+    if (this.stopping) return null;
+    this.notifications?.tick();
+    if (this.active) return null;
     const job = await this.store.claim(); if (!job) return null;
     this.active = this.perform(job).catch(() => { console.error(JSON.stringify({ jobId: job.id, error: 'job_failure_handler' })); }).finally(() => { this.active = null; });
     return job.id;
@@ -46,6 +49,7 @@ export class Controller {
         await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease, await this.store.answerResults(job.result.snapshot), job.body.requested);
         console.info(JSON.stringify({ jobId: job.id, event: 'questions_published', publishMs: Date.now() - publishStarted }));
         await this.syncGate(platform, job.result);
+        await this.notifications?.questionsPublished(platform, job.result);
         await this.store.complete(job.id, job.owner); return;
       }
       if (job.kind === 'command') {

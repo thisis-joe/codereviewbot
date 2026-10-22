@@ -45,3 +45,17 @@ CREATE TABLE IF NOT EXISTS feedback (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS feedback_source ON feedback(source_key);
+CREATE TABLE IF NOT EXISTS mattermost_notifications (
+  key text PRIMARY KEY,
+  target jsonb NOT NULL,
+  payload jsonb NOT NULL,
+  state text NOT NULL DEFAULT 'queued' CHECK (state IN ('queued','sending','sent','failed','uncertain')),
+  owner uuid,
+  lease_until timestamptz,
+  attempts integer NOT NULL DEFAULT 0,
+  due_at timestamptz NOT NULL DEFAULT now(),
+  error text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mattermost_notifications_due ON mattermost_notifications(due_at) WHERE state='queued';

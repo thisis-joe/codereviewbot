@@ -9,6 +9,8 @@ export const RepositorySchema = z.strictObject({
   webhookAuth: z.enum(['hmac', 'signing', 'secret']),
   tokenEnv: z.string().default(''), installationId: z.string().regex(/^\d+$/).optional(),
   enabled: z.boolean().default(true),
+  mattermostWebhookEnv: z.string().regex(/^[A-Z][A-Z0-9_]+$/).optional(),
+  mattermostChannel: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/).optional(),
 });
 export type RepositoryConfig = z.infer<typeof RepositorySchema>;
 export const RepositoriesSchema = z.strictObject({ version: z.literal(1), repositories: z.array(RepositorySchema).max(100) });

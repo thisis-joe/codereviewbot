@@ -489,3 +489,15 @@
   Author review covers all eight changed files; no remaining blockers. Independent
   review unavailable. Completion is recorded by this work-unit commit on the branch.
   No deployment, remote push, or main merge was performed.
+
+- Mattermost notifications (2026-10-22): branch `codex/mattermost-notifications`
+  started clean from `adac621`; existing no-Jira ruling applies. Replaces native
+  MR/comment messages with two-line event-specific notices, MR-author given names,
+  linked titles and publication-complete question notices. Internal markers and
+  account handles remain absent from MM; human comment notifications are preserved.
+  Destinations are explicit per-repository secrets. PostgreSQL admission/deduplication
+  and delivery claims survive restart; ambiguous writes are not repeated automatically.
+  Native pipeline/deployment notifications remain outside the replacement scope.
+- Observed missing-module RED; GREEN: 115 unit tests and 40 disposable PostgreSQL/HTTP
+  integration tests. Author review only; independent review unavailable. Live activation
+  remains pending destination configuration and final runtime checks.
