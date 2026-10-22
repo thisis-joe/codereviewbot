@@ -35,6 +35,11 @@ GitLab 저장소 설정의 `mattermostWebhookEnv: MATTERMOST_WEBHOOK_URL`로 알
 새 경로가 처리하며, Pipeline·Deployment 설정은 유지한다. 기존 댓글의 내부 태그는
 GitLab에서 질문·답변 이력 연결에 계속 사용하되 MM 본문에는 포함하지 않는다.
 
+발신자 `hey`는 웹훅의 `username`으로 요청한다. MM 서버의
+`EnablePostUsernameOverride`가 `false`이면 기존 웹훅 소유자의 이름으로 표시된다.
+현재 SSAFY 서버에서는 이 제한을 확인했으며, 시스템 관리자가 이름 덮어쓰기를
+허용해야 한다. 사용자의 개인 프로필이나 새 봇 계정으로 대신 변경하지 않는다.
+
 ## 확인 명령
 
 ```sh

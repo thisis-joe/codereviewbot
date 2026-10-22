@@ -511,3 +511,22 @@
   payload; authenticated push delivery/replay, counts above GitLab's 20-item payload,
   author attribution, unsafe links, disallowed repositories, loss/restart and 429
   cases pass. Author review found no remaining blockers; live activation pending.
+- Activation completed at 2026-10-22 12:39 KST from `367d357` (MR/question unit
+  `c37dc85`, push unit `367d357`). Only the controller was replaced; original
+  runner/PostgreSQL/n8n/tunnel containers, mounts and existing environment remain;
+  the existing MM webhook URL was added as the sole environment change.
+- GitLab UI readback: hey webhook Push events enabled for all branches. Native MM
+  MR and comment events disabled; native Push stays off to avoid duplication.
+  Existing native pipeline/deployment events stay enabled. Integration username
+  saved as `hey`; webhook authentication and destinations are preserved.
+- Live acceptance: historical completed MR !13 produced exactly one four-question
+  notice linking its published question comment. A real new MR !16 independently
+  produced the new author-attributed open notice. Both deliveries are `sent`, and
+  public invalid/valid ignored-event admission returned 401/202. Controller healthy.
+- Remaining external setting: MM client configuration exposes
+  `EnablePostUsernameOverride=false`; the actual posts therefore show the existing
+  webhook owner's display name despite the requested `username: hey`. The current
+  account has no System Console entry. No account/profile/permission changes made.
+  Evidence: `docs/verification/mm-notifications-2026-10-22.json`. Author review only;
+  no remote branch push or main merge. Runtime rollback also requires restoring
+  native MR/comment notifications and the original hey Push-event setting in GitLab.

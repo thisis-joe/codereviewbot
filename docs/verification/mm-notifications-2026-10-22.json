@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-22",
+  "timezone": "Asia/Seoul",
+  "branch": "codex/mattermost-notifications",
+  "base": "adac621",
+  "implementationCommits": ["c37dc85", "367d357"],
+  "deployedSource": "367d3578f797dc96dfb29e2f568207982de6fd5d",
+  "deployedAt": "2026-10-22T12:39:07+09:00",
+  "status": "active",
+  "notifications": {
+    "mrLifecycle": ["opened", "reopened", "merged", "closed"],
+    "questions": "Once per revision after successful question publication; exact comment link",
+    "humanComments": "Concise notice and exact comment link; no copied body",
+    "push": "Pusher given name, branch, total commit count and comparison link",
+    "names": "MR author for MR events, pusher for pushes; no surnames, affiliations or login handles",
+    "excluded": ["bot progress", "grading updates", "failed or partial questions", "branch deletion", "tags", "internal comment markers"]
+  },
+  "checks": {
+    "unit": {"passed": 116, "failed": 0},
+    "disposablePostgresHttpIntegration": {"passed": 41, "failed": 0},
+    "finalImageSmoke": "passed",
+    "publicWebhookInvalidAuthentication": 401,
+    "publicWebhookAuthenticatedIgnoredEvent": 202,
+    "liveCompletedQuestionNotice": {"mr": 13, "questionCount": 4, "commentId": "2905758", "state": "sent"},
+    "liveNewMrNotice": {"mr": 16, "givenName": "은서", "state": "sent"},
+    "actualLivePush": "Not synthesized; authenticated push replay verified locally and live GitLab trigger enabled",
+    "controllerHealth": "healthy",
+    "review": "Author review; independent review unavailable"
+  },
+  "gitlab": {
+    "heyWebhookPushEvents": true,
+    "heyWebhookPushBranches": "all",
+    "nativeMattermost": {"active": true, "push": false, "mergeRequests": false, "comments": false, "pipelines": true, "deployments": true}
+  },
+  "runtime": {"onlyControllerChanged": true, "supportingContainersPreserved": true, "mountsPreserved": true, "environmentChanges": ["MATTERMOST_WEBHOOK_URL"]},
+  "remainingExternalSetting": {
+    "requestedSender": "hey",
+    "EnablePostUsernameOverride": false,
+    "observedSender": "Existing webhook owner's display name",
+    "requiredAction": "Mattermost system administrator must allow integration username overrides"
+  },
+  "rollback": {
+    "runtimeCommand": "node .local/mm-notifications/deploy.mjs --rollback",
+    "gitlabSettings": "Re-enable native MR/comment notifications and restore hey webhook Push events to false; preserve other settings"
+  },
+  "remoteBranchPush": false,
+  "mainMerge": false
+}
