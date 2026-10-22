@@ -747,3 +747,10 @@
 - Same-revision MR !15 cache publication completed as job `bc70f910-c330-4cb9-9713-db0db16f6976`: four existing question IDs, new hey summary note `2908852`, no regeneration. Human `/hey showanswer Q1` in the old summary's thread (note `2908867`) received hey's keyed B answer and option explanations in note `2908869`; job completed and recorded no grades.
 - Only after those checks, revoked old token 46478 through the GitLab UI. Old `/user` request now returns 401; new token returns user name `hey`. Post-retirement comparison preserves all 22 original project targets, 80 original jobs, the existing stored question batch, and all 38 old comment bodies. Question/answer IDs were not rewritten. The private pre-retirement rollback helper refuses use after revocation; recovery must keep the new credential.
 - Sanitized proof: `docs/verification/hey-bot-migration-2026-10-22.json`. Browser screenshots show hey's actual reply and only hey active while codereviewbot is revoked. No source branch push or merge requested/performed.
+
+### 2026-10-22 — Restore hey bot avatar
+
+- User reported the missing image after the bot replacement. Branch `codex/hey-bot-avatar` starts at `817c46d`; existing no-Jira ruling applies. This is a profile-only restoration with no application/runtime or credential change.
+- Read old bot user 33767's approved avatar URL and new hey user 33826's default image. Retrieved the existing image through the signed-in browser; direct/API-token asset requests were rejected with 401, so no authentication bypass was used. Uploaded that JPEG only to the new bot's authenticated `PUT /user/avatar` endpoint: 200, then current-user API readback matched the new avatar URL with identity unchanged.
+- MR !15 browser reload shows the new avatar on hey's existing comments; both matching rendered images loaded successfully. No question, answer, comment body, bot name, username, credential or deployment was changed. Direct API/browser verification is appropriate for this reversible profile setting; no source tests added.
+- Evidence: `docs/verification/hey-bot-avatar-2026-10-22.json`; screenshot `.local/bot-avatar/hey-avatar-restored.png`.
