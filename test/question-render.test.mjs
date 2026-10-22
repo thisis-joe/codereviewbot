@@ -6,7 +6,7 @@ import { report, snapshot, finding } from './fixtures.mjs';
 test('question comments contain questions and progress without review sections, verdicts or command tables', () => {
   for (const state of ['completed', 'partial', 'failed']) {
     const text = renderReport(report({ schemaVersion: '2', state, findings: [finding({ id: 'CRB-0001' })], checks: [{ name: 'CI: fail', status: 'failed', detail: '', url: null }], summary: 'old summary' }));
-    assert.match(text, /### hey 변경 이해 질문/);
+    assert.match(text, /^#### hey! 이건 알고 머지하는거지\? 😏$/m);
     assert.doesNotMatch(text, /### [1-4]\.|수정 필요|지적 없음|판단 보류|CRB-0001|old summary|CI: fail|\| 명령어/);
     assert.match(text, /명령어 안내: `\/hey help`/);
     if (state === 'failed') assert.doesNotMatch(text, /#### Q1\./);

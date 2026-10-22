@@ -478,3 +478,14 @@
   or post-reset recovery is claimed. Full evidence: docs/verification/hey-release-2026-10-22.json.
   Rollback: `python3 .local/releases/hey-eb559b9-20261022/deploy.py --rollback`.
   Author review only; independent review unavailable. No remote push or main merge.
+
+- Question title update (2026-10-22): branch `codex/question-heading-copy` started
+  clean from `85835d49e0b0f7eb0932c7a89ea5663d8a0addcd`; existing no-Jira ruling applies.
+  Changed the report and generation-progress title to `hey! 이건 알고 머지하는거지? 😏`.
+  The user selected H4 (`####`) after confirming H2 would increase the current H3 size.
+  Korean/English README examples and existing title expectations now match.
+- Verification passed: 111 unit tests, 37 disposable PostgreSQL/HTTP integration
+  tests, five direct report/progress rendering checks, and `git diff --check`.
+  Author review covers all eight changed files; no remaining blockers. Independent
+  review unavailable. Completion is recorded by this work-unit commit on the branch.
+  No deployment, remote push, or main merge was performed.

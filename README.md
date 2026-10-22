@@ -118,7 +118,7 @@ node scripts/smoke.mjs                  # 동작 확인
 <summary>질문 댓글 예시 보기</summary>
 
 ```markdown
-### hey 변경 이해 질문
+#### hey! 이건 알고 머지하는거지? 😏
 
 답변 달기: `/hey answer Q1 B` — 여러 개는 `/hey answer Q1 B Q2 C`
 정답·해설 한 번에 보기: `/hey showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인

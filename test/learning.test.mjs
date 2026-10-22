@@ -52,13 +52,13 @@ test('published questions expose revision-bound answer IDs and visible choices w
   assert.match(first, /^#### Q1\. 이번 pay [^\n]*\?\n(&nbsp;){4}\*\*A\.\*\* 새 키\\\n(&nbsp;){4}\*\*B\.\*\* 같은 키\\\n(&nbsp;){4}\*\*C\.\*\* 보기 C\\\n(&nbsp;){4}\*\*D\.\*\* 보기 D$/m);
   assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. \[심화\] 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
-  assert.match(first, /^### hey 변경 이해 질문$/m); assert.doesNotMatch(first, /^#{1,2} /m);
+  assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏$/m); assert.doesNotMatch(first, /^#{1,3} /m);
   assert.match(first, /답변 0\/3/);
   assert.ok(!first.includes(answerKey().explanation) && !first.includes('보기 해설'));
   assert.match(first, /^명령어 안내: `\/hey help`$/m);
   assert.doesNotMatch(first, /\| 명령어|\/hey morequestion|더 알아보자/);
   // Answer and reveal instructions sit above the questions; revision and progress sit below them, without a 완료 label.
-  assert.match(first, /^### hey 변경 이해 질문\n\n답변 달기: `\/hey answer Q1 B` .*\\\n정답·해설 한 번에 보기: `\/hey showanswer` .*\n\n<!-- codereviewbot:question:/m);
+  assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏\n\n답변 달기: `\/hey answer Q1 B` .*\\\n정답·해설 한 번에 보기: `\/hey showanswer` .*\n\n<!-- codereviewbot:question:/m);
   assert.match(first, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\) · 답변 0\/3\\\n명령어 안내: `\/hey help`$/); assert.doesNotMatch(first, /완료|전체 ·|증분/);
   const marked = renderReport(report({ questions }), new Map([[ids[0], 'correct'], [ids[1], 'incorrect']]));
   assert.match(marked, /^#### Q1\. .* · ✅ 정답$/m); assert.match(marked, /^#### Q2\. .* · ❌ 오답$/m); assert.doesNotMatch(marked, /^#### Q3\. .* · /m); assert.match(marked, /답변 2\/3/);

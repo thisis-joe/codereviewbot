@@ -75,13 +75,13 @@ function renderReportBody(r: Report, results: AnswerResults): string {
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
   const meta = [...(r.state === 'completed' ? [] : [status[r.state]]), `기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`,
     ...(available ? [`답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`] : [])].join(' · ');
-  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v5 -->', '### hey 변경 이해 질문', '', ...(available ? [...lines(answerHelp), ''] : []),
+  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v5 -->', '#### hey! 이건 알고 머지하는거지? 😏', '', ...(available ? [...lines(answerHelp), ''] : []),
     ...questions, ...(r.limitations.length && available ? ['', ...r.limitations.slice(0, 3).map(l => `- ${plain(clip(l, 200))}`)] : []), '', ...lines([meta, COMMAND_HELP_HINT])].join('\n');
 }
 export interface ReviewEstimate { minutes: number; measured: boolean }
 /** Posted in place of the summary as soon as a review starts; the finished report overwrites it. */
 export function renderProgress(s: Snapshot, estimate: ReviewEstimate, previous?: { report: Report; results: AnswerResults }): string {
-  const head = [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:progress:v1 -->', '### hey 변경 이해 질문', '',
+  const head = [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:progress:v1 -->', '#### hey! 이건 알고 머지하는거지? 😏', '',
     `**질문 생성 중** · 기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, '',
     `질문 생성을 시작했습니다. 예상 소요 시간은 약 ${estimate.minutes}분입니다${estimate.measured ? ' (최근 질문 생성 기준)' : ''}. 생성이 끝나면 이 댓글이 결과로 바뀝니다.`].join('\n');
   if (!previous || !isQuestionReport(previous.report) || previous.report.state === 'failed') return head;

@@ -116,7 +116,7 @@ Repository connections are off by default. To connect real GitHub or GitLab repo
 The comment opens with one line on how to answer and one on how to reveal answers and explanations; each question is a `####` heading. Only advanced questions carry a `[심화]` tag. Source commit and answer progress sit below the questions; the state label appears only for partial or failed runs. The old summary, findings and checks/caveats sections, review verdict and CI report have been removed. The question heading has no section number.
 
 ```markdown
-### hey 변경 이해 질문
+#### hey! 이건 알고 머지하는거지? 😏
 
 답변 달기: `/hey answer Q1 B` — 여러 개는 `/hey answer Q1 B Q2 C`
 정답·해설 한 번에 보기: `/hey showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인
