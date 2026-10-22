@@ -14,6 +14,7 @@ import { commentKey, type Comment, type Event } from './webhooks.js';
 import { syncAnswerGate } from './answer-gate.js';
 import { sameRevision, questionId } from './learning.js';
 import type { Mattermost } from './mattermost.js';
+import { failureInfo, failureMessage, scheduleFailure } from './model-failure.js';
 
 export class Controller {
   active: Promise<void> | null = null;
@@ -88,8 +89,9 @@ export class Controller {
     } catch (error) {
       const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
       if (superseded) await this.store.supersede(job.id, job.owner);
-      else if (snap && job.state !== 'publishing' && job.attempts >= 3) {
-        const failed = { ...emptyReport(snap, 'failed', '질문 생성 실패. 인증·실행기 상태를 확인하고 다시 요청하세요.'), requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
+      else if (snap && job.state !== 'publishing' && (job.attempts >= 3 || ['rate_limit', 'authentication'].includes(failureInfo(error).code))) {
+        const failure = scheduleFailure(failureInfo(error));
+        const failed = { ...emptyReport(snap, 'failed', failureMessage(failure)), failure, requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
         try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
       } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
       // Commands also run on closed PR/MRs, so a closed notice is only a fallback; the last failed attempt leaves a failure notice.

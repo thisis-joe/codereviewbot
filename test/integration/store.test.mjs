@@ -6,6 +6,22 @@ import { snapshot, report } from '../fixtures.mjs';
 
 const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('Set TEST_DATABASE_URL to a disposable PostgreSQL database');
+test('publishing an error notice remains failed and health stops counting it only after successful regeneration', async t => {
+  const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const target = snapshot(), id = await store.enqueue({ kind: 'review', target, deliveryId: 'quota-failure', headSha: target.headSha });
+  const running = await store.claim();
+  await store.saveResult(id, running.owner, report({ state: 'failed', questions: [], failure: { code: 'rate_limit', provider: 'claude', apiStatus: 429 } }), {}, 0);
+  const publishing = await store.claim(); await store.complete(id, publishing.owner);
+  assert.equal((await store.getJob(id)).state, 'failed'); assert.equal((await store.health()).failed, 1);
+  await pool.query("UPDATE jobs SET state='completed' WHERE id=$1", [id]); await store.migrate();
+  assert.equal((await store.getJob(id)).state, 'failed', 'legacy false success is repaired idempotently');
+  const retry = await store.enqueue({ kind: 'review', target, deliveryId: 'manual-regeneration', headSha: target.headSha, regenerate: true });
+  const generating = await store.claim(); await store.saveResult(retry, generating.owner, report(), {}, 0);
+  const done = await store.claim(); await store.complete(retry, done.owner);
+  assert.equal((await store.health()).failed, 0, 'historical generation failures do not mask current success');
+  assert.equal((await store.getJob(id)).state, 'failed');
+});
 test('durable queue handles duplicate deliveries, immediate dispatch, exclusive leases and restart fencing', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate();

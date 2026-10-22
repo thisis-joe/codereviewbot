@@ -59,3 +59,5 @@ CREATE TABLE IF NOT EXISTS mattermost_notifications (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS mattermost_notifications_due ON mattermost_notifications(due_at) WHERE state='queued';
+-- Publishing an error notice is not a successful question generation.
+UPDATE jobs SET state='failed' WHERE kind='review' AND state='completed' AND result->>'state'='failed';

@@ -530,3 +530,15 @@
   Evidence: `docs/verification/mm-notifications-2026-10-22.json`. Author review only;
   no remote branch push or main merge. Runtime rollback also requires restoring
   native MR/comment notifications and the original hey Push-event setting in GitLab.
+
+- Question failure recovery (2026-10-22): user authorized all diagnosed fixes, a live
+  MR !15 rerun through question publication/MM delivery, GitLab display name `hey`,
+  and the shortest permitted bot username. Branch `codex/question-failure-recovery`
+  started clean from `df86721`; existing no-Jira ruling applies.
+- F1: structured, allowlisted failure metadata now survives Claude CLI → runner HTTP
+  → controller → failed report. Quota/authentication failures stop immediate retry;
+  user notices show the actual category and scheduled retry time. Error payloads
+  retain no provider text or credentials. Failed-report publication remains failed;
+  health counts current failed reports while preserving historical audit outcomes.
+  RED reproduced missing error transport; GREEN: 118 unit + 42 PostgreSQL/HTTP tests,
+  including real subprocess/HTTP failure propagation and legacy false-success repair.

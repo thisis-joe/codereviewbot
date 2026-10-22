@@ -102,7 +102,7 @@ export class Store {
     return estimateMinutes(await median(true) ?? await median(false));
   }
   async complete(id: string, owner: string): Promise<void> {
-    if (!(await this.pool.query("UPDATE jobs SET state='completed',owner=NULL,lease_until=NULL,updated_at=now() WHERE id=$1 AND owner=$2 AND state IN ('running','publishing') AND lease_until>now()", [id, owner])).rowCount) throw new Error('Job lease lost');
+    if (!(await this.pool.query("UPDATE jobs SET state=CASE WHEN kind='review' AND result->>'state'='failed' THEN 'failed' ELSE 'completed' END,owner=NULL,lease_until=NULL,updated_at=now() WHERE id=$1 AND owner=$2 AND state IN ('running','publishing') AND lease_until>now()", [id, owner])).rowCount) throw new Error('Job lease lost');
   }
   async supersede(id: string, owner: string): Promise<void> { await this.pool.query("UPDATE jobs SET state='superseded',owner=NULL,lease_until=NULL,updated_at=now() WHERE id=$1 AND owner=$2", [id, owner]); }
   async fail(job: Job, detail: string): Promise<void> {
@@ -143,7 +143,8 @@ export class Store {
   }
   async health(): Promise<{ failed: number; queued: number }> {
     const rows = (await this.pool.query('SELECT state,count(*)::int AS count FROM jobs GROUP BY state')).rows;
-    return { failed: rows.find(r => r.state === 'failed')?.count ?? 0, queued: rows.filter(r => ['queued', 'ready'].includes(r.state)).reduce((n, r) => n + r.count, 0) };
+    const failures = (await this.pool.query("SELECT (SELECT count(*)::int FROM targets WHERE report->>'state'='failed') + (SELECT count(*)::int FROM jobs WHERE state='failed' AND coalesce(result->>'state','')<>'failed') AS count")).rows[0].count;
+    return { failed: failures, queued: rows.filter(r => ['queued', 'ready'].includes(r.state)).reduce((n, r) => n + r.count, 0) };
   }
 }
 // Rounded up so the notice rarely promises less time than generation takes.

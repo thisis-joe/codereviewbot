@@ -1,6 +1,7 @@
 import { INITIAL_QUESTION_COUNT, isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
 import { createHash } from 'node:crypto';
 import { questionId } from './learning.js';
+import { failureMessage } from './model-failure.js';
 
 // Persisted markers retain their namespace so old comments reconcile after the rename.
 export const SUMMARY_MARKER = '<!-- codereviewbot:summary:v1 -->';
@@ -71,7 +72,7 @@ export function renderReport(r: Report, results: AnswerResults = new Map()): str
 function renderReportBody(r: Report, results: AnswerResults): string {
   const available = hasChangeQuestions(r), s = r.snapshot;
   const questions = available ? renderQuestions(r.questions, s, 1, results)
-    : [plain(r.questionsUnavailableReason ?? (r.state === 'failed' ? '질문 생성에 실패했습니다. 실행기 상태를 확인한 뒤 다시 요청하세요.' : '출제할 수 있는 코드 근거가 없어 질문을 생성하지 못했습니다.'))];
+    : [plain(r.state === 'failed' && r.failure ? failureMessage(r.failure) : r.questionsUnavailableReason ?? (r.state === 'failed' ? '질문 생성에 실패했습니다. /hey full 명령으로 다시 요청하거나 봇 운영자에게 알려주세요.' : '출제할 수 있는 코드 근거가 없어 질문을 생성하지 못했습니다.'))];
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
   const meta = [...(r.state === 'completed' ? [] : [status[r.state]]), `기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`,
     ...(available ? [`답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`] : [])].join(' · ');

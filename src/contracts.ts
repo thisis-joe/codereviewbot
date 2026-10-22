@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { FailureInfo } from './model-failure.js';
 
 export const categories = ['정확성', '보안', '신뢰성', '성능', '호환성', '테스트', '규칙'] as const;
 export const checkNames = ['정확성·신뢰성', '보안', '성능', '호환성', '테스트', '팀 규칙·요구사항', 'CI·정적 검사'] as const;
@@ -87,6 +88,7 @@ export interface Report extends Omit<Analysis, 'findings' | 'resolutions' | 'que
   mode: 'full' | 'incremental'; findings: Finding[]; reviewedFiles: string[]; excludedFiles: string[];
   questions: ChangeQuestion[];
   questionsUnavailableReason?: string;
+  failure?: FailureInfo;
   // Copied from the base-branch policy so publishing and grading can update the merge gate.
   requireAnswers?: boolean;
 }
