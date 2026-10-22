@@ -647,3 +647,44 @@
   webhook owner and permissions, a distinct `hey` sender needs administrator
   support. No new account, credential or personal-profile edit performed.
   Source: https://docs.mattermost.com/administration-guide/configure/integrations-configuration-settings .
+
+
+## 2026-10-22 — hey command cleanup production rollout and live GitLab proof
+
+- User authorized production deployment and actual GitLab checks. Deployed source
+  `9ba3be930540a06232b74d4c154eca0337dc1a2d` on feature branch
+  `codex/hey-command-cleanup`; controller and runner are healthy with zero restarts.
+  This supersedes the earlier entry's undeployed and author-review-only status.
+- Initial `3bd6109` rollout and live checks passed, but the final revision probe
+  detected another chat replacing the controller with `bbf4bb5`, which omitted the
+  command cleanup. Completion was withheld. Its Mattermost inline-link change was
+  retained by cherry-picking into this branch as `9ba3be9`; both services were
+  redeployed together and the actual GitLab checks repeated on that final source.
+- Independent `release_review` covered the original release and combined change;
+  no blocking findings. Final source passed 120 unit and 46 disposable PostgreSQL
+  integration tests. Production dependency audit has zero advisories. Both image
+  contents matched all 88 compiled/migration files and passed parser/notification
+  smoke checks. Existing credentials, environment, mounts, limits, networks and
+  PostgreSQL/n8n/tunnel container identities were preserved.
+- Protected full DB dumps and exact-image recovery are under
+  `.local/releases/hey-commands-9ba3be9-20261022/`. A real production dump was
+  restored into an isolated tmpfs DB; migration and startup of the schema-compatible
+  `3bd6109` fallback passed with question/answer/job history preserved. The initial
+  pre-removal schema/state recovery was separately tested in the initial release.
+- Actual human `/hey help` note `2908189` produced bot reply `2908191`: six rows,
+  no retired commands, and measured columns 170/98/332/211 px with no table overflow.
+  `/hey tryagain` note `2908195` produced concise reply `2908197`: confirmation and
+  help hint only, no headings or empty sections. Temporary acknowledgements were
+  removed for both requests.
+- Regeneration job `b7fe602f-bb51-42d8-9302-bbfe84f3a4cb` completed: one model
+  call, 92,450 ms generation / 93 seconds recorded review time, three basic plus
+  one advanced question. Actual GitLab note `2906252` updated at 16:14:30 KST,
+  replacing progress with all four questions; browser DOM and screenshots confirm.
+  All three final test jobs completed. Final runtime probe accepts tryagain,
+  rejects review and all eight removed commands, and confirms retired DB state is
+  absent, zero false-success jobs, no queued/active work, and both services still
+  running `9ba3be9`. Four failed targets in health are pre-existing history.
+- Sanitized proof: `docs/verification/hey-command-cleanup-live-2026-10-22.json`;
+  actual GitLab screenshots: `.local/command-cleanup/live-final-gitlab-*.png`.
+  No branch push or merge requested/performed. Production release and its
+  verification documentation are distinct work units.
