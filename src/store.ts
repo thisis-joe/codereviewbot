@@ -4,6 +4,7 @@ import type { Pool, PoolClient } from 'pg';
 import type { Report, Target, Snapshot, ChangeQuestion, Verdict } from './contracts.js';
 import type { Event } from './webhooks.js';
 import type { DiffMetadata } from './review.js';
+import { retryableFailure } from './model-failure.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
 export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; start?: number; answered?: string; grades?: { id: string; verdict: Verdict }[] }
@@ -64,6 +65,19 @@ export class Store {
   }
   async getJob(id: string): Promise<Job | null> { return (await this.pool.query('SELECT * FROM jobs WHERE id=$1', [id])).rows[0] ?? null; }
   async getTarget(t: Target): Promise<{ paused: boolean; report: Report | null } | null> { return (await this.pool.query('SELECT * FROM targets WHERE key=$1', [targetKey(t)])).rows[0] ?? null; }
+  async recoveryEvent(snap: Snapshot, now = Date.now()): Promise<Event | null> {
+    const key = targetKey(snap);
+    if ((await this.pool.query("SELECT 1 FROM jobs WHERE target_key=$1 AND kind='review' AND state IN ('queued','running','ready','publishing') LIMIT 1", [key])).rowCount) return null;
+    const prior = (await this.pool.query("SELECT id,body,result,updated_at FROM jobs WHERE target_key=$1 AND kind='review' AND result->>'state'='failed' AND result->'snapshot'->>'headSha'=$2 AND result->'snapshot'->>'baseSha'=$3 AND result->'snapshot'->>'startSha'=$4 ORDER BY updated_at DESC,id DESC LIMIT 1", [key, snap.headSha, snap.baseSha, snap.startSha])).rows[0];
+    if (!prior) return null;
+    const attempt = (prior.body.recoveryAttempt ?? 0) + 1;
+    const failure = (prior.result as Report).failure;
+    if (attempt > 3 || (failure && !retryableFailure(failure))) return null;
+    const retryAt = failure?.retryAt ? Date.parse(failure.retryAt) : new Date(prior.updated_at).getTime() + 5 * 60000;
+    if (!Number.isFinite(retryAt) || now < retryAt) return null;
+    // Every controller derives the same key from the preceding failed job; enqueue admits it once.
+    return { kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `recover:questions-v3:${prior.id}:${attempt}`, regenerate: true, recoveryAttempt: attempt };
+  }
   async saveCommandResult(id: string, owner: string, result: CommandResult): Promise<void> {
     const saved = await this.pool.query("UPDATE jobs SET command_result=$3,updated_at=now() WHERE id=$1 AND owner=$2 AND kind='command' AND state='running' AND lease_until>now() AND command_result IS NULL", [id, owner, result]);
     if (!saved.rowCount) { await this.assertLease(id, owner); throw new Error('Command result is already immutable'); }
@@ -137,7 +151,7 @@ export class Store {
   async rejectFeedback(t: Target, id: string, author: string): Promise<boolean> {
     return Boolean((await this.pool.query("UPDATE feedback f SET status='rejected',approved_by=$2 FROM targets source WHERE f.id=$1 AND f.target_key=source.key AND source.target->>'platform'=$3 AND source.target->>'instance'=$4 AND source.target->>'repository'=$5 AND f.status IN ('pending','rejected')", [id, author, t.platform, t.instance, t.repository])).rowCount);
   }
-  async retry(id: string): Promise<boolean> { return Boolean((await this.pool.query("UPDATE jobs SET state=CASE WHEN result IS NOT NULL AND kind<>'command' THEN 'ready' ELSE 'queued' END,attempts=0,due_at=now(),error=NULL WHERE id=$1 AND state='failed'", [id])).rowCount); }
+  async retry(id: string): Promise<boolean> { return Boolean((await this.pool.query("UPDATE jobs SET state=CASE WHEN result IS NOT NULL AND result->>'state'<>'failed' AND kind<>'command' THEN 'ready' ELSE 'queued' END,result=CASE WHEN result->>'state'='failed' THEN NULL ELSE result END,diff=CASE WHEN result->>'state'='failed' THEN NULL ELSE diff END,body=body-'recoveryAttempt',attempts=0,due_at=now(),error=NULL,updated_at=now() WHERE id=$1 AND state='failed'", [id])).rowCount); }
   async learnings(t: Target): Promise<string[]> {
     return (await this.pool.query("SELECT f.rule FROM feedback f JOIN targets source ON source.key=f.target_key WHERE f.status='approved' AND source.target->>'platform'=$1 AND source.target->>'instance'=$2 AND source.target->>'repository'=$3 ORDER BY f.created_at DESC LIMIT 30", [t.platform, t.instance, t.repository])).rows.map(r => r.rule);
   }

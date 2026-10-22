@@ -11,6 +11,43 @@ import { changeQuestions, initialQuestions, finding, report, snapshot } from '..
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
 
+test('same-revision recovery survives an already-consumed delivery key without duplicate model work', async t => {
+  const f = await fixture(t, 'gitlab');
+  const failure = report({ snapshot: f.snap, state: 'failed', questions: [], failure: { code: 'rate_limit', provider: 'claude', apiStatus: 429, retryAt: '2020-01-01T00:00:00.000Z' } });
+  await f.seed(failure);
+  const oldKey = `recover:questions-v2:${f.snap.headSha}:${f.snap.startSha}:${f.snap.baseSha}`;
+  const id = await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey });
+  const running = await f.store.claim(); await f.store.saveResult(id, running.owner, failure, {}, 0);
+  const publishing = await f.store.claim(); await f.store.complete(id, publishing.owner);
+  assert.equal(await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey }), null);
+  const restarted = new Controller(new Store(f.pool), [f.platform], f.workspaces, f.model);
+  await Promise.all([f.controller.recover(), restarted.recover()]);
+  const queued = (await f.pool.query("SELECT * FROM jobs WHERE state='queued'")).rows;
+  assert.equal(queued.length, 1, 'a failed revision gets one new recovery attempt instead of permanent deduplication');
+  assert.equal(queued[0].body.recoveryAttempt, 1);
+  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 4);
+  assert.equal((await f.store.health()).failed, 0);
+  await f.controller.recover(); assert.equal((await f.store.health()).queued, 0);
+});
+
+test('automatic recovery respects cooldown, a finite attempt budget and permanent authentication failure', async t => {
+  for (const [failure, recoveryAttempt] of [[{ code: 'rate_limit', retryAt: '2099-01-01T00:00:00.000Z' }, 0], [{ code: 'rate_limit', retryAt: '2020-01-01T00:00:00.000Z' }, 3], [{ code: 'authentication' }, 0]]) {
+    const f = await fixture(t, 'gitlab');
+    const id = await f.seed(report({ state: 'failed', questions: [], failure }));
+    await f.pool.query("UPDATE jobs SET body=jsonb_set(body,'{recoveryAttempt}',$2::jsonb) WHERE id=$1", [id, JSON.stringify(recoveryAttempt)]);
+    await f.controller.recover(); assert.equal((await f.store.health()).queued, 0);
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+test('explicit retry regenerates a failed report instead of republishing the saved error notice', async t => {
+  const f = await fixture(t, 'gitlab'), id = await f.seed(report({ state: 'failed', questions: [], failure: { code: 'rate_limit' } }));
+  assert.equal(await f.store.retry(id), true);
+  assert.equal((await f.store.getJob(id)).state, 'queued');
+  assert.equal((await f.store.getJob(id)).result, null);
+  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 4);
+});
+
 async function fixture(t, name) {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL });
   t.after(() => pool.end());

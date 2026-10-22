@@ -5,7 +5,7 @@ import type { Target } from './contracts.js';
 export interface Comment { id: string; body: string; author: string; parentId: string | null; discussionId: string | null; surface: 'issue' | 'review' | 'note' }
 export function commentKey(comment: Comment): string { return `${comment.surface}-${comment.id}`; }
 // `requested` marks work a person asked for by command; only that work also runs on a closed or merged PR/MR.
-export interface Event { kind: 'review' | 'ci' | 'command' | 'closed'; target: Target; deliveryId: string; headSha?: string; regenerate?: boolean; requested?: boolean; comment?: Comment }
+export interface Event { kind: 'review' | 'ci' | 'command' | 'closed'; target: Target; deliveryId: string; headSha?: string; regenerate?: boolean; requested?: boolean; recoveryAttempt?: number; comment?: Comment }
 export interface Authenticated { repo: RepositoryConfig; deliveryId: string; event: string; body: any }
 export function equal(a: string, b: string): boolean {
   const left = Buffer.from(a), right = Buffer.from(b);

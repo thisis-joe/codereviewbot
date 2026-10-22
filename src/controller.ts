@@ -90,7 +90,7 @@ export class Controller {
       const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
       if (superseded) await this.store.supersede(job.id, job.owner);
       else if (snap && job.state !== 'publishing' && (job.attempts >= 3 || ['rate_limit', 'authentication'].includes(failureInfo(error).code))) {
-        const failure = scheduleFailure(failureInfo(error));
+        const failure = (job.body.recoveryAttempt ?? 0) < 3 ? scheduleFailure(failureInfo(error)) : failureInfo(error);
         const failed = { ...emptyReport(snap, 'failed', failureMessage(failure)), failure, requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
         try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
       } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
@@ -234,6 +234,11 @@ export class Controller {
             if (state?.report && sameRevision(state.report.snapshot, snap)) await this.syncGate(platform, state.report);
             if (state?.paused) continue;
             const prior = state?.report?.snapshot;
+            if (state?.report?.state === 'failed' && prior && sameRevision(prior, snap)) {
+              const retry = await this.store.recoveryEvent(snap);
+              if (retry) await this.store.enqueue(retry);
+              continue;
+            }
             if (!isQuestionReport(state?.report) || !prior || !reviewed(state.report) || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:questions-v2:${snap.headSha}:${snap.startSha}:${snap.baseSha}` });
           }
         } catch { console.error(JSON.stringify({ repository: platform.config.repository, error: 'recovery_fetch_failed' })); }

@@ -542,3 +542,9 @@
   health counts current failed reports while preserving historical audit outcomes.
   RED reproduced missing error transport; GREEN: 118 unit + 42 PostgreSQL/HTTP tests,
   including real subprocess/HTTP failure propagation and legacy false-success repair.
+- F2: same-revision failed generations now derive a fresh recovery delivery from
+  the preceding failed job, with shared admission deduplication, cooldown and at
+  most three automatic recovery attempts. Authentication/invalid output stay
+  manual. Operator retry clears a failed generation result instead of republishing
+  the error notice. RED reproduced all three recovery defects; GREEN: 118 unit +
+  45 PostgreSQL/HTTP tests, including concurrent controller recovery.
