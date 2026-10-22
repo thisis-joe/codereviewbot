@@ -5,6 +5,7 @@ import { z } from 'zod';
 export const RepositorySchema = z.strictObject({
   platform: z.enum(['github', 'gitlab']), instance: z.string().url(),
   repository: z.string().regex(/^[\w.-]+(?:\/[\w.-]+)+$/), botLogin: z.string().min(1).max(100),
+  retiredBotLogins: z.array(z.string().min(1).max(100)).max(10).optional(),
   webhookSecretEnv: z.string().regex(/^[A-Z][A-Z0-9_]+$/),
   webhookAuth: z.enum(['hmac', 'signing', 'secret']),
   tokenEnv: z.string().default(''), installationId: z.string().regex(/^\d+$/).optional(),
@@ -13,6 +14,9 @@ export const RepositorySchema = z.strictObject({
   mattermostChannel: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/).optional(),
 });
 export type RepositoryConfig = z.infer<typeof RepositorySchema>;
+export function isBotLogin(config: Pick<RepositoryConfig, 'botLogin' | 'retiredBotLogins'>, login: string): boolean {
+  return login === config.botLogin || Boolean(config.retiredBotLogins?.includes(login));
+}
 export const RepositoriesSchema = z.strictObject({ version: z.literal(1), repositories: z.array(RepositorySchema).max(100) });
 export async function readRepositories(path: string): Promise<RepositoryConfig[]> {
   const data = RepositoriesSchema.parse(parse(await readFile(path, 'utf8')));

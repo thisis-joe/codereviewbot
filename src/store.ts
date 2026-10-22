@@ -2,7 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { Pool, PoolClient } from 'pg';
 import type { Report, Target, Snapshot, ChangeQuestion, Verdict } from './contracts.js';
-import type { Event } from './webhooks.js';
+import { commentKey, type Event } from './webhooks.js';
+import type { RemoteComment } from './platform.js';
 import type { DiffMetadata } from './review.js';
 import { retryableFailure, recoveryAttempts } from './model-failure.js';
 
@@ -67,6 +68,21 @@ export class Store {
   }
   async getJob(id: string): Promise<Job | null> { return (await this.pool.query('SELECT * FROM jobs WHERE id=$1', [id])).rows[0] ?? null; }
   async getTarget(t: Target): Promise<{ report: Report | null } | null> { return (await this.pool.query('SELECT * FROM targets WHERE key=$1', [targetKey(t)])).rows[0] ?? null; }
+  /** Operator-only import from authenticated platform reads; bodies alone never establish trust. */
+  async rememberBotComments(target: Target, comments: RemoteComment[], botLogin: string): Promise<void> {
+    await this.transaction(async c => {
+      const key = targetKey(target);
+      await c.query('INSERT INTO targets(key,target) VALUES($1,$2) ON CONFLICT DO NOTHING', [key, target]);
+      for (const comment of comments) {
+        if (comment.author !== botLogin || !comment.body.includes('<!-- codereviewbot:')) continue;
+        await c.query('INSERT INTO bot_comment_history(target_key,surface,comment_id,bot_login) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING', [key, comment.surface, comment.id, botLogin]);
+      }
+    });
+  }
+  async botCommentHistory(target: Target): Promise<Set<string>> {
+    const rows = await this.pool.query('SELECT surface,comment_id AS id FROM bot_comment_history WHERE target_key=$1', [targetKey(target)]);
+    return new Set(rows.rows.map(commentKey));
+  }
   async recoveryEvent(snap: Snapshot, now = Date.now()): Promise<Event | null> {
     const key = targetKey(snap);
     if ((await this.pool.query("SELECT 1 FROM jobs WHERE target_key=$1 AND kind='review' AND state IN ('queued','running','ready','publishing') LIMIT 1", [key])).rowCount) return null;

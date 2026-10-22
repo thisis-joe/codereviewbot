@@ -1,3 +1,4 @@
+import { isBotLogin } from './config.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Target, Report } from './contracts.js';
 import { hasChangeQuestions } from './contracts.js';
@@ -80,7 +81,7 @@ export class Mattermost {
       return typeof kind === 'string' ? this.enqueue(target, `event:${deliveryId}`, { kind, title: title.slice(0, 500) }) : false;
     }
     // Bot progress, inline questions, acknowledgements and grading remain on GitLab.
-    if (b.object_kind === 'note' && a?.noteable_type === 'MergeRequest' && !a.system && (!a.action || a.action === 'create') && b.user?.username !== repo.botLogin && /^\d+$/.test(String(a.id)))
+    if (b.object_kind === 'note' && a?.noteable_type === 'MergeRequest' && !a.system && (!a.action || a.action === 'create') && !isBotLogin(repo, b.user?.username ?? '') && /^\d+$/.test(String(a.id)))
       return this.enqueue(target, `comment:${a.id}`, { kind: 'commented', title: title.slice(0, 500), noteId: String(a.id) });
     return false;
   }

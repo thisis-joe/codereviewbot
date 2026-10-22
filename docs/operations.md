@@ -131,3 +131,11 @@ Colima VM의 디스크는 Mac 호스트의 여유 공간과 별개다. `colima s
 - 재생성은 `/hey tryagain`으로 요청한다. 도움말에는 답변·정답 보기·심화 질문·재생성·코드 질문·도움말 6개만 표시한다.
 - 시작 시 마이그레이션이 사용하지 않는 `targets.paused` 컬럼과 `feedback` 테이블을 제거한다. 기존 일시정지 대상의 대기 작업은 다시 처리되며 질문·답변·보고서 이력은 유지한다.
 - 저장소 규칙은 기준 브랜치의 `.hey.yaml`, `AGENTS.md`, `docs/coding-standards.md`에서 관리한다.
+
+### GitLab 봇 계정 교체
+
+새 프로젝트 토큰은 기존과 같은 Developer 역할, `api`·`read_repository` 범위와 만료일로 발급한다. `botLogin`은 새 토큰의 `/user` 응답에 나온 username으로 바꾸고, 예전 username은 `retiredBotLogins`에 남긴다. 이 목록은 봇의 명령·MM 알림을 걸러내기 위한 설정이며, 예전 댓글을 수정할 권한을 부여하지 않는다.
+
+기존 토큰을 해제하기 전에 해당 프로젝트의 MR별 notes/discussions를 인증된 API로 읽고, 예전 봇이 작성한 hey 마커 댓글을 `Store.rememberBotComments`로 등록한다. `bot_comment_history`의 MR·댓글 종류·원격 ID가 일치하는 댓글만 과거 봇 댓글로 인정한다. 일반 사용자가 마커를 복사한 댓글은 인정하지 않는다. GitLab이 만료·해제된 봇의 작성자를 ghost로 바꿔도 등록된 질문 스레드는 계속 인식한다.
+
+질문 ID와 `targets.report`, `jobs.result`, `jobs.command_result`는 변경하지 않는다. 새 봇은 자기 요약 댓글을 작성·갱신하며 예전 댓글을 수정하거나 삭제하지 않는다. 요약에는 저장된 채점이 반영되고, 등록된 인라인 질문은 중복 게시하지 않는다. 프로젝트별 이력과 댓글 본문을 전후 비교하고 새 봇의 실제 명령 응답을 확인한 뒤 기존 토큰을 해제한다. 해제 후에는 기존 토큰을 되살릴 수 없으므로 코드 롤백에도 새 토큰을 유지한다.

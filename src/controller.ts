@@ -47,7 +47,7 @@ export class Controller {
           return;
         }
         const publishStarted = Date.now();
-        await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease, await this.store.answerResults(job.result.snapshot), job.body.requested);
+        await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease, await this.store.answerResults(job.result.snapshot), job.body.requested, await this.historicalComments(platform, job.result.snapshot));
         console.info(JSON.stringify({ jobId: job.id, event: 'questions_published', publishMs: Date.now() - publishStarted }));
         await this.syncGate(platform, job.result);
         await this.notifications?.questionsPublished(platform, job.result);
@@ -107,12 +107,14 @@ export class Controller {
     let command = parseCommand(normalized);
     const all = [...await platform.comments(job.body.target.number), ...await platform.inlineComments(job.body.target.number)];
     const key = commentKey(comment), marker = `<!-- codereviewbot:reply:${key.replace(/[^\w-]/g, '')} -->`;
-    if (all.some(c => platform.owned(c) && c.body.includes(marker))) return;
+    const historical = await this.historicalComments(platform, job.body.target);
+    const trusted = (c: (typeof all)[number]) => platform.owned(c) || historical.has(commentKey(c));
+    if (all.some(c => trusted(c) && c.body.includes(marker))) return;
     const usage = async (answer: string) => { await lease(); await platform.reply(job.body.target.number, [marker, plain(answer), '', COMMAND_HELP_HINT].join('\n'), comment.parentId, comment.discussionId); };
     if (command?.action === 'help') { await lease(); await platform.reply(job.body.target.number, renderCommandHelp(key), comment.parentId, comment.discussionId); return; }
     if (!command && /^\/(?:hey|reviewbot)\b/i.test(normalized.trim())) { await usage('명령을 확인하세요.'); return; }
     if (!command && (comment.parentId || comment.discussionId)) {
-      const ids = new Set(all.filter(c => platform.owned(c) && c.surface === comment.surface && (c.id === comment.parentId || (comment.parentId && c.parentId === comment.parentId) || (comment.discussionId && c.discussionId === comment.discussionId))).flatMap(c => [...c.body.matchAll(/<!-- codereviewbot:question:(Q-[a-f0-9]{12}) -->/g)].map(m => m[1]!)));
+      const ids = new Set(all.filter(c => trusted(c) && c.surface === comment.surface && (c.id === comment.parentId || (comment.parentId && c.parentId === comment.parentId) || (comment.discussionId && c.discussionId === comment.discussionId))).flatMap(c => [...c.body.matchAll(/<!-- codereviewbot:question:(Q-[a-f0-9]{12}) -->/g)].map(m => m[1]!)));
       if (ids.size === 1) command = { action: 'answer', id: [...ids][0]!, text: comment.body.slice(0, 8000) };
       else if (ids.size > 1) { await usage('이 스레드에는 여러 질문이 있습니다. 답할 질문 번호를 명시하세요.'); return; }
     }
@@ -182,8 +184,13 @@ export class Controller {
       const existing = comments.find(c => platform.owned(c) && c.body.includes(summaryMarker(report.snapshot)))
         ?? (hasChangeQuestions(report) ? comments.find(c => platform.owned(c) && c.body.includes(SUMMARY_MARKER) && !c.body.includes('<!-- codereviewbot:revision:')
           && report.questions.every(q => c.body.includes(`<!-- codereviewbot:question:${questionId(report.snapshot, q)} -->`))) : undefined);
-      if (existing && existing.body !== body && body.length <= 60000) await platform.comment(report.snapshot.number, body, existing.id);
+      const historical = existing ? new Set<string>() : await this.historicalComments(platform, report.snapshot);
+      const retiredSummary = comments.some(c => historical.has(commentKey(c)) && c.body.includes(summaryMarker(report.snapshot)));
+      if ((existing || retiredSummary) && existing?.body !== body && body.length <= 60000) await platform.comment(report.snapshot.number, body, existing?.id);
     } catch { console.error(JSON.stringify({ repository: platform.config.repository, number: report.snapshot.number, error: 'summary_refresh_failed' })); }
+  }
+  private async historicalComments(platform: Platform, target: Target): Promise<Set<string>> {
+    return platform.config.retiredBotLogins?.length ? this.store.botCommentHistory(target) : new Set();
   }
   // Gate failures (e.g. a missing status permission) must not block publishing; recovery retries every minute.
   private async syncGate(platform: Platform, report: Report): Promise<void> {

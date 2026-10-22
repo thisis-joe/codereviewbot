@@ -1,5 +1,5 @@
 import { ApiClient, HttpError, type TokenSource } from './http-client.js';
-import type { RepositoryConfig } from './config.js';
+import { isBotLogin, type RepositoryConfig } from './config.js';
 import { Sha, type Snapshot, type Target, type Check, type Candidate } from './contracts.js';
 import type { DiffPosition } from './review.js';
 import { GATE_CONTEXT, type GateStatus } from './answer-gate.js';
@@ -75,7 +75,7 @@ export class Platform {
     await this.api.request(`${this.root}/${gh ? `${c.surface === 'review' ? 'pulls' : 'issues'}/comments` : `merge_requests/${number}/notes`}/${encodeURIComponent(c.id)}`, 'DELETE');
   }
   async permission(username: string): Promise<'none' | 'write' | 'maintain'> {
-    if (!username || username === this.config.botLogin) return 'none';
+    if (!username || isBotLogin(this.config, username)) return 'none';
     try {
       if (this.config.platform === 'github') {
         const p = await this.api.request(`${this.root}/collaborators/${encodeURIComponent(username)}/permission`);

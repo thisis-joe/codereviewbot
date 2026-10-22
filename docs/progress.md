@@ -733,3 +733,11 @@
   120 unit + 50 isolated PostgreSQL/HTTP integration tests. The partial-publication
   check verifies the GitLab comment still contains four-question progress and its
   partial-analysis limitation while MM omits both. Full task diff author-reviewed.
+
+### 2026-10-22 — hey bot identity migration
+
+- User authorized a new GitLab bot named `hey`, keeping question/answer history, then disconnecting the old credential after verification. Feature branch: `codex/hey-bot-migration`, started from main `6baf6f6`, then rebased onto deployed MM copy commit `1d72579`; existing no-Jira ruling applies.
+- Separate active writable ownership from historical bot-comment recognition. Retired aliases deny bot commands/MM notifications; authenticated operator imports persist exact target/surface/remote IDs so ghost attribution cannot break old question threads. New summaries reuse existing question IDs and grades; old notes stay untouched.
+- RED: focused migration test lacked the bot identity helper. GREEN: focused tests cover bounded aliases, denied old-bot commands, strict active ownership and suppressed MM marker leakage. PostgreSQL tests cover registry persistence, MR/surface isolation, forged human markers, old-thread keyed grading, previous grade preservation, summary creation and publication idempotency.
+- Full integration suite: 52/52 passed. Full unit suite and deployment evidence recorded below after final checks. Author reviewed the actual diff and trust boundary; independent reviewer unavailable in this session (no delegation requested).
+- Automatic approval review rejected an initial whole-database baseline; narrowed the SQL capture to this project's platform/instance/repository before running it. No unrelated repository data was captured by that operation.
