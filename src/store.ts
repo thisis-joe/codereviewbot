@@ -32,7 +32,7 @@ export class Store {
         if (queued.rows[0]) {
           const prior = queued.rows[0], sameHead = prior.body.headSha === event.headSha;
           const regenerate = event.regenerate || (sameHead && prior.body.regenerate);
-          const body = { ...event, force: force || Boolean(sameHead && prior.body.force), ...(regenerate ? { regenerate: true } : {}) };
+          const body = { ...event, force: force || Boolean(sameHead && prior.body.force), ...(regenerate ? { regenerate: true } : {}), ...(event.requested || prior.body.requested ? { requested: true } : {}) };
           await c.query('UPDATE jobs SET body=$2,updated_at=now() WHERE id=$1', [prior.id, body]); return prior.id;
         }
       }

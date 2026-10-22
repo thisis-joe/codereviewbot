@@ -5,6 +5,7 @@ import { Controller } from '../../dist/controller.js';
 import { Store } from '../../dist/store.js';
 import { questionId } from '../../dist/learning.js';
 import { parsePatch, parsePositions } from '../../dist/review.js';
+import { HttpError } from '../../dist/http-client.js';
 import { changeQuestions, initialQuestions, finding, report, snapshot } from '../fixtures.mjs';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
@@ -216,6 +217,26 @@ for (const name of ['github', 'gitlab']) {
     assert.equal(f.checks(), 0);
   });
 
+  test(`${name}: commands still run on a closed or merged PR/MR while automatic events skip it`, async t => {
+    const f = await fixture(t, name);
+    f.platform.snapshot = async (number, allowClosed) => { if (!allowClosed) throw new HttpError(410, 'PR/MR is closed'); return { ...f.snap }; };
+    const automatic = await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: 'auto-after-merge' });
+    await f.tick();
+    assert.equal((await f.store.getJob(automatic)).state, 'superseded');
+    assert.equal(f.calls.length, 0);
+
+    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'review-after-merge', comment: {
+      id: 'review-after-merge', body: '/reviewbot review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
+    } });
+    await f.drain();
+    assert.equal((await f.store.getJob(commandId)).state, 'completed');
+    const requested = (await f.pool.query("SELECT body, state FROM jobs WHERE kind='review' AND id<>$1", [automatic])).rows;
+    assert.equal(requested.length, 1); assert.equal(requested[0].body.requested, true); assert.equal(requested[0].state, 'completed');
+    assert.deepEqual(f.calls.map(c => c.phase), ['initial_questions']);
+    assert.equal((await f.store.getTarget(f.snap)).report.state, 'completed');
+    assert.ok(f.writes.some(w => w.kind === 'summary'), 'Questions requested on a merged PR/MR are published');
+  });
+
   test(`${name}: a new push during generation prevents storing or publishing obsolete questions`, async t => {
     const f = await fixture(t, name);
     const run = f.model.run;
@@ -286,6 +307,7 @@ for (const command of ['review', 'full']) {
     await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: `auto-after-${command}` });
     const queued = (await f.pool.query("SELECT body FROM jobs WHERE state='queued' AND kind='review'")).rows[0].body;
     assert.equal(queued.regenerate, true);
+    assert.equal(queued.requested, true);
     assert.equal(queued.force, command === 'full');
     await f.drain();
     assert.deepEqual(f.calls.map(c => c.phase), ['initial_questions']);
