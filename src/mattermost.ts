@@ -27,17 +27,16 @@ export function renderNotification(target: Target, notification: Notification, a
   const project = `${target.instance}/${target.repository.split('/').map(encodeURIComponent).join('/')}`;
   if (notification.kind === 'push') {
     const who = plain(givenName(notification.author)), branch = plain(redact(notification.branch));
-    const link = /^0+$/.test(notification.before) ? `${project}/-/commits/${encodeURIComponent(notification.branch).replace(/[()]/g, c => c === '(' ? '%28' : '%29')}` : `${project}/-/compare/${notification.before}...${notification.after}`;
-    const linkedBranch = `**[${branch}](${link})**`;
-    return notification.count ? `📦 ${who}님이 ${linkedBranch}에 커밋 ${notification.count}개를 푸시했어요` : `📦 ${who}님이 ${linkedBranch} 브랜치를 올렸어요`;
+    const created = /^0+$/.test(notification.before);
+    const link = created ? `${project}/-/commits/${encodeURIComponent(notification.branch).replace(/[()]/g, c => c === '(' ? '%28' : '%29')}` : `${project}/-/compare/${notification.before}...${notification.after}`;
+    const headline = created ? `${who}님의 새 브랜치가 생겼어요. 🌱` : `${who}님의 커밋 ${notification.count}개가 올라왔어요. 📦`;
+    return `${headline}\n[**${branch}**](${link})`;
   }
   const url = `${project}/-/merge_requests/${target.number}`;
   const link = 'noteId' in notification ? `${url}#note_${notification.noteId}` : url;
-  const label = `MR !${target.number}${notification.kind === 'questions' ? ` · 질문 ${notification.count}개` : ''}`;
-  const mr = `${plain(givenName(author))}님의 **[${label}](${link})**`;
-  const labels = { opened: `📬 ${mr}이 열렸어요`, reopened: `🔄 ${mr}이 다시 열렸어요`, merged: `🎉 ${mr} 머지 완료`, closed: `🚪 ${mr}이 닫혔어요`, commented: `💬 ${mr} · 새 댓글이 달렸어요` };
-  const headline = notification.kind === 'questions' ? `😏 ${mr} 준비됐어요${notification.partial ? ' · 일부 변경 제외' : ''}` : labels[notification.kind];
-  return `${headline}\n${plain(redact(notification.title).slice(0, 500))}`;
+  const who = plain(givenName(author));
+  const labels = { questions: '새 질문이 준비됐어요. 😏', opened: '새 MR이 열렸어요. 📬', reopened: 'MR이 다시 열렸어요. 🔄', merged: 'MR 머지가 완료됐어요! 🎉', closed: 'MR이 닫혔어요. 🚪', commented: 'MR에 새 댓글이 달렸어요. 💬' };
+  return `${who}님의 ${labels[notification.kind]}\n[**MR !${target.number} - ${plain(redact(notification.title).slice(0, 500))}**](${link})`;
 }
 
 /** Destinations come only from trusted per-repository configuration, never webhook data. */

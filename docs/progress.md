@@ -715,3 +715,21 @@
 - Independent `release_review` final verdict: spec/standards/quality pass, no
   remaining blockers. Reviewed source/test diff SHA-256:
   `57b8f6ad5a340f1d772e3f269248f75bd5bee41b528e8ca3562d3b815ee27224`.
+
+## 2026-10-22 — Consistent two-line Mattermost notification copy
+
+- User selected the exact `이름님의 ... 이모지` sentences and a second bold link
+  containing the full `MR !number - title` or branch name. Question counts and
+  partial-scope warnings stay on GitLab only; MM question completion is concise.
+- Branch `codex/mattermost-consistent-copy` starts from `6baf6f6`; existing no-Jira
+  ruling applies. Concurrent bot-identity edits appeared in the shared checkout,
+  so only this task's formatter/tests were moved into the isolated worktree at
+  `.local/consistent-copy/worktree`; the original branch and identity edits remain.
+- Lifecycle, question and human-comment notices now share the two-line format.
+  New branches are identified from the actual zero before SHA, including creation
+  with nonzero commit counts; ordinary pushes show their commit count. Destinations,
+  author given names, escaping, deduplication and GitLab report detail are preserved.
+- RED: four focused formatting checks failed against the old renderer. GREEN:
+  120 unit + 50 isolated PostgreSQL/HTTP integration tests. The partial-publication
+  check verifies the GitLab comment still contains four-question progress and its
+  partial-analysis limitation while MM omits both. Full task diff author-reviewed.
