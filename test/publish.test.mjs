@@ -26,14 +26,16 @@ test('changed head or a lost lease prevents all remote writes', async () => {
   const p = platform(); await assert.rejects(() => publish(p, report(), {}, 5, async () => { throw Error('lease lost'); }));
   assert.equal(p.stored.comments.length, 0);
 });
-test('commands distinguish explicit dismiss/learning approval from ordinary conversation', () => {
-  assert.deepEqual(parseCommand('/hey dismiss CRB-0002 intentional fallback'), { action: 'dismiss', id: 'CRB-0002', text: 'intentional fallback' });
-  assert.equal(parseCommand('/hey dismiss CRB-0002'), null);
-  assert.deepEqual(parseCommand('/hey dismiss 의도된 동작'), { action: 'dismiss', id: null, text: '의도된 동작' }, 'a thread reply supplies the finding');
-  assert.deepEqual(parseCommand('/hey explain'), { action: 'explain', id: null });
-  assert.deepEqual(parseCommand('/hey explain CRB-0003'), { action: 'explain', id: 'CRB-0003' });
-  assert.equal(parseCommand('/hey explain why'), null);
-  assert.deepEqual(parseCommand('/hey approve 11111111-1111-4111-8111-111111111111'), { action: 'approve', id: '11111111-1111-4111-8111-111111111111' });
+test('only supported commands are accepted; regeneration uses tryagain without legacy aliases', () => {
+  for (const prefix of ['/hey', '/HEY', '/reviewbot']) {
+    assert.deepEqual(parseCommand(`${prefix} tryagain`), { action: 'tryagain' });
+    assert.equal(parseCommand(`${prefix} tryagain extra`), null);
+    for (const action of ['review', 'full', 'pause', 'resume', 'explain', 'dismiss', 'learn', 'approve', 'reject']) {
+      for (const args of ['', ' CRB-0002 reason', ' 11111111-1111-4111-8111-111111111111', ' rule']) {
+        assert.equal(parseCommand(`${prefix} ${action}${args}`), null, `${action} must be removed`);
+      }
+    }
+  }
   assert.equal(parseCommand('unrelated comment'), null);
   assert.equal(parseCommand('@hey why is this unsafe?').action, 'ask');
 });

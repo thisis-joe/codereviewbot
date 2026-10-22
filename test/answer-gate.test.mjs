@@ -78,6 +78,6 @@ test('the policy flag is opt-in and leaves existing policy versions unchanged', 
   const { readPolicy, policyVersion } = await import('../dist/policy.js');
   assert.equal(readPolicy('requireAnswers: true').requireAnswers, true);
   assert.equal('requireAnswers' in readPolicy(''), false);
-  assert.equal(policyVersion(readPolicy(''), [], []), policyVersion({ version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5 }, [], []));
+  assert.equal(policyVersion(readPolicy(''), []), policyVersion({ version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5 }, []));
   assert.throws(() => readPolicy('requireAnswers: "yes"'));
 });

@@ -7,13 +7,12 @@ import { Controller } from '../../dist/controller.js';
 import { application } from '../../dist/application.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
-for (const provider of ['github', 'gitlab']) test(`${provider} signed help commands work while paused with no report and reconcile a lost reply`, async t => {
+for (const provider of ['github', 'gitlab']) test(`${provider} signed help commands work with no report and reconcile a lost reply`, async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   const config = { platform: provider, instance: provider === 'github' ? 'https://api.github.com' : 'https://gitlab.example.com', repository: 'joe/demo', botLogin: 'bot', webhookSecretEnv: 'HELP_HOOK_SECRET', webhookAuth: provider === 'github' ? 'hmac' : 'signing', tokenEnv: 'TOKEN', enabled: true };
   const target = { platform: provider, instance: config.instance, repository: config.repository, number: 1 };
-  await store.enqueue({ kind: 'review', target, deliveryId: 'paused-review', headSha: 'b'.repeat(40) });
-  await store.setPaused(target, true);
+  await store.enqueue({ kind: 'review', target, deliveryId: 'pending-review', headSha: 'b'.repeat(40) });
   const comments = [], replies = [], acks = [], deleted = [], forbidden = () => { throw new Error('help must not access code or inference'); };
   let loseReply = true, sequence = 0;
   const platform = { config, permission: async () => 'write', comments: async () => comments, inlineComments: async () => [], owned: c => c.author === 'bot', snapshot: forbidden,
@@ -53,9 +52,10 @@ for (const provider of ['github', 'gitlab']) test(`${provider} signed help comma
   assert.equal(deleted.length, 1);
   assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
   assert.equal(acks[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
-  assert.match(replies[0].body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
-  assert.equal([...replies[0].body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 14);
+  const body = replies[0].body.replaceAll('&nbsp;', ' ').replace(/<\/?code>/g, '`');
+  assert.match(body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
+  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 6);
   assert.equal(replies[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
-  const state = await store.getTarget(target); assert.equal(state.paused, true); assert.equal(state.report, null);
+  const state = await store.getTarget(target); assert.equal(state.report, null);
   assert.equal((await pool.query("SELECT state FROM jobs WHERE kind='review'")).rows[0].state, 'queued');
 });

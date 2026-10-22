@@ -53,7 +53,7 @@ async function fixture(t, name) {
   t.after(() => pool.end());
   const store = new Store(pool);
   await store.migrate();
-  await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   const snap = snapshot(name === 'gitlab' ? {
     platform: 'gitlab', instance: 'https://gitlab.com', repository: 'group/demo', webUrl: 'https://gitlab.com/group/demo/-/merge_requests/1',
   } : {});
@@ -229,12 +229,12 @@ for (const name of ['github', 'gitlab']) {
     assert.equal((await f.store.health()).queued, 0);
   });
 
-  test(`${name}: an explicit review command regenerates current same-SHA questions with a full source fallback`, async t => {
+  test(`${name}: an explicit tryagain command regenerates current same-SHA questions with a full source fallback`, async t => {
     const f = await fixture(t, name);
     const current = report({ schemaVersion: '2', requireAnswers: true });
     await f.seed(current);
-    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'explicit-review', comment: {
-      id: 'explicit-review', body: '/hey review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
+    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'explicit-tryagain', comment: {
+      id: 'explicit-tryagain', body: '/hey tryagain', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
     } });
     await f.tick();
     assert.equal((await f.store.getJob(commandId)).state, 'completed');
@@ -263,8 +263,8 @@ for (const name of ['github', 'gitlab']) {
     assert.equal((await f.store.getJob(automatic)).state, 'superseded');
     assert.equal(f.calls.length, 0);
 
-    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'review-after-merge', comment: {
-      id: 'review-after-merge', body: '/hey review', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
+    const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'tryagain-after-merge', comment: {
+      id: 'tryagain-after-merge', body: '/hey tryagain', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
     } });
     await f.drain();
     assert.equal((await f.store.getJob(commandId)).state, 'completed');
@@ -336,7 +336,7 @@ test('question timing estimates exclude stored two-pass review timings and prefe
   assert.deepEqual(await f.store.reviewEstimate('incremental'), { minutes: 3, measured: true });
 });
 
-for (const command of ['review', 'full']) {
+for (const command of ['tryagain']) {
   test(`same-head automatic events preserve an explicit ${command} request queued before dispatch`, async t => {
     const f = await fixture(t, 'github');
     await f.seed(report({ schemaVersion: '2' }));
@@ -346,7 +346,7 @@ for (const command of ['review', 'full']) {
     const queued = (await f.pool.query("SELECT body FROM jobs WHERE state='queued' AND kind='review'")).rows[0].body;
     assert.equal(queued.regenerate, true);
     assert.equal(queued.requested, true);
-    assert.equal(queued.force, command === 'full');
+    assert.equal(queued.force, false);
     await f.drain();
     assert.deepEqual(f.calls.map(c => c.phase), ['initial_questions']);
   });

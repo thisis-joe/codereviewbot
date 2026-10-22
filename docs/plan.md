@@ -23,13 +23,15 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 - Schema version 2 results display only a commit, generation state, answer progress,
   code-linked questions and one `/hey help` entry point. Old sections 1–3, review
   verdicts, repeated command examples and automatic finding comments disappear.
-- `/hey help` alone displays the full four-column command table, including
-  all prior commands and help. It needs no report, snapshot export or model call,
-  works while paused, respects existing permissions and reconciles owned markers.
-- `review` regenerates questions on current code, bypassing same-SHA cache. With no
-  newer revision to compare it falls back to full-PR source. `full` always uses the
-  full scope. `pause`/`resume`, `answer`, `morequestion`, `@hey` and approved
-  repository context remain supported. `explain`/`dismiss` handle historical findings.
+- `/hey help` displays six commands: `answer`, `showanswer`, `morequestion`,
+  `tryagain`, `@hey` and `help`. It needs no report, snapshot export or model call,
+  respects existing permissions and reconciles owned markers.
+- `tryagain` regenerates questions on current code, bypassing the same-SHA cache.
+  With no newer revision to compare it falls back to full-PR source.
+- Removed commands (`full`, `pause`, `resume`, `explain`, `dismiss`, `learn`,
+  `approve`, `reject` and the former `review` spelling) return the help hint and
+  trigger no code/model/state effects. Pause state and feedback storage are retired;
+  repository policy and guide files remain the source of instructions.
 - `showanswer` reveals stored answer keys and explanations without a model call; it
   records no grade, so answer progress and the merge gate are unchanged.
 - Question IDs, same-ref history, supplementary numbering, durable grading replies,
@@ -40,7 +42,8 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 - Version 1 cache entries refresh even at identical refs. Legacy ready/publishing
   jobs enqueue versioned replacement generation before posting anything. Recovery
   uses a new versioned delivery key so permanent old delivery deduplication cannot
-  suppress migration. Historical data is retained without a destructive DB migration.
+  suppress migration. Question, answer and report history is retained. The command cleanup removes only
+  the obsolete pause column and feedback table with an idempotent migration.
 - New pushes and expired leases fence writes. Lost publication responses reconcile
   existing owned markers. Failed/no-source runs explicitly explain unavailability.
 - Timing estimates use only version 2 generation measurements. Logs record preparation,
@@ -91,5 +94,5 @@ sampling requires an authenticated model run and remains an explicit deployment
 validation item when unavailable locally.
 
 Keep historical data and additive contracts for recovery. On a rollout failure,
-pause automatic generation while retaining answer history; repair and retry without
+stop the controller while retaining answer history; repair and retry without
 resetting the database. Deploy controller and runner built from the same revision.

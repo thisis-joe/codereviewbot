@@ -11,7 +11,7 @@ import { snapshot, report, initialQuestions } from '../fixtures.mjs';
 async function fixture(t, responseStatus = 200) {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate();
-  await pool.query('TRUNCATE mattermost_notifications,deliveries,jobs,feedback,targets CASCADE');
+  await pool.query('TRUNCATE mattermost_notifications,deliveries,jobs,targets CASCADE');
   const received = [], comments = [], authorReads = [];
   const receiver = createServer(async (req, res) => {
     const parts = []; for await (const part of req) parts.push(part);

@@ -6,7 +6,7 @@ import { Controller } from '../dist/controller.js';
 async function loggedFailure(error) {
   const target = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', number: 1 };
   const platform = { config: target, permission: async () => { throw error; } };
-  const job = { id: 'diagnostic-job', owner: 'owner', kind: 'command', state: 'running', attempts: 1, body: { target, comment: { id: 'human', author: 'joe', body: '/hey pause', surface: 'issue' } } };
+  const job = { id: 'diagnostic-job', owner: 'owner', kind: 'command', state: 'running', attempts: 1, body: { target, comment: { id: 'human', author: 'joe', body: '/hey tryagain', surface: 'issue' } } };
   const store = { fail: async () => {}, heartbeat: async () => {} }, logs = [], original = console.error;
   console.error = line => logs.push(JSON.parse(line));
   try { await new Controller(store, [platform], {}, {}).perform(job); }

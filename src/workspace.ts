@@ -46,7 +46,7 @@ export async function exportSnapshot(repo: string, sha: string, out: string, pri
 }
 export class Workspaces {
   constructor(readonly root: string) {}
-  async prepare(provider: Platform, snapshot: Snapshot, id: string, previous: Snapshot | null, learnings: string[]): Promise<{ context: ReviewContext; policy: Policy; guidelines: string[]; mode: 'full' | 'incremental' }> {
+  async prepare(provider: Platform, snapshot: Snapshot, id: string, previous: Snapshot | null): Promise<{ context: ReviewContext; policy: Policy; guidelines: string[]; mode: 'full' | 'incremental' }> {
     if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid workspace ID');
     const key = createHash('sha256').update(`${snapshot.instance}:${snapshot.repository}`).digest('hex');
     const cache = join(this.root, 'cache', key); await mkdir(cache, { recursive: true, mode: 0o700 });
@@ -68,7 +68,7 @@ export class Workspaces {
     for (const path of ['AGENTS.md', 'docs/coding-standards.md']) {
       try { const text = (await git(cache, ['show', `${snapshot.startSha}:${path}`])).toString('utf8'); if (text.length <= 12000) guidelines.push(`${path}\n${text}`); } catch { /* optional */ }
     }
-    snapshot.policyVersion = policyVersion(policy, guidelines, learnings);
+    snapshot.policyVersion = policyVersion(policy, guidelines);
     let mode: 'full' | 'incremental' = 'full', previousSha: string | null = null;
     if (previous && previous.baseSha === snapshot.baseSha && previous.startSha === snapshot.startSha && previous.policyVersion === snapshot.policyVersion) {
       const ancestry = await execute('git', ['-C', cache, 'merge-base', '--is-ancestor', previous.headSha, snapshot.headSha], { env: gitEnv(), allowFailure: true });

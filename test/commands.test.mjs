@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Controller } from '../dist/controller.js';
-import { snapshot, report, finding, choices, answerKey } from './fixtures.mjs';
+import { snapshot, report, choices, answerKey } from './fixtures.mjs';
 import { questionId } from '../dist/learning.js';
 import { parseCommand } from '../dist/commands.js';
 
@@ -22,7 +22,7 @@ test('hey commands and mentions keep old comment instructions usable without mat
 function learningHarness(body, overrides = {}) {
   const data = { snap: snapshot(), report: report(), batches: [], saved: null, calls: [], replies: [], remote: [], ...overrides };
   const job = { id: '10000000-0000-4000-8000-000000000001', owner: 'owner', kind: 'command', body: { target: snapshot(), comment: { id: 'human1', author: 'joe', body, parentId: null, discussionId: null, surface: 'issue', ...overrides.comment } } };
-  const store = { getTarget: async () => ({ report: data.report }), learnings: async () => data.learnings ?? [], learningBatches: async () => data.batches, questionHistory: async () => data.history ?? [],
+  const store = { getTarget: async () => ({ report: data.report }), learningBatches: async () => data.batches, questionHistory: async () => data.history ?? [],
     saveCommandResult: async (id, owner, value) => { data.saved = value; } };
   const platform = { config: { botLogin: 'bot' }, permission: async () => data.permission ?? 'write', owned: c => c.author === 'bot',
     comments: async () => data.remote.map(c => ({ surface: job.body.comment.surface, ...c })), inlineComments: async () => [], snapshot: async () => ({ ...data.snap }),
@@ -35,23 +35,23 @@ function learningHarness(body, overrides = {}) {
 test('help is an explicit no-argument command and returns the complete deterministic command table without a report or code access', async () => {
   assert.deepEqual(parseCommand(' /hey HELP '), { action: 'help' });
   assert.equal(parseCommand('/hey help answer'), null);
-  const expected = ['answer', 'showanswer', 'morequestion', 'review', 'full', 'pause', 'resume', 'explain', 'dismiss', 'learn', 'approve', 'reject', 'help'];
+  const expected = ['answer', 'showanswer', 'morequestion', 'tryagain', 'help'];
   const replies = [], forbidden = () => { throw new Error('help must not access report, snapshots, workspace or model'); };
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], owned: c => c.author === 'bot', snapshot: forbidden,
     reply: async (...args) => { replies.push(args); } };
-  const store = { getTarget: forbidden, learnings: forbidden, setPaused: forbidden };
+  const store = { getTarget: forbidden, enqueue: forbidden };
   const controller = new Controller(store, [], { prepare: forbidden }, { run: forbidden });
   const job = { id: 'help-job', body: { target: snapshot(), comment: { id: 'help-1', author: 'joe', body: '/hey help', parentId: 'root', discussionId: 'discussion', surface: 'review' } } };
   for (let i = 0; i < 2; i++) await controller.command(job, platform, async () => {});
   assert.equal(replies.length, 2); assert.equal(replies[0][1], replies[1][1]);
-  const body = replies[0][1];
+  const body = replies[0][1].replaceAll('&nbsp;', ' ').replace(/<\/?code>/g, '`');
   assert.match(body, /^<!-- codereviewbot:reply:review-help-1 -->/);
   assert.match(body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
   for (const command of expected) assert.match(body, new RegExp(`^\\| \`/hey ${command}\` \\| [^|]+ \\| [^|]+ \\| \`/hey ${command}[^|]*\` \\|$`, 'm'));
   assert.match(body, /^\| `@hey` \| 코드 질문 \| .* \| `@hey .+` \|$/m);
-  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 14);
-  assert.match(body, /최신 변경.*질문.*생성/); assert.match(body, /PR\/MR 전체.*질문.*생성/);
-  assert.match(body, /과거.*지적/);
+  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 6);
+  assert.match(body, /최신 변경.*질문.*생성/);
+  assert.doesNotMatch(body, /\/hey (?:review|full|pause|resume|explain|dismiss|learn|approve|reject)\b/);
   assert.equal(replies[0][2], 'root'); assert.equal(replies[0][3], 'discussion');
   platform.comments = async () => [{ id: 'prior-help', author: 'bot', body, surface: 'review' }];
   await controller.command(job, platform, async () => {}); assert.equal(replies.length, 2, 'lost reply responses reconcile through the existing marker');
@@ -229,7 +229,7 @@ test('same-revision report replacement keeps old question IDs answerable and exc
 test('large but valid accumulated learning context fits the runner prompt boundary', async () => {
   const options = ['A', 'B', 'C', 'D', 'E'].map(id => ({ id, text: id + 'x'.repeat(299) }));
   const questions = Array.from({ length: 50 }, (_, i) => ({ question: String(i).padStart(3, '0') + 'q'.repeat(497), path: 'src/pay.ts', line: 2, side: 'RIGHT', options }));
-  const h = learningHarness('/hey morequestion', { report: report({ questions: questions.slice(0, 10) }), batches: [0, 1, 2, 3].map(i => ({ snapshot: snapshot(), questions: questions.slice((i + 1) * 10, (i + 2) * 10) })), policy: { pathInstructions: Array.from({ length: 25 }, (_, i) => ({ path: `src/${i}`, instructions: 'p'.repeat(4000) })) }, learnings: Array(20).fill('l'.repeat(4000)), context: { ...context(), diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -0,0 +1 @@\n+' + '\t'.repeat(139000), lines: new Set([1, 2]) } } } });
+  const h = learningHarness('/hey morequestion', { report: report({ questions: questions.slice(0, 10) }), batches: [0, 1, 2, 3].map(i => ({ snapshot: snapshot(), questions: questions.slice((i + 1) * 10, (i + 2) * 10) })), policy: { pathInstructions: Array.from({ length: 25 }, (_, i) => ({ path: `src/${i}`, instructions: 'p'.repeat(4000) })) }, context: { ...context(), diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -0,0 +1 @@\n+' + '\t'.repeat(139000), lines: new Set([1, 2]) } } } });
   await h.run(); assert.ok(h.data.calls[0].prompt.length <= 500000); assert.match(h.data.replies[0][1], /심화 질문/);
   assert.ok(h.data.calls[0].prompt.includes(questions[49].question));
 });
@@ -295,7 +295,7 @@ test('the @hey prompt never carries answer keys', async () => {
 test('a push during contextual answer generation prevents publishing obsolete code advice', async () => {
   let snap = snapshot(), replies = 0;
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], snapshot: async () => ({ ...snap }), reply: async () => { replies++; } };
-  const store = { getTarget: async () => ({ report: report() }), learnings: async () => [] };
+  const store = { getTarget: async () => ({ report: report() }) };
   const workspaces = { prepare: async () => ({ context: { sourceDir: '/source' }, policy: {} }) };
   const model = { run: async () => { snap = { ...snap, headSha: 'c'.repeat(40) }; return { answer: 'old code advice', evidence: [], next: 'check code' }; } };
   const controller = new Controller(store, [], workspaces, model);
@@ -304,43 +304,16 @@ test('a push during contextual answer generation prevents publishing obsolete co
   assert.equal(replies, 0);
 });
 
-function findingHarness(body, comment = {}) {
-  const findings = [finding({ id: 'CRB-0001', status: 'new' }), finding({ id: 'CRB-0002', status: 'open', line: 3 }), finding({ id: 'CRB-0003', status: 'fixed' })];
-  const data = { prompts: [], replies: [], dismissed: [] };
-  const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', owned: c => c.author === 'bot',
-    comments: async () => [], inlineComments: async () => [{ id: 'root2', author: 'bot', surface: 'review', body: '<!-- codereviewbot:finding:v1:CRB-0002 -->\n### [보통][정확성] 문제' }],
-    snapshot: async () => snapshot(), reply: async (_n, text) => { data.replies.push(text); } };
-  const store = { getTarget: async () => ({ report: report({ findings }) }), learnings: async () => [], addFeedback: async () => '11111111-1111-4111-8111-111111111111', dismiss: async (_t, id) => { data.dismissed.push(id); return true; }, enqueue: async () => 'job2' };
-  const workspaces = { prepare: async () => ({ context: { sourceDir: '/source' }, policy: {} }) };
-  const model = { run: async (_phase, prompt) => { data.prompts.push(prompt); return { answer: '설명', evidence: [], next: '확인' }; } };
-  const job = { id: 'job', body: { target: snapshot(), comment: { id: 'c1', author: 'joe', body, parentId: null, discussionId: null, surface: 'issue', ...comment } } };
-  return { data, run: () => new Controller(store, [], workspaces, model).command(job, platform, async () => {}) };
-}
-const promptFindings = prompt => JSON.parse(prompt.slice(prompt.indexOf('{'))).findings.map(f => f.id);
 
-test('explain without an ID covers the finding thread it replies in, or every open finding from a plain comment', async () => {
-  const thread = findingHarness('/hey explain', { surface: 'review', parentId: 'root2' }); await thread.run();
-  assert.deepEqual(promptFindings(thread.data.prompts[0]), ['CRB-0002']);
-  const plainComment = findingHarness('/hey explain'); await plainComment.run();
-  assert.deepEqual(promptFindings(plainComment.data.prompts[0]), ['CRB-0001', 'CRB-0002'], 'fixed findings are not re-explained');
-  const named = findingHarness('/hey explain CRB-0001', { surface: 'review', parentId: 'root2' }); await named.run();
-  assert.deepEqual(promptFindings(named.data.prompts[0]), ['CRB-0001'], 'an explicit ID wins over the thread');
-});
-
-test('dismiss without an ID only works inside a finding thread', async () => {
-  const thread = findingHarness('/hey dismiss 의도된 동작', { surface: 'review', parentId: 'root2' }); await thread.run();
-  assert.deepEqual(thread.data.dismissed, ['CRB-0002']);
-  assert.match(thread.data.replies[0], /CRB\\-0002 지적을 기각했습니다/);
-  const plainComment = findingHarness('/hey dismiss 의도된 동작'); await plainComment.run();
-  assert.deepEqual(plainComment.data.dismissed, []);
-  assert.match(plainComment.data.replies[0], /어떤 지적을 기각할지 알 수 없습니다/);
-});
-
-
-test('ordinary feedback and legacy dismissal replies contain only the help entry point', async () => {
-  for (const body of ['/hey dismiss 의도된 동작', '/hey learn 금액은 정수로 다룬다']) {
-    const h = findingHarness(body); await h.run();
-    assert.match(h.data.replies[0], /명령어 안내: `\/hey help`/);
-    assert.doesNotMatch(h.data.replies[0], /\/hey (?:dismiss|approve|reject)|\| 명령어/);
+test('removed commands return help without code, model, queue or legacy finding effects', async () => {
+  for (const action of ['review', 'full', 'pause', 'resume', 'explain', 'dismiss', 'learn', 'approve', 'reject']) {
+    const h = learningHarness(`/hey ${action}`, { report: null, comment: { surface: 'review', parentId: 'old-finding' } });
+    h.data.remote = [{ id: 'old-finding', author: 'bot', surface: 'review', body: '<!-- codereviewbot:finding:v1:CRB-0001 -->' }];
+    await h.run();
+    assert.equal(h.data.calls.length, 0);
+    assert.equal(h.data.saved, null);
+    assert.equal(h.data.replies.length, 1);
+    assert.match(h.data.replies[0][1], /명령.*확인/);
+    assert.match(h.data.replies[0][1], /명령어 안내: `\/hey help`/);
   }
 });

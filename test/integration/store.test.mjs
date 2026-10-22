@@ -25,7 +25,7 @@ test('publishing an error notice remains failed and health stops counting it onl
 test('durable queue handles duplicate deliveries, immediate dispatch, exclusive leases and restart fencing', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate();
-  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  await pool.query('TRUNCATE deliveries, jobs, targets CASCADE');
   const target = snapshot(); const event = { kind: 'review', target, deliveryId: 'd1', headSha: target.headSha };
   const id = await store.enqueue(event); assert.ok(id);
   assert.equal(await store.enqueue(event), null);
@@ -41,28 +41,27 @@ test('durable queue handles duplicate deliveries, immediate dispatch, exclusive 
   assert.equal((await restarted.getJob(id)).state, 'completed');
   assert.equal((await restarted.getTarget(target)).report.snapshot.headSha, target.headSha);
 });
-test('a newer source push supersedes a running review and paused repositories retain commands', async t => {
+test('a newer source push supersedes a running review and commands retain priority', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end()); const store = new Store(pool); await store.migrate();
-  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  await pool.query('TRUNCATE deliveries, jobs, targets CASCADE');
   const target = snapshot(); await store.enqueue({ kind: 'review', target, deliveryId: 'd2', headSha: 'b'.repeat(40) });
   const first = await store.claim();
   await store.enqueue({ kind: 'review', target, deliveryId: 'd3', headSha: 'c'.repeat(40) });
   await assert.rejects(() => store.assertLease(first.id, first.owner));
-  await store.setPaused(target, true);
-  assert.equal(await store.claim(), null);
-  await store.enqueue({ kind: 'command', target, deliveryId: 'd4', comment: { id: '4', body: '/hey resume', author: 'joe', parentId: null, discussionId: null, surface: 'issue' } });
-  assert.equal((await store.claim()).kind, 'command');
+  await store.enqueue({ kind: 'command', target, deliveryId: 'd4', comment: { id: '4', body: '/hey help', author: 'joe', parentId: null, discussionId: null, surface: 'issue' } });
+  const command = await store.claim(); assert.equal(command.kind, 'command');
+  await store.complete(command.id, command.owner);
+  assert.equal((await store.claim()).kind, 'review');
 });
 
-test('CI completion during review is retained for refresh and dismissal cannot resurrect a ready finding', async t => {
+test('CI completion during review is retained for refresh', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries, jobs, targets CASCADE');
   const target = snapshot(); await store.enqueue({ kind: 'review', target, deliveryId: 'review', headSha: target.headSha });
   const reviewing = await store.claim();
   await store.enqueue({ kind: 'ci', target, deliveryId: 'ci-finished', headSha: target.headSha });
   await store.saveResult(reviewing.id, reviewing.owner, report({ findings: [{ ...(await import('../fixtures.mjs')).finding(), id: 'CRB-0001', status: 'new' }] }), {}, 5);
-  assert.equal(await store.dismiss(target, 'CRB-0001'), true);
-  const ready = await store.claim(); assert.equal(ready.state, 'publishing'); assert.equal(ready.result.findings[0].status, 'dismissed');
+  const ready = await store.claim(); assert.equal(ready.state, 'publishing'); assert.equal(ready.result.findings[0].status, 'new');
   await store.complete(ready.id, ready.owner);
   assert.equal((await store.claim()).kind, 'ci');
 });
@@ -70,7 +69,7 @@ test('CI completion during review is retained for refresh and dismissal cannot r
 test('learning responses survive restart, remain target-scoped and reject expired-lease writes', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate(); await store.migrate();
-  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  await pool.query('TRUNCATE deliveries, jobs, targets CASCADE');
   const target = snapshot();
   const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '/hey morequestion', surface: 'issue', parentId: null, discussionId: null } });
   const job = await store.claim();
@@ -92,7 +91,7 @@ test('learning responses survive restart, remain target-scoped and reject expire
 
 test('question history preserves earlier same-revision report questions without crossing targets or refs', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end()); const store = new Store(pool); await store.migrate();
-  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  await pool.query('TRUNCATE deliveries, jobs, targets CASCADE');
   for (let i = 0; i < 3; i++) {
     const snap = snapshot(i === 2 ? { headSha: 'c'.repeat(40) } : {});
     await store.enqueue({ kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `history-${i}` }, true);
@@ -109,7 +108,7 @@ test('question history preserves earlier same-revision report questions without 
 
 test('only completed graded answers on the same revision and target count toward the merge gate', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end()); const store = new Store(pool); await store.migrate();
-  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  await pool.query('TRUNCATE deliveries, jobs, targets CASCADE');
   const answer = async (target, deliveryId, answered, complete = true) => {
     const id = await store.enqueue({ kind: 'command', target, deliveryId, comment: { id: deliveryId, author: 'joe', body: 'answer', surface: 'issue', parentId: null, discussionId: null } });
     const job = await store.claim(); assert.equal(job.id, id);
@@ -137,7 +136,7 @@ test('only completed graded answers on the same revision and target count toward
 test('question estimates use recorded generation times for the same mode', async t => {
   const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
   const store = new Store(pool); await store.migrate();
-  await pool.query('TRUNCATE deliveries, jobs, feedback, targets CASCADE');
+  await pool.query('TRUNCATE deliveries, jobs, targets CASCADE');
   assert.deepEqual(await store.reviewEstimate('full'), { minutes: 2, measured: false });
   for (const [i, seconds] of [200, 250, 400].entries()) {
     const target = snapshot({ number: 10 + i });
@@ -148,4 +147,27 @@ test('question estimates use recorded generation times for the same mode', async
   }
   assert.deepEqual(await store.reviewEstimate('full'), { minutes: 5, measured: true });
   assert.deepEqual(await store.reviewEstimate('incremental'), { minutes: 5, measured: true }, 'falls back to other modes before guessing');
+});
+
+test('migration retires paused targets and feedback while preserving queued work and answer history', async t => {
+  const pool = new pg.Pool({ connectionString: url }); t.after(() => pool.end());
+  const store = new Store(pool); await store.migrate();
+  await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
+  const target = snapshot();
+  const answerId = await store.enqueue({ kind: 'command', target, deliveryId: 'retained-answer', comment: { id: 'answer', author: 'joe', body: '/hey answer Q1 B', surface: 'issue' } });
+  const answer = await store.claim();
+  await store.saveCommandResult(answerId, answer.owner, { snapshot: target, body: 'graded', grades: [{ id: 'Q-000000000001', verdict: 'correct' }] });
+  await store.complete(answerId, answer.owner);
+  const reviewId = await store.enqueue({ kind: 'review', target, deliveryId: 'previously-paused', headSha: target.headSha });
+  // Reproduce the previous schema and state instead of resetting an existing database.
+  await pool.query('ALTER TABLE targets ADD COLUMN paused boolean NOT NULL DEFAULT false');
+  await pool.query('UPDATE targets SET paused=true');
+  await pool.query('CREATE TABLE feedback (id text PRIMARY KEY, target_key text REFERENCES targets(key), rule text)');
+  await pool.query("INSERT INTO feedback VALUES ('retired-rule',$1,'old rule')", [targetKey(target)]);
+  await store.migrate(); await store.migrate();
+  assert.equal((await pool.query("SELECT to_regclass('feedback') AS name")).rows[0].name, null);
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM information_schema.columns WHERE table_name='targets' AND column_name='paused'")).rows[0].count, 0);
+  assert.deepEqual([...await store.answerResults(target)], [['Q-000000000001', 'correct']]);
+  assert.equal((await store.getJob(answerId)).state, 'completed');
+  assert.equal((await store.claim()).id, reviewId, 'a formerly paused target must continue processing');
 });

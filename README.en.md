@@ -35,9 +35,9 @@ The project name is `hey`, with `/hey` commands and `@hey` questions. Existing `
 | Change understanding | Exactly four questions (three basic, one advanced), four choices A–D, with a `[심화]` tag on the advanced one. |
 | Answer grading | Reply with question numbers and choices for grades, explanations and per-option notes. A bare option letter works in a single-question inline thread. |
 | Deeper learning | Each request adds five deeper questions, excluding those already asked. |
-| Command help | Ordinary question, follow-up and grading comments show one help entry point. `/hey help` returns the complete four-column table of 14 commands. |
+| Command help | Ordinary question, follow-up and grading comments show one help entry point. `/hey help` returns the complete four-column table of 6 commands. |
 | Merge after answering | Optional commit status requires answers to the initial questions visible in the current summary before merging. |
-| Repository context | Maintainer-approved repository rules inform questions and explanations. |
+| Repository context | Base-branch policy and guide files inform questions and explanations. |
 
 ## How it works
 
@@ -162,33 +162,22 @@ Questions on publishable diff lines also receive an inline thread. Questions tha
 ### Transition from existing results
 
 New results use `schemaVersion: "2"`. A previous result is converted once even when head/base/start SHAs are unchanged; subsequent runs reuse the question result. Old results awaiting publication are regenerated as questions and never repost historical findings.
-The existing database, published questions and answer history are retained. Explicit explain/dismiss commands still handle historical findings. Previously published remote comments are kept.
+The existing database, published questions and answer history are retained. Previously published remote comments are kept.
 
 ## Comment commands
 
 Control the bot with PR/MR comments. Requires Write (GitHub) or Developer (GitLab) access or higher.
 
-Ordinary bot comments show only `명령어 안내: /hey help`; the question summary also shows the answer and reveal lines. Help runs without a model and works even when no questions exist or generation is paused. Its four columns are command, meaning, description and example; all 14 commands are included.
+Ordinary bot comments show only `명령어 안내: /hey help`; the question summary also shows the answer and reveal lines. Help runs without a model and works even when no questions exist. Its four columns are command, meaning, description and example; all 6 commands are included.
 
 | Command | Action |
 |---|---|
 | `/hey help` | Show the complete command table |
-| `/hey review` | Regenerate questions for the latest change scope |
-| `/hey full` | Regenerate questions for the entire PR/MR |
-| `/hey pause` | Pause automatic question generation |
-| `/hey resume` | Resume automatic question generation |
-| `/hey explain` | Explain historical review findings: the current finding thread or all remaining findings from an ordinary comment; an explicit ID selects one |
-| `/hey dismiss reason` | Dismiss a historical finding in its thread; use `/hey dismiss CRB-0001 reason` from an ordinary comment |
+| `/hey tryagain` | Regenerate questions for the latest change scope |
 | `@hey question` | Answer a question using code evidence |
 | `/hey morequestion` | Add five deeper questions |
 | `/hey answer Q1 B Q2 C` | Answer one or several questions by number and option, then receive grades and explanations |
 | `/hey showanswer` | Reveal answers and explanations for every review question without answering. Name questions (`/hey showanswer Q1 심화2`) to reveal only those, follow-ups included |
-| `/hey learn rule` | Propose a repository rule |
-| `/hey approve UUID` | Approve a rule (maintainers) |
-| `/hey reject UUID` | Reject a rule (maintainers) |
-
-Approving or rejecting rules requires GitHub Maintain/Admin or GitLab Maintainer or higher.
-Ordinary conversation and dismissals never become rules automatically.
 
 ## Learning through comments
 
@@ -239,7 +228,7 @@ When a repository admin makes that status a required check, the merge button sta
 | Some questions are unanswered | Pending · `질문 답변 1/3` (1 of 3 answered) |
 | Every question shown in the report is answered (correct, incorrect or undecided all count) | Success |
 | No questions could be made, e.g. only binary files changed | Success |
-| Question generation failed | Pending · request again with `/hey full` |
+| Question generation failed | Pending · request again with `/hey tryagain` |
 
 - An answer counts once its grading reply is posted. A wrong answer still counts, since it gets an explanation.
 - Deeper questions from `/hey morequestion` are not required.
@@ -275,7 +264,7 @@ pathInstructions:
 ```
 
 - The policy is read from the base branch. Changing it in a PR does not change that PR's question policy.
-- `AGENTS.md` and `docs/coding-standards.md` on the base branch, linked issues and approved repository rules are also used.
+- `AGENTS.md` and `docs/coding-standards.md` on the base branch and linked issues are also used.
 - Generated files, binaries, agent configs and credential files are excluded from question sources. An explicit reason is shown when no readable change remains.
 - Limits: 1,500 files, 12 MiB total, 200 KB per file, 150 KB of diff. Anything beyond that marks question generation as partial.
 

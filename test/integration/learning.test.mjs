@@ -11,7 +11,7 @@ import { questionId } from '../../dist/learning.js';
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
 test('signed learning webhooks generate, resume, grade and reconcile lost replies through real PostgreSQL', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha });
   const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, report(), {}, 0);
   const publishing = await store.claim(); await store.complete(publishing.id, publishing.owner);
@@ -65,7 +65,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
 
 test('answering every published question, right or wrong, clears the merge gate', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   const seeded = report({ requireAnswers: true });
   await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'seed', headSha: snapshot().headSha });
   const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, seeded, {}, 0);

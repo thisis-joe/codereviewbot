@@ -18,3 +18,19 @@ test('generation progress never republishes historical review content', () => {
   const text = renderProgress(snapshot(), { minutes: 2, measured: false }, { report: report({ findings: [finding({ id: 'CRB-0001' })] }), results: new Map() });
   assert.match(text, /질문 생성 중/); assert.doesNotMatch(text, /CRB-0001|리뷰 중|이전 리뷰 결과/);
 });
+
+test('help balances columns using unbroken command names and short description lines supported by GitLab', async () => {
+  const { renderCommandHelp } = await import('../dist/render.js');
+  const body = renderCommandHelp('help-columns');
+  assert.match(body, /<code>\/hey&nbsp;morequestion<\/code>/);
+  assert.match(body, /질문&nbsp;재생성/);
+  assert.match(body, /<br>/);
+  assert.doesNotMatch(body, /style=|width=/);
+  const rows = body.split('\n').filter(line => line.startsWith('| <code>'));
+  assert.equal(rows.length, 6);
+  for (const row of rows) {
+    const cells = row.split('|').slice(1, -1);
+    assert.equal(cells.length, 4);
+    assert.ok(cells[2].split('<br>').every(line => line.trim().length <= 64));
+  }
+});

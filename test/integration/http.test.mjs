@@ -11,7 +11,7 @@ import { parsePatch } from '../../dist/review.js';
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
 test('signed HTTP admission, database work, single-pass questions and replay-safe publication work end to end', async t => {
   const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
-  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,feedback,targets CASCADE');
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
   const comments = [], inline = [], statuses = [];
   const config = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', botLogin: 'bot', webhookSecretEnv: 'HOOK_SECRET', webhookAuth: 'hmac', tokenEnv: 'TOKEN', enabled: true };
   const platform = { config, target: n => ({ ...snapshot(), number: n }), snapshot: async () => snapshot(), checks: async () => [], linkedIssues: async () => [], permission: async () => 'write',

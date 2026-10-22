@@ -32,5 +32,5 @@ export function failureMessage(failure: FailureInfo): string {
     unknown: '질문 생성 중 오류가 발생했습니다. 봇 운영자가 오류 기록을 확인해야 합니다.',
   };
   const when = failure.retryAt ? ` 다음 자동 재시도: ${new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(failure.retryAt))} (한국 시간).` : '';
-  return `${messages[failure.code]}${when} /hey full 명령으로 다시 요청할 수도 있습니다.`;
+  return `${messages[failure.code]}${when} /hey tryagain 명령으로 다시 요청할 수도 있습니다.`;
 }

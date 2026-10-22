@@ -43,22 +43,17 @@ const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '
 /** Latest grade per question ID; null marks an answer graded before verdicts were recorded. */
 export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
-  ['/hey answer', '답변', '변경 이해 질문은 Q번호, 심화 질문은 심화번호와 보기(A~D)로 답하면 채점·해설, 여러 개를 한 번에 답할 수 있음', '/hey answer Q1 B Q2 C'],
-  ['/hey showanswer', '정답 보기', '답하지 않고 변경 이해 질문 전체의 정답·해설을 표시, 질문 번호를 붙이면 그 질문만(심화 질문 포함), 답변 수에는 포함하지 않음', '/hey showanswer Q1 심화2'],
-  ['/hey morequestion', '심화 질문', '이미 나온 질문을 빼고 더 깊은 질문 5개, 심화1·심화2…로 번호를 붙임', '/hey morequestion'],
-  ['/hey review', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey review'],
-  ['/hey full', '전체 질문 재생성', 'PR/MR 전체 범위의 질문을 다시 생성', '/hey full'],
-  ['/hey pause', '일시정지', '푸시마다 하는 자동 질문 생성을 멈춤', '/hey pause'],
-  ['/hey resume', '재개', '멈춘 자동 질문 생성을 다시 시작', '/hey resume'],
-  ['/hey explain', '과거 지적 설명', '과거 리뷰의 지적 댓글에 답글로 쓰면 그 지적, 일반 댓글이면 남은 지적 전체를 코드로 다시 확인해 설명', '/hey explain'],
-  ['/hey dismiss', '과거 지적 기각', '과거 리뷰의 지적 댓글에 답글로 사유를 남기면 이 PR/MR에서 제외, 일반 댓글은 ID 필요', '/hey dismiss 의도된 동작'],
-  ['@hey', '코드 질문', '코드 근거를 확인해 답변', '@hey 재시도는 왜 3회인가요?'],
-  ['/hey learn', '규칙 제안', '저장소 규칙 제안, 관리자 승인 후 적용', '/hey learn 금액은 정수로 다룬다'],
-  ['/hey approve', '규칙 승인', '관리자가 규칙 제안을 승인', '/hey approve 규칙ID'],
-  ['/hey reject', '규칙 거절', '관리자가 규칙 제안을 거절', '/hey reject 규칙ID'],
-  ['/hey help', '명령어 안내', '전체 명령어의 뜻·설명·사용 예시를 표시', '/hey help'],
+  ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화 질문: 심화1 B', '/hey answer Q1 B'],
+  ['/hey showanswer', '정답 보기', '전체 정답·해설 보기. 번호를 붙이면 해당 질문만 표시<br>예: Q1 심화2 · 답변 수와 머지 조건에는 반영하지 않음', '/hey showanswer'],
+  ['/hey morequestion', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey morequestion'],
+  ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],
+  ['@hey', '코드 질문', '관련 코드를 확인해 질문에 답변', '@hey 키를 재사용하는 이유는?'],
+  ['/hey help', '명령어 안내', '사용 가능한 명령과 예시 확인', '/hey help'],
 ];
-const commandTable = ['| 명령어 | 뜻 | 설명 | 사용 예시 |', '|---|---|---|---|', ...commands.map(([c, m, d, e]) => `| \`${c}\` | ${m} | ${d} | \`${e}\` |`)];
+// GitLab strips width/style attributes. Unbroken names and bounded description lines
+// keep short columns readable without relying on renderer-specific CSS.
+const commandCode = (value: string) => `<code>${value.replace(/^\/hey /, '/hey&nbsp;')}</code>`;
+const commandTable = ['| 명령어 | 뜻 | 설명 | 사용 예시 |', '|---|---|---|---|', ...commands.map(([c, m, d, e]) => `| ${commandCode(c)} | ${m.replaceAll(' ', '&nbsp;')} | ${d} | ${commandCode(e)} |`)];
 export function renderCommandHelp(commentId: string): string { return [replyMarker(commentId), '### 명령어 안내', '', ...commandTable].join('\n'); }
 function list(values: string[]): string { return values.length ? values.map(x => `- ${plain(x)}`).join('\n') : '없음'; }
 export function renderReport(r: Report, results: AnswerResults = new Map()): string {
@@ -72,7 +67,7 @@ export function renderReport(r: Report, results: AnswerResults = new Map()): str
 function renderReportBody(r: Report, results: AnswerResults): string {
   const available = hasChangeQuestions(r), s = r.snapshot;
   const questions = available ? renderQuestions(r.questions, s, 1, results)
-    : [plain(r.state === 'failed' && r.failure ? failureMessage(r.failure) : r.questionsUnavailableReason ?? (r.state === 'failed' ? '질문 생성에 실패했습니다. /hey full 명령으로 다시 요청하거나 봇 운영자에게 알려주세요.' : '출제할 수 있는 코드 근거가 없어 질문을 생성하지 못했습니다.'))];
+    : [plain(r.state === 'failed' && r.failure ? failureMessage(r.failure) : r.questionsUnavailableReason ?? (r.state === 'failed' ? '질문 생성에 실패했습니다. /hey tryagain 명령으로 다시 요청하거나 봇 운영자에게 알려주세요.' : '출제할 수 있는 코드 근거가 없어 질문을 생성하지 못했습니다.'))];
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
   const meta = [...(r.state === 'completed' ? [] : [status[r.state]]), `기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`,
     ...(available ? [`답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`] : [])].join(' · ');

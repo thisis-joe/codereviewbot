@@ -71,7 +71,7 @@ test('a validated rename retains stable IDs and a prior dismissal', () => {
 
 test('question generation validates change questions and refuses duplicate or unrelated anchors', async () => {
   const context = { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}', 'unrelated.ts': 'const x = 1;' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/tmp/source' };
-  const run = questions => generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
+  const run = questions => generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], 'full');
   const checked = initialQuestions().map(q => ({ ...q, question: q.question.replace('?', ' 재검증 질문?') }));
   const result = await run(checked); assert.deepEqual(result.questions, checked);
   await assert.rejects(() => run(initialQuestions().map(q => ({ ...q, path: 'unrelated.ts', line: 1 }))), /질문.*코드 근거|question.*anchor/i);
@@ -88,7 +88,7 @@ test('questions on removed code retain the base path and side instead of pointin
   ];
   const patch = '@@ -1,3 +1,2 @@\n begin();\n-checkAuth();\n next();\n';
   const context = { files: {}, baseFiles: { 'original.ts': 'begin();\ncheckAuth();\nnext();' }, diff: { 'renamed.ts': { oldPath: 'original.ts', patch, lines: parsePatch(patch), oldLines: parsePatch(patch, 'LEFT') } }, excluded: [], limited: false, sourceDir: '/source' };
-  const result = await generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
+  const result = await generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], 'full');
   assert.equal(result.questions.length, 4); assert.equal(result.questions[0].path, 'original.ts'); assert.equal(result.questions[0].side, 'LEFT');
 });
 
@@ -100,18 +100,18 @@ test('pure renames support source anchors when the file has no textual hunk', as
     { question: 'old.ts를 import하던 코드는 이동 후 어떤 경로를 써야 하나요?', path: 'new.ts', line: 1, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
   ];
   const context = { files: { 'new.ts': 'export function pay() {}' }, baseFiles: { 'old.ts': 'export function pay() {}' }, diff: { 'new.ts': { oldPath: 'old.ts', patch: '', lines: new Set(), oldLines: new Set() } }, excluded: [], limited: false, sourceDir: '/source' };
-  const result = await generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
+  const result = await generateQuestions({ run: async () => ({ questions }) }, 'test', snapshot(), readPolicy(), context, null, [], [], 'full');
   assert.equal(result.questions.length, 4); assert.equal(result.questions[0].path, 'new.ts');
-  const reordered = await generateQuestions({ run: async () => ({ questions: [questions[2], questions[0], questions[1], questions[3]] }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full');
+  const reordered = await generateQuestions({ run: async () => ({ questions: [questions[2], questions[0], questions[1], questions[3]] }) }, 'test', snapshot(), readPolicy(), context, null, [], [], 'full');
   assert.deepEqual(reordered.questions.map(q => q.level), ['basic', 'basic', 'basic', 'advanced'], 'the advanced question is always shown last');
-  await assert.rejects(() => generateQuestions({ run: async () => ({ questions: questions.map(q => ({ ...q, level: 'basic' })) }) }, 'test', snapshot(), readPolicy(), context, null, [], [], [], 'full'));
+  await assert.rejects(() => generateQuestions({ run: async () => ({ questions: questions.map(q => ({ ...q, level: 'basic' })) }) }, 'test', snapshot(), readPolicy(), context, null, [], [], 'full'));
 });
 
 test('unavailable text diffs produce honest partial reports and preserve prior findings without inference', async () => {
   const { report } = await import('./fixtures.mjs');
   for (const diff of [{}, { 'asset.png': { oldPath: 'asset.png', patch: 'Binary files differ', lines: new Set(), oldLines: new Set() } }, { 'mode.ts': { oldPath: 'mode.ts', patch: '', lines: new Set(), oldLines: new Set() } }]) {
     const context = { files: { 'mode.ts': 'export const unchanged = 1;' }, diff, excluded: ['asset.png'], limited: false, sourceDir: '/source' };
-    const result = await generateQuestions({ run: async () => { throw new Error('No model call is applicable'); } }, 'test', snapshot(), readPolicy(), context, report({ findings: [finding({ id: 'CRB-0001', status: 'open' })] }), [], [], [], 'incremental');
+    const result = await generateQuestions({ run: async () => { throw new Error('No model call is applicable'); } }, 'test', snapshot(), readPolicy(), context, report({ findings: [finding({ id: 'CRB-0001', status: 'open' })] }), [], [], 'incremental');
     assert.equal(result.state, 'partial'); assert.deepEqual(result.questions, []);
     assert.match(result.questionsUnavailableReason, /변경 근거/); assert.equal(result.findings[0].status, 'unverified');
   }
