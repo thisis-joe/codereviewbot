@@ -288,3 +288,31 @@
   No open MR in the enabled production repository, so external MR comment publication
   was not exercised; no real test comments were posted. Source release remains on
   its feature branch; this task does not change main, push or merge the existing PR.
+
+- hey rename (2026-10-22): user chose `hey` for the product and short command prefix.
+  Branch `codex/rename-to-hey` started clean from main
+  `5fb7a07b9c478ba8c5f384dddaf21ae3f173a914`; existing no-Jira ruling applies.
+- R1 completed in `da4fa8088763da25e7747fb72f6aaefb5aae3a6a`: canonical `/hey` and
+  `@hey`, comment titles/help, package/lockfile, images, n8n display names, examples
+  and Korean/English documentation. Base `.hey.yaml` wins over the legacy filename.
+  Old command aliases, comment markers, finding/question IDs, gate status context,
+  Compose storage identity, DB names and n8n IDs remain compatible.
+- RED: new commands/rendering failed 32 of 39 focused checks; the real-Git policy
+  precedence test failed against the old filename-only loader. GREEN: 108 unit
+  tests and 34 disposable PostgreSQL/HTTP integration tests passed. Existing test
+  assertions were preserved apart from the public names; alias/collision and base
+  policy precedence/trust checks were added.
+- D1 completed in `3b91cf08d55ec8c064029e6e4604a4ddb44d1f14`: fixed the pre-existing
+  demo's three-question fixture to meet the four-question contract. Its pre-edit
+  blob matched the base commit; `npm run demo` first failed the exact-count/basic
+  quota checks, then generated four questions (three basic, one advanced).
+- Compose configuration, workflow regeneration/stable-ID checks, manifest/lockfile
+  checks, fixture outputs and `git diff --check` passed. Both hey images built and
+  passed isolated, network-disabled command/help/summary checks and a real MCP
+  handshake/source read returning server name `hey-source`.
+- Author review covered base-to-HEAD plus staged/unstaged/new task files, including
+  the policy rename; scope receipt is `.local/hey-final-review-scope.json`.
+  No remaining author-review blockers. Fresh-context independent review was
+  unavailable; no subagents were dispatched. Live model quality and external
+  publication were not evaluated for this rename. No production rollout, remote
+  push, repository/account rename or tunnel/DNS change was performed.
