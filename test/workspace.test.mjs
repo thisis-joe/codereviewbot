@@ -38,6 +38,12 @@ test('real Git preparation preserves canonical rename hunks and excludes sensiti
   const result = await workspaces.prepare(provider, snapshot({ baseSha, startSha: baseSha, headSha }), '22222222-2222-4222-8222-222222222222', prior, []);
   assert.equal(result.mode, 'incremental'); assert.equal(result.context.diff['current.ts'].oldPath, 'original.ts');
   assert.match(result.context.diff['current.ts'].patch, /second = true/);
+  assert.equal(result.context.changesSincePrevious.fromHeadSha, firstSha);
+  const delta = result.context.changesSincePrevious.files['current.ts'];
+  assert.equal(delta.oldPath, 'middle.ts');
+  assert.match(delta.patch, /\+export const second = true/);
+  assert.doesNotMatch(delta.patch, /\+export const first = true/);
+  assert.equal(result.context.changesSincePrevious.files['config.txt'], undefined);
   assert.doesNotMatch(result.context.diff['current.ts'].patch, /NEW_OTHER_ONLY/);
   assert.equal(result.context.diff['config.txt'], undefined); assert.equal(result.context.files['config.txt'], undefined);
   assert.equal(result.context.baseFiles['.env'], undefined);

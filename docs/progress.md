@@ -288,3 +288,132 @@
   No open MR in the enabled production repository, so external MR comment publication
   was not exercised; no real test comments were posted. Source release remains on
   its feature branch; this task does not change main, push or merge the existing PR.
+
+- Push-question history task 2026-10-21: isolated feature branch
+  `feat/push-question-history`, base `aa851b1` (includes current fixed three-question
+  policy and answer-reveal formatting). Original checkout was clean and remains
+  untouched by this task. Existing no-Jira repository ruling applies.
+- P1: exact head/base/start revision marker scopes generation progress, publication
+  reconciliation and grade refresh to the corresponding comment. A new revision
+  creates a fresh comment and leaves earlier questions/grades untouched. Unversioned
+  legacy comments are retained. Same-revision retries reconcile the accepted comment.
+  Observed two focused regressions fail before the fix and pass after it. Full local
+  verification passes 105 unit + 34 disposable PostgreSQL/HTTP integration tests,
+  including GitHub/GitLab push/progress/response-loss/retry/latest-grade scenarios.
+  Author source review covered all current P1 changes; no independent reviewer used.
+  Delta-only question material and intent/rationale prompting remain the next slice.
+- P1 completed in `341fcd3`. Compatibility source review then found that grading a
+  pre-update current summary lacked the new revision marker. Added a narrowly scoped
+  fallback: all question IDs in the stored current report must match the owned legacy
+  summary before grade refresh can adopt it; earlier revision comments cannot match.
+  A real-DB regression failed before the fix and passed after it. Current full suites
+  pass 106 unit + 35 PostgreSQL/HTTP integration tests, including pending delta tests.
+- P2: incremental source preparation now supplies a separate bounded diff from the
+  last completed question revision, while retaining canonical MR/PR base coordinates
+  and base source for publication/deletion checks. Rename chains retain both the
+  incremental old path and canonical old path; excluded intermediate paths and oversized
+  deltas are withheld. Real-Git regression confirms the second push adds `second`
+  without presenting the earlier added `first` as a new addition, preserving exclusions.
+- Initial generation keeps exactly two basic and one advanced question and one bounded
+  model call. Prompt includes previous question text, explicitly scopes incremental
+  questions to the new delta, and requires at least one code-supported purpose/rationale
+  question alongside behavior/flow/edge-case understanding. It forbids guessing the
+  author's private intent as the answer. README and operations describe new-comment,
+  latest-question grading, full-scope fallbacks and coalesced intermediate push behavior.
+- P2 red/green: exact-delta payload and real-Git rename/source checks failed before
+  implementation and passed afterward. Final current-source suites: 106 unit + 35
+  disposable PostgreSQL/HTTP integration tests passed. Source self-review covers
+  P1 committed changes, legacy-grade correction and all current P2 code/tests/docs;
+  publication ownership/ref fences, sensitive old paths, bounded payloads and recovery
+  were traced. Independent semantic/model review was not run. This task does not claim
+  new real-model quality/timing measurements or production deployment.
+- Push-history completion: P1 `341fcd3`, legacy-grade compatibility `08de725`,
+  P2 purpose/rationale + exact incremental material `61a0013`. Required final checks
+  passed on that runtime source: 106 unit tests, 35 PostgreSQL/HTTP integration tests,
+  real Git source/rename/exclusion tests, Codex/Claude subprocess and runner contract
+  fixtures, fixture demo generation, Compose configuration and diff whitespace checks.
+  Controller and runner images carry exact revision `61a0013` (full revision recorded
+  in ignored `.local/push-question-verification.json`). Disposable image execution
+  verified progress/publication/retry/latest-grade preservation and legacy-current
+  grading, plus runner health/auth/schema. No live model quality/timing sample was run.
+  Author review covered actual committed/current changes; independent review unavailable.
+  Task-owned verification containers/tags are removed after checks. Original checkout,
+  original local settings and production services were not modified; no remote push,
+  PR/MR mutation or production rollout was performed for this follow-up feature.
+- Final concurrent-work check found separate uncommitted four-question changes in the
+  original checkout (`feat/four-initial-questions`). They were not copied, staged or
+  modified. Made only the newly added rationale instruction/docs count-neutral so a
+  later question-count change does not conflict with a hardcoded three-question phrase.
+  Existing count/schema policy in this feature's base remains unchanged. Refreshed
+  suites still pass 106 unit + 35 DB/HTTP integration tests; no live-model claim.
+- Count-neutral adjustment completed in `b51df1b`; final matching-revision controller
+  and runner image builds and disposable runtime probes passed again. Demo, Compose
+  configuration, 106 unit + 35 PostgreSQL/HTTP integration tests and diff checks pass.
+  Detailed image IDs/check scope recorded in ignored local verification evidence.
+  Final working tree is clean after this record; original concurrent four-question
+  work remains outside this branch and is preserved. No production redeployment.
+
+- Four-question/push-history release authorized 2026-10-22. Isolated integration
+  branch `feat/four-question-push-release` starts at `08a8c62`; merges committed
+  `288c62f`, including four questions (three basic/one advanced), self-describing
+  follow-ups and current closed/merged-command behavior, to avoid runtime regression.
+  Original checkout was clean on `feat/commands-on-closed`; initial patch/config
+  hashes saved privately. No original source/config changes copied or discarded.
+- Integration resolves count versus rationale prompt, revision markers versus four-item
+  rendering and current command acknowledgement imports. One new push fixture still
+  supplied three initial questions: observed failure, corrected it to the four-question
+  fixture; retained legacy three-question reports for compatibility. All 109 unit and
+  37 PostgreSQL/HTTP integration tests pass, including old-comment preservation through
+  progress/retry/grading on GitHub/GitLab. Live quality/deployment gates remain pending.
+- Live diagnostic hold: first four-question request reached 120s process budget.
+  Unchanged tiny real-model query passed in 5.919s and same four-question input with
+  profiling passed in 35.778s (MCP ready 0.435s/source read 2.089s); timeout cause
+  remains unestablished. All failure/profile evidence retained, no rollout performed.
+- Source audit of subsequent samples found an overbroad option explanation claiming
+  RangeError occurs only on argument validation. A real transpilation/execution probe
+  with valid maxAttempts=3 and a callback RangeError reproduced three calls followed
+  by the original RangeError. Held sampling; tightened prompts to explain only each
+  distractor's source-supported failing condition, distinguish local versus propagated
+  callback/API errors, and keep key explanations concise. Prompt-boundary regression
+  observed red before the change. Full unit/DB suites pass again; final live samples
+  must be regenerated on the corrected candidate before GO.
+- Corrected candidate `3660af5` passed five real-model runs: 20 questions, each three
+  basic/one advanced, one initial_questions RPC. CLI modelUsage: claude-opus-5-5;
+  CLI 2.1.290. Median 58.455s, range 41.986–91.040s. No timeout/schema/source failures
+  in this corrected cohort. Full source/choice/key audit passed; initial diagnostics
+  (120s timeout, overbroad explanation, controlled pre-fix cancellation) retained.
+  Incremental questions in both repeated runs cover only changed retry behavior.
+  Actual-source probes verify capped waits, no-wait nonretryable errors and predicate
+  exception propagation. Actual model reports pass local publication/progress/retry/
+  grading/legacy-four-question history checks. Independent semantic review unavailable.
+  GO report: docs/verification/four-question-push-live-2026-10-22.json; rollout pending.
+- Authorized rollout reconciled concurrent PR #14 deployment: original checkout moved
+  to main `5fb7a07`, with runtime JS byte-identical to `288c62f`, already included in
+  this candidate. Initial preflight held before changing services; refreshed rollback
+  image references to this new baseline, preserving its functionality/configuration.
+- First candidate activation passed health/image/environment checks, but native model
+  canary returned API401. Rolled application back to the refreshed baseline. CLI auth
+  status showed production logged out while the isolated validation copy was logged
+  in. CLI identity checks against the original protected backup confirmed the same
+  existing account/organization/subscription. Restored only opaque current credential
+  state atomically, retaining original backups and without printing/parsing tokens.
+  Actual baseline production source query then passed in 6.607s. Credential-state
+  divergence is observed; refresh-token rotation from the copy is an inference.
+- Final rollout: runtime source `3660af5`, 2026-10-22 00:38:17 UTC (09:38 KST).
+  Both matching images healthy; complete runtime environment and PostgreSQL/n8n/tunnel
+  container identities unchanged. Final native production canary passed in 36.032s,
+  four questions (basic3/advanced1), all choices/keys audited. Public configured webhook
+  invalid/valid auth:401/202, ignored event admitted0. Controller failed0/queued0/inactive;
+  runner ready/idle. Database remains jobs42/targets10/deliveries55/feedback0.
+  Original tracked diff/local config hashes unchanged; original branch/main merge was
+  by the concurrent task. Current source branch and work-unit history remain isolated.
+  Operational guidance now prevents independently rotating copied OAuth stores and
+  requires actual-model verification after restoring the same account state.
+- Cleanup/completion: removed the owned model container, both isolated OAuth volumes,
+  four unreferenced validation snapshots, one owned fixture Git cache and temporary
+  canary files. Preserved protected initial/current backups, rollback images, immutable
+  deployed version tags and private evidence. Production authentication directory is
+  writable for normal refresh. Final image/health and original source/config hash
+  checks pass. No uncommitted user files staged/reset/restored; no branch push or PR
+  mutation performed here. Detailed report records concurrent deployment, the failed
+  auth canary, actual rollback, same-account repair and successful final native canary.

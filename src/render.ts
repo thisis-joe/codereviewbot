@@ -1,7 +1,13 @@
 import { INITIAL_QUESTION_COUNT, isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
+import { createHash } from 'node:crypto';
 import { questionId } from './learning.js';
 
 export const SUMMARY_MARKER = '<!-- codereviewbot:summary:v1 -->';
+/** One summary per exact diff revision; the common marker remains readable by older tooling. */
+export function summaryMarker(s: Snapshot): string {
+  const revision = createHash('sha256').update(JSON.stringify([s.headSha, s.baseSha, s.startSha])).digest('hex');
+  return `<!-- codereviewbot:revision:${revision} -->`;
+}
 const status = { completed: '완료', partial: '부분 완료', failed: '실패' };
 // Readers scan Korean words faster than P0~P3; the model and stored reports keep the P codes.
 export const severityLabel = { P0: '치명', P1: '높음', P2: '보통', P3: '낮음' } as const;
@@ -68,13 +74,13 @@ function renderReportBody(r: Report, results: AnswerResults): string {
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
   const meta = [...(r.state === 'completed' ? [] : [status[r.state]]), `기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`,
     ...(available ? [`답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`] : [])].join(' · ');
-  return [SUMMARY_MARKER, '<!-- codereviewbot:format:v5 -->', '### CodeReviewBot 변경 이해 질문', '', ...(available ? [...lines(answerHelp), ''] : []),
+  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v5 -->', '### CodeReviewBot 변경 이해 질문', '', ...(available ? [...lines(answerHelp), ''] : []),
     ...questions, ...(r.limitations.length && available ? ['', ...r.limitations.slice(0, 3).map(l => `- ${plain(clip(l, 200))}`)] : []), '', ...lines([meta, COMMAND_HELP_HINT])].join('\n');
 }
 export interface ReviewEstimate { minutes: number; measured: boolean }
 /** Posted in place of the summary as soon as a review starts; the finished report overwrites it. */
 export function renderProgress(s: Snapshot, estimate: ReviewEstimate, previous?: { report: Report; results: AnswerResults }): string {
-  const head = [SUMMARY_MARKER, '<!-- codereviewbot:progress:v1 -->', '### CodeReviewBot 변경 이해 질문', '',
+  const head = [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:progress:v1 -->', '### CodeReviewBot 변경 이해 질문', '',
     `**질문 생성 중** · 기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, '',
     `질문 생성을 시작했습니다. 예상 소요 시간은 약 ${estimate.minutes}분입니다${estimate.measured ? ' (최근 질문 생성 기준)' : ''}. 생성이 끝나면 이 댓글이 결과로 바뀝니다.`].join('\n');
   if (!previous || !isQuestionReport(previous.report) || previous.report.state === 'failed') return head;
