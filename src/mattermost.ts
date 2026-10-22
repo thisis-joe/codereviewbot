@@ -27,16 +27,17 @@ export function renderNotification(target: Target, notification: Notification, a
   const project = `${target.instance}/${target.repository.split('/').map(encodeURIComponent).join('/')}`;
   if (notification.kind === 'push') {
     const who = plain(givenName(notification.author)), branch = plain(redact(notification.branch));
-    const headline = notification.count ? `📦 ${who}님이 ${branch}에 커밋 ${notification.count}개를 푸시했어요` : `📦 ${who}님이 ${branch} 브랜치를 올렸어요`;
-    const link = /^0+$/.test(notification.before) ? `${project}/-/commits/${encodeURIComponent(notification.branch)}` : `${project}/-/compare/${notification.before}...${notification.after}`;
-    return `**${headline}**\n[변경 내용 보기](${link})`;
+    const link = /^0+$/.test(notification.before) ? `${project}/-/commits/${encodeURIComponent(notification.branch).replace(/[()]/g, c => c === '(' ? '%28' : '%29')}` : `${project}/-/compare/${notification.before}...${notification.after}`;
+    const linkedBranch = `**[${branch}](${link})**`;
+    return notification.count ? `📦 ${who}님이 ${linkedBranch}에 커밋 ${notification.count}개를 푸시했어요` : `📦 ${who}님이 ${linkedBranch} 브랜치를 올렸어요`;
   }
-  const who = plain(givenName(author)), mr = `${who}님의 MR !${target.number}`;
-  const labels = { opened: `📬 ${mr}이 열렸어요`, reopened: `🔄 ${mr}이 다시 열렸어요`, merged: `🎉 ${mr} 머지 완료`, closed: `🚪 ${mr}이 닫혔어요`, commented: `💬 ${mr} · 새 댓글이 달렸어요` };
-  const headline = notification.kind === 'questions' ? `😏 ${mr} · 질문 ${notification.count}개 준비됐어요${notification.partial ? ' · 일부 변경 제외' : ''}` : labels[notification.kind];
   const url = `${project}/-/merge_requests/${target.number}`;
   const link = 'noteId' in notification ? `${url}#note_${notification.noteId}` : url;
-  return `**${headline}**\n[${plain(redact(notification.title).slice(0, 500))}](${link})`;
+  const label = `MR !${target.number}${notification.kind === 'questions' ? ` · 질문 ${notification.count}개` : ''}`;
+  const mr = `${plain(givenName(author))}님의 **[${label}](${link})**`;
+  const labels = { opened: `📬 ${mr}이 열렸어요`, reopened: `🔄 ${mr}이 다시 열렸어요`, merged: `🎉 ${mr} 머지 완료`, closed: `🚪 ${mr}이 닫혔어요`, commented: `💬 ${mr} · 새 댓글이 달렸어요` };
+  const headline = notification.kind === 'questions' ? `😏 ${mr} 준비됐어요${notification.partial ? ' · 일부 변경 제외' : ''}` : labels[notification.kind];
+  return `${headline}\n${plain(redact(notification.title).slice(0, 500))}`;
 }
 
 /** Destinations come only from trusted per-repository configuration, never webhook data. */

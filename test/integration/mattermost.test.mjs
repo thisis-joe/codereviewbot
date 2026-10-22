@@ -53,11 +53,11 @@ test('authenticated GitLab admission sends distinct MR events once, identifies t
   }
   assert.equal(f.received.length, 4);
   for (const [i, label] of ['열렸어요', '다시 열렸어요', '머지 완료', '닫혔어요'].entries()) assert.ok(f.received[i].text.includes(label));
-  assert.ok(f.received.every(p => p.username === 'hey' && p.channel === 'ci' && p.text.includes('찬형님의 MR !15')));
+  assert.ok(f.received.every(p => p.username === 'hey' && p.channel === 'ci' && p.text.includes('찬형님의 **[MR !15]')));
   assert.doesNotMatch(JSON.stringify(f.received), /송가연|merger_login|login_must_not_appear|project_123_bot|<!--/);
   const note = { repo: f.config, deliveryId: 'human-note', event: 'Note Hook', body: { object_kind: 'note', user: { username: 'human' }, object_attributes: { id: 9, noteable_type: 'MergeRequest', action: 'create', note: '의견' }, merge_request: { iid: 15, title: '대금 자료 조사' } } };
   assert.equal((await post(note)).status, 202); await f.flush();
-  assert.match(f.received.at(-1).text, /새 댓글이 달렸어요/); assert.ok(f.received.at(-1).text.endsWith('#note_9)'));
+  assert.match(f.received.at(-1).text, /새 댓글이 달렸어요/); assert.ok(f.received.at(-1).text.includes('[MR !15](https://gitlab.example/team/project/-/merge_requests/15#note_9)'));
   assert.equal(await f.notifications.capture({ ...note, deliveryId: 'bot-note', body: { ...note.body, user: { username: f.config.botLogin } } }), false);
   assert.equal(await f.notifications.capture(f.event('update')), false);
   assert.equal(await f.notifications.capture(f.event('toString')), false);
@@ -75,8 +75,7 @@ test('successful question publication queues one exact-comment notification per 
   await controller.tick(); await controller.active; await f.notifications.active;
   assert.equal((await f.store.getJob(running.id)).state, 'completed');
   assert.equal(f.comments.length, 1); await f.flush();
-  assert.equal(f.received.length, 1); assert.match(f.received[0].text, /찬형님의 MR !15 · 질문 4개 준비됐어요/);
-  assert.ok(f.received[0].text.endsWith('#note_321)'));
+  assert.equal(f.received.length, 1); assert.ok(f.received[0].text.startsWith('😏 찬형님의 **[MR !15 · 질문 4개](https://gitlab.example/team/project/-/merge_requests/15#note_321)** 준비됐어요\n'));
   for (const r of [result, { ...result, state: 'partial' }, { ...result, state: 'failed' }]) await f.notifications.questionsPublished(f.platform, r);
   await f.flush(); assert.equal(f.received.length, 1);
 });
@@ -89,9 +88,8 @@ test('partial publication with valid questions sends one concise scope warning a
   await f.store.saveResult(running.id, running.owner, result, {}, 0);
   await controller.tick(); await controller.active; await f.flush();
   assert.equal(f.received.length, 1);
-  assert.match(f.received[0].text, /찬형님의 MR !15 · 질문 4개 준비됐어요 · 일부 변경 제외/);
+  assert.ok(f.received[0].text.startsWith('😏 찬형님의 **[MR !15 · 질문 4개](https://gitlab.example/team/project/-/merge_requests/15#note_321)** 준비됐어요 · 일부 변경 제외\n'));
   assert.equal(f.received[0].text.split('\n').length, 2);
-  assert.ok(f.received[0].text.endsWith('#note_321)'));
   for (const value of [result, { ...result, state: 'completed' }, { ...result, state: 'failed' }, { ...result, questions: [] }]) await f.notifications.questionsPublished(f.platform, value);
   await f.flush(); assert.equal(f.received.length, 1);
 });
@@ -124,7 +122,8 @@ test('push events preserve the total count, deduplicate replay and ignore branch
   }
   assert.equal((await f.pool.query('SELECT count(*) FROM mattermost_notifications')).rows[0].count, '1');
   await f.flush(); assert.equal(f.received.length, 1);
-  assert.match(f.received[0].text, /찬형님이 feature\/data에 커밋 24개를 푸시했어요/);
+  assert.ok(f.received[0].text.startsWith('📦 찬형님이 **[feature/data](https://gitlab.example/team/project/-/compare/'));
+  assert.ok(f.received[0].text.endsWith(')**에 커밋 24개를 푸시했어요'));
   assert.doesNotMatch(f.received[0].text, /must_not_appear|박찬형/);
   assert.equal(f.authorReads.length, 0, 'a push must not look up an MR author');
   for (const body of [{ ...push.body, after: '0'.repeat(40) }, { ...push.body, ref: 'refs/tags/v1' }, { ...push.body, after: 'https://evil.example' }])

@@ -592,3 +592,58 @@
   blocking findings remain. Independent review was not performed. This branch was
   not deployed; production DB and remote comments were not changed by this task.
   Evidence: `docs/verification/hey-command-cleanup-2026-10-22.json`.
+- Production activation completed from `adb3c4379a29aac6774801beb71ef864258f22ab`:
+  matching controller and runner are healthy; exact existing environment, mounts,
+  auth volumes and PostgreSQL/n8n/tunnel identities are preserved. Protected dump
+  and exact-image rollback live under `.local/releases/question-recovery-20261022/`.
+- Before activation, simultaneous image builds exhausted the Docker data disk and
+  PostgreSQL temporarily repeated crash recovery. The author missed a free-space
+  check before building. Removed only rebuildable unused BuildKit cache (187.5 MB
+  old cache + 3.176 GB unused cache), preserving all volumes and rollback images.
+  PostgreSQL recovered; health and data reads succeeded before rollout. Future
+  image builds must check Docker data-disk free space and concurrent build demand.
+- Live MR !15 rerun `5aa33234-16fd-4276-bfad-e9d5f198b006`: actual Claude call 1,
+  generation 49 seconds, completed, three basic + one advanced question; H4 title,
+  no answer keys in published body. Exact note `2906252` updated in place. Existing
+  same-revision MM completion post `z5sx7redj3ndpbkcndpo9xd8uy` is sent and visibly
+  links that note; no duplicate completion notice was generated. The existing
+  notice was sent at 14:59 KST, before this post-deployment rerun at 15:19–15:20.
+- Historical MR !15 note `2906188` retains its f3e79bd9 revision and comment ID; its
+  old title/generic error were replaced by H4 and the confirmed historical quota
+  429 cause, directing readers to the latest questions. Legacy false-success jobs
+  are now failed; zero completed jobs contain a failed generation result. Current
+  health still reports four failed targets from other historical MR reports;
+  MR !15 is successful and no MR !15 work remains queued/running.
+- Remaining external blocker: GitLab name `hey` and shortest requested login `hey`
+  could not be applied (403); `hey` is available. Bot user 33767 needs an instance
+  administrator's name/username update and coordinated `botLogin` config change.
+  Existing identity/config/credentials remain consistent. MM sender override is
+  still disabled server-wide as recorded previously. No alternate account created.
+- Verification: `docs/verification/question-recovery-2026-10-22.json`; GitLab and MM
+  screenshots saved under `.local/question-recovery/`. Author review only; 118 unit
+  + 46 integration checks pass. Three implementation units are separate commits;
+  no remote branch push or merge requested/performed.
+- MM inline links (2026-10-22): user requested clickable branch names, MR numbers
+  and `MR !18 · 질문 4개` within the sentence. MR titles remain plain context on
+  the next line. Branch `codex/mattermost-inline-links` from `8ef3ed3`; existing
+  no-Jira ruling applies. Pre-existing untracked `.local-ship-audit.json` is not
+  owned or modified by this task.
+- Renderer now places each URL on the named object, removes the separate push
+  link line and keeps author attribution, exact-comment destinations and partial
+  scope warning. Parentheses in new-branch URLs are percent-encoded so they stay
+  inside the Markdown link; mention escaping remains intact. RED: four display
+  checks and a reserved-character URL check failed before their fixes. GREEN:
+  120 unit + 46 disposable PostgreSQL/HTTP checks; full task diff author-reviewed.
+- Identity follow-up: actual GitLab 18.11.5 source has an admin-only user update
+  endpoint and no self-name REST mutation or token rename endpoint. Creating a
+  *new* project token named `hey` gives its new bot that name, under Maintainer
+  permissions, but changes identity, leaves old comment authors intact and keeps
+  the generated long login. This is an alternative, not a rename of the old bot.
+  Sources: https://docs.gitlab.com/user/project/settings/project_access_tokens/
+  and https://gitlab.com/gitlab-org/gitlab/-/raw/v18.11.5-ee/lib/api/users.rb .
+- MM 11.7.2 readback: `EnablePostUsernameOverride=false`,
+  `EnableBotAccountCreation=false`; bot accounts are absent from Integrations.
+  Public config also has `EnableUserCreation=false`. With the existing account,
+  webhook owner and permissions, a distinct `hey` sender needs administrator
+  support. No new account, credential or personal-profile edit performed.
+  Source: https://docs.mattermost.com/administration-guide/configure/integrations-configuration-settings .

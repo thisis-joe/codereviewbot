@@ -9,11 +9,12 @@ test('MM uses given names without surnames, team labels or login IDs', () => {
     assert.equal(givenName(display), expected);
 });
 
-test('MR lifecycle notifications distinguish events, identify the author and link the title', () => {
-  const expected = { opened: '📬 찬형님의 MR !15이 열렸어요', reopened: '🔄 찬형님의 MR !15이 다시 열렸어요', merged: '🎉 찬형님의 MR !15 머지 완료', closed: '🚪 찬형님의 MR !15이 닫혔어요' };
+test('MR lifecycle notifications link the MR number in the sentence and keep the title as text', () => {
+  const mr = '**[MR !15](https://gitlab.example/team/project/-/merge_requests/15)**';
+  const expected = { opened: `📬 찬형님의 ${mr}이 열렸어요`, reopened: `🔄 찬형님의 ${mr}이 다시 열렸어요`, merged: `🎉 찬형님의 ${mr} 머지 완료`, closed: `🚪 찬형님의 ${mr}이 닫혔어요` };
   for (const [kind, first] of Object.entries(expected)) {
     const text = renderNotification(target, { kind, title: 'docs(data): 대금 자료 조사' }, '박찬형[소속]팀원');
-    assert.equal(text, `**${first}**\n[docs\\(data\\): 대금 자료 조사](https://gitlab.example/team/project/-/merge_requests/15)`);
+    assert.equal(text, `${first}\ndocs\\(data\\): 대금 자료 조사`);
     assert.equal(text.split('\n').length, 2);
     assert.doesNotMatch(text, /project_\d+_bot|codereviewbot|\[소속\]|박찬형/);
   }
@@ -21,8 +22,7 @@ test('MR lifecycle notifications distinguish events, identify the author and lin
 
 test('question notifications contain the count and exact question-comment link without tags or keys', () => {
   const text = renderNotification(target, { kind: 'questions', title: '@channel [링크](https://evil.example)', count: 4, noteId: '321' }, '박찬형');
-  assert.match(text, /^\*\*😏 찬형님의 MR !15 · 질문 4개 준비됐어요\*\*/);
-  assert.ok(text.endsWith('(https://gitlab.example/team/project/-/merge_requests/15#note_321)'));
+  assert.ok(text.startsWith('😏 찬형님의 **[MR !15 · 질문 4개](https://gitlab.example/team/project/-/merge_requests/15#note_321)** 준비됐어요\n'));
   assert.doesNotMatch(text, /@channel|<!--|summary:v|revision:/);
   assert.ok(text.includes('@\u200bchannel'));
 });
@@ -39,8 +39,20 @@ test('MM destinations are opt-in per repository and refuse unsafe configured URL
 test('push notifications show the pusher given name, branch and full commit count with hashes only in the URL', () => {
   const after = 'a'.repeat(40), before = 'b'.repeat(40);
   const text = renderNotification({ ...target, number: 0 }, { kind: 'push', branch: 'feature/data', count: 24, author: '박찬형[소속]팀원', before, after }, '');
-  assert.equal(text, `**📦 찬형님이 feature/data에 커밋 24개를 푸시했어요**\n[변경 내용 보기](https://gitlab.example/team/project/-/compare/${before}...${after})`);
+  assert.equal(text, `📦 찬형님이 **[feature/data](https://gitlab.example/team/project/-/compare/${before}...${after})**에 커밋 24개를 푸시했어요`);
   const created = renderNotification({ ...target, number: 0 }, { kind: 'push', branch: 'feature/new', count: 0, author: '우동균', before: '0'.repeat(40), after }, '');
-  assert.match(created, /동균님이 feature\/new 브랜치를 올렸어요/);
-  assert.ok(created.endsWith('/-/commits/feature%2Fnew)'));
+  assert.ok(created.includes('동균님이 **[feature/new](https://gitlab.example/team/project/-/commits/feature%2Fnew)** 브랜치를 올렸어요'));
+  assert.equal(text.split('\n').length, 1);
+  assert.doesNotMatch(text, /변경 내용 보기/);
+});
+
+test('comment notices link the MR number directly to the comment', () => {
+  const text = renderNotification(target, { kind: 'commented', title: '대금 자료 조사', noteId: '123' }, '박찬형');
+  assert.equal(text, '💬 찬형님의 **[MR !15](https://gitlab.example/team/project/-/merge_requests/15#note_123)** · 새 댓글이 달렸어요\n대금 자료 조사');
+});
+
+test('branch links preserve parentheses as URL data and keep mentions inert', () => {
+  const text = renderNotification(target, { kind: 'push', branch: 'feat(ai)/close)@channel', count: 0, author: '우동균', before: '0'.repeat(40), after: 'a'.repeat(40) }, '');
+  assert.ok(text.includes('/-/commits/feat%28ai%29%2Fclose%29%40channel)**'));
+  assert.doesNotMatch(text, /@channel/);
 });
