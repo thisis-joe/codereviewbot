@@ -80,6 +80,9 @@ export class Workspaces {
     const denied = diffEntries(names).filter(e => blocked(e.path, policy.exclude) || blocked(e.oldPath, policy.exclude)).flatMap(e => [e.oldPath, e.path]);
     const emptyBlob = (await execute('git', ['-C', cache, 'hash-object', '-w', '--stdin'], { env: gitEnv(), input: '' })).stdout.toString('utf8').trim();
     const diff: ReviewContext['diff'] = Object.create(null);
+    const changesSincePrevious: ReviewContext['changesSincePrevious'] = previousSha ? { fromHeadSha: previousSha, files: Object.create(null) } : undefined;
+    const deltaEntries = incremental === null ? [] : diffEntries(incremental);
+    let deltaBytes = 0, deltaLimited = false;
     for (const { oldPath, path } of selectDiffEntries(names, incremental, policy.exclude)) {
       // Compare exact blobs so a reused old filename cannot mix a second file's hunks.
       const blob = async (sha: string, file: string) => {
@@ -89,6 +92,16 @@ export class Workspaces {
       const oldBlob = await blob(snapshot.baseSha, oldPath), newBlob = await blob(snapshot.headSha, path);
       if (!oldBlob || !newBlob) { denied.push(oldPath, path); continue; }
       const patch = (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--unified=3', oldBlob, newBlob])).toString('utf8');
+      if (changesSincePrevious && previousSha) {
+        const changed = deltaEntries.find(e => e.path === path) ?? deltaEntries.find(e => e.oldPath === oldPath || e.oldPath === path);
+        if (!changed || blocked(changed.oldPath, policy.exclude) || blocked(changed.path, policy.exclude)) { denied.push(oldPath, path); continue; }
+        const before = await blob(previousSha, changed.oldPath);
+        if (!before) { denied.push(oldPath, path); continue; }
+        const delta = (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--unified=3', before, newBlob])).toString('utf8');
+        deltaBytes += Buffer.byteLength(delta);
+        if (deltaBytes > 150000) { denied.push(oldPath, path); deltaLimited = true; continue; }
+        changesSincePrevious.files[path] = { oldPath: changed.oldPath, patch: redact(delta) };
+      }
       diff[path] = { oldPath, patch: redact(patch), lines: parsePatch(patch), oldLines: parsePatch(patch, 'LEFT'), positions: parsePositions(patch) };
     }
     const allNames = (await git(cache, ['diff', '--no-ext-diff', '--name-only', '-z', snapshot.baseSha, snapshot.headSha])).toString('utf8').split('\0').filter(safePath);
@@ -104,11 +117,14 @@ export class Workspaces {
       } catch { /* added file has no base version */ }
       if (!(path in exported.files) && !(entry.oldPath in baseFiles)) { delete diff[path]; exported.excluded.push(path); exported.limited = true; }
     }
-    const context: ReviewContext = { ...exported, baseFiles, sourceDir, diff };
+    const context: ReviewContext = { ...exported, limited: exported.limited || deltaLimited, baseFiles, sourceDir, diff, ...(changesSincePrevious ? { changesSincePrevious } : {}) };
     const bytes = Object.values(diff).reduce((n, d) => n + Buffer.byteLength(d.patch), 0);
     if (bytes > 150000) {
       let used = 0; for (const path of Object.keys(diff)) { used += Buffer.byteLength(diff[path]!.patch); if (used > 150000) { context.excluded.push(path); delete diff[path]; } }
       context.limited = true;
+    }
+    if (changesSincePrevious) for (const path of Object.keys(changesSincePrevious.files)) {
+      if (!Object.hasOwn(diff, path)) delete changesSincePrevious.files[path];
     }
     return { context, policy, guidelines, mode };
   }

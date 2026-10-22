@@ -61,3 +61,25 @@ test('each review question gets one inline thread on its diff line and the summa
   await publish(p, r, diff, 5, async () => {});
   assert.equal(p.stored.inline.filter(c => c.body.includes('codereviewbot:question:')).length, 2);
 });
+
+test('a new revision gets a separate summary; retries and grading only update that revision', async () => {
+  const p = platform(), first = report();
+  await publish(p, first, {}, 5, async () => {});
+  const oldBody = p.stored.comments[0].body;
+  const next = report({ snapshot: { ...first.snapshot, headSha: 'e'.repeat(40) } });
+  p.snapshot = async () => next.snapshot;
+  await publish(p, next, {}, 5, async () => {});
+  await publish(p, next, {}, 5, async () => {}, new Map([[questionId(next.snapshot, next.questions[0]), 'correct']]));
+  assert.equal(p.stored.comments.length, 2);
+  assert.equal(p.stored.comments[0].body, oldBody);
+  assert.match(p.stored.comments[1].body, /답변 1\/3/);
+});
+
+test('an unversioned legacy summary is preserved when the new publisher starts', async () => {
+  const p = platform();
+  p.stored.comments.push({ id: 'legacy', author: 'bot', body: '<!-- codereviewbot:summary:v1 -->\nold questions' });
+  await publish(p, report(), {}, 5, async () => {});
+  await publish(p, report(), {}, 5, async () => {});
+  assert.equal(p.stored.comments.length, 2);
+  assert.equal(p.stored.comments[0].body, '<!-- codereviewbot:summary:v1 -->\nold questions');
+});
