@@ -688,3 +688,30 @@
   actual GitLab screenshots: `.local/command-cleanup/live-final-gitlab-*.png`.
   No branch push or merge requested/performed. Production release and its
   verification documentation are distinct work units.
+
+
+## 2026-10-22 — PR publication review: preserve bounded recovery after platform failures
+
+- User authorized feature-branch push, PR creation, merge and production rollout.
+  Published `codex/hey-command-cleanup` at `475ea3c` and opened PR #16 against
+  default branch `main` (`90f6399`). The remote has no dev/develop branch. Existing
+  work-unit commits and the feature branch name remain intact; no Jira task applies.
+- Whole-PR independent review found two release-blocking recovery edges before
+  merge: a recovery job failing before snapshot acquisition had no result and
+  permanently reused its predecessor's consumed delivery key; a same-head automatic
+  event merged into queued recovery discarded its attempt budget. Merge was held.
+- Recovery now retains explicit revision identity, includes result-less terminal
+  failures when choosing the next attempt, and preserves the same-head automatic
+  budget. Human requests and new heads reset it. Older jobs' full-snapshot target
+  remains readable. A shared revision-aware attempt calculation also resets the
+  budget on changed base/start while retaining the rate-limit's 15-minute cooldown.
+- Real PostgreSQL/controller regressions reproduced the original failures, including
+  snapshot errors, expired leases, fresh cooldowns, concurrent/restarted recovery,
+  three-attempt exhaustion, legacy jobs and manual/automatic/new-revision boundaries.
+  A separate red check caught the controller's missing 15-minute cooldown after a
+  revision change; the final test exercises actual Controller handling of a 429.
+  Final checks: 120 unit +50 PostgreSQL integration tests, zero failures. Private
+  logs and frozen review scope are under `.local/publish/20261022/`.
+- Independent `release_review` final verdict: spec/standards/quality pass, no
+  remaining blockers. Reviewed source/test diff SHA-256:
+  `57b8f6ad5a340f1d772e3f269248f75bd5bee41b528e8ca3562d3b815ee27224`.

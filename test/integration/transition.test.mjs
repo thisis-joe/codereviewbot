@@ -7,6 +7,7 @@ import { Store } from '../../dist/store.js';
 import { questionId } from '../../dist/learning.js';
 import { parsePatch, parsePositions } from '../../dist/review.js';
 import { HttpError } from '../../dist/http-client.js';
+import { ModelFailure } from '../../dist/model-failure.js';
 import { changeQuestions, initialQuestions, finding, report, snapshot } from '../fixtures.mjs';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
@@ -37,6 +38,78 @@ test('automatic recovery respects cooldown, a finite attempt budget and permanen
     await f.pool.query("UPDATE jobs SET body=jsonb_set(body,'{recoveryAttempt}',$2::jsonb) WHERE id=$1", [id, JSON.stringify(recoveryAttempt)]);
     await f.controller.recover(); assert.equal((await f.store.health()).queued, 0);
     assert.equal(f.calls.length, 0);
+  }
+});
+
+for (const reason of ['snapshot failure', 'expired lease']) {
+  test(`recovery continues after ${reason} without a result and still exhausts its finite budget`, async t => {
+    const f = await fixture(t, 'gitlab');
+    const initial = await f.seed(report({ state: 'failed', questions: [], failure: { code: 'rate_limit', retryAt: '2020-01-01T00:00:00.000Z' } }));
+    await f.pool.query("UPDATE jobs SET updated_at=now()-interval '1 day' WHERE id=$1", [initial]);
+    const snapshot = f.platform.snapshot;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await Promise.all([f.controller.recover(), new Controller(new Store(f.pool), [f.platform], f.workspaces, f.model).recover()]);
+      const queued = (await f.pool.query("SELECT * FROM jobs WHERE state='queued'")).rows;
+      assert.equal(queued.length, 1, `recovery ${attempt} is admitted exactly once`);
+      assert.equal(queued[0].body.recoveryAttempt, attempt);
+      const job = await f.store.claim();
+      if (attempt === 1 && reason === 'snapshot failure') await f.pool.query("UPDATE jobs SET body=body-'recoverySnapshot' WHERE id=$1", [job.id]);
+      if (reason === 'snapshot failure') {
+        f.platform.snapshot = async () => { throw new HttpError(503, 'temporary outage'); };
+        for (let run = 1; run <= 3; run++) {
+          await f.controller.perform(run === 1 ? job : await f.store.claim());
+          await f.pool.query('UPDATE jobs SET due_at=now() WHERE id=$1', [job.id]);
+        }
+        f.platform.snapshot = snapshot;
+      } else {
+        await f.pool.query("UPDATE jobs SET attempts=3,lease_until=now()-interval '1 second' WHERE id=$1", [job.id]);
+        assert.equal(await f.store.claim(), null);
+      }
+      assert.equal((await f.store.getJob(job.id)).state, 'failed');
+      assert.equal((await f.store.getJob(job.id)).result, null);
+      assert.equal(await f.store.recoveryEvent(f.snap), null, 'the latest failure starts a fresh cooldown');
+      await f.controller.recover();
+      assert.equal((await f.store.health()).queued, 0);
+      await f.pool.query("UPDATE jobs SET updated_at=now()-interval '6 minutes' WHERE id=$1", [job.id]);
+    }
+    await f.controller.recover();
+    assert.equal((await f.store.health()).queued, 0, 'three recovery attempts remain the limit');
+    assert.equal(f.calls.length, 0);
+    for (const key of ['headSha', 'baseSha', 'startSha']) {
+      assert.equal(await f.store.recoveryEvent({ ...f.snap, [key]: 'e'.repeat(40) }), null, `${key} stays revision scoped`);
+    }
+  });
+}
+
+test('automatic same-head events preserve the recovery budget while manual requests and new heads reset it', async t => {
+  for (const kind of ['automatic', 'manual', 'new head']) {
+    const f = await fixture(t, 'gitlab');
+    await f.seed(report({ state: 'failed', questions: [], failure: { code: 'rate_limit', retryAt: '2020-01-01T00:00:00.000Z' } }));
+    const recovery = await f.store.recoveryEvent(f.snap);
+    const id = await f.store.enqueue({ ...recovery, recoveryAttempt: 2 });
+    await f.store.enqueue({ kind: 'review', target: f.snap, deliveryId: kind, headSha: kind === 'new head' ? 'e'.repeat(40) : f.snap.headSha, ...(kind === 'manual' ? { requested: true, regenerate: true } : {}) });
+    const job = await f.store.getJob(id);
+    assert.equal(job.body.recoveryAttempt, kind === 'automatic' ? 2 : undefined);
+    assert.deepEqual(job.body.recoverySnapshot, kind === 'automatic' ? f.snap : undefined);
+  }
+});
+
+test('a changed base or start revision gets a fresh recovery budget and the full rate-limit cooldown', async t => {
+  for (const [key, legacy] of [['baseSha', false], ['startSha', false], ['baseSha', true], ['startSha', true]]) {
+    const f = await fixture(t, 'gitlab');
+    await f.seed(report({ state: 'failed', questions: [], failure: { code: 'rate_limit', retryAt: '2020-01-01T00:00:00.000Z' } }));
+    const recovery = { ...await f.store.recoveryEvent(f.snap), recoveryAttempt: 3 };
+    if (legacy) delete recovery.recoverySnapshot;
+    const id = await f.store.enqueue(recovery), changed = { ...f.snap, [key]: 'e'.repeat(40) };
+    f.platform.snapshot = async () => ({ ...changed });
+    f.model.run = async () => { throw new ModelFailure({ code: 'rate_limit', provider: 'claude', apiStatus: 429 }); };
+    const before = Date.now();
+    await f.tick();
+    const failure = (await f.store.getJob(id)).result.failure;
+    assert.ok(Date.parse(failure.retryAt) >= before + 15 * 60000, 'the actual controller gives the new revision its 15-minute cooldown');
+    await f.drain();
+    assert.equal(await f.store.recoveryEvent(changed, before + 14 * 60000), null);
+    assert.equal((await f.store.recoveryEvent(changed, Date.parse(failure.retryAt) + 1)).recoveryAttempt, 1);
   }
 });
 

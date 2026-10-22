@@ -4,7 +4,7 @@ import type { Pool, PoolClient } from 'pg';
 import type { Report, Target, Snapshot, ChangeQuestion, Verdict } from './contracts.js';
 import type { Event } from './webhooks.js';
 import type { DiffMetadata } from './review.js';
-import { retryableFailure } from './model-failure.js';
+import { retryableFailure, recoveryAttempts } from './model-failure.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
 export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; start?: number; answered?: string; grades?: { id: string; verdict: Verdict }[] }
@@ -33,7 +33,9 @@ export class Store {
         if (queued.rows[0]) {
           const prior = queued.rows[0], sameHead = prior.body.headSha === event.headSha;
           const regenerate = event.regenerate || (sameHead && prior.body.regenerate);
-          const body = { ...event, force: force || Boolean(sameHead && prior.body.force), ...(regenerate ? { regenerate: true } : {}), ...(event.requested || prior.body.requested ? { requested: true } : {}) };
+          const recovery = sameHead && !event.requested && event.recoveryAttempt === undefined && prior.body.recoveryAttempt !== undefined
+            ? { recoveryAttempt: prior.body.recoveryAttempt, recoverySnapshot: prior.body.recoverySnapshot ?? prior.body.target } : {};
+          const body = { ...event, ...recovery, force: force || Boolean(sameHead && prior.body.force), ...(regenerate ? { regenerate: true } : {}), ...(event.requested || prior.body.requested ? { requested: true } : {}) };
           await c.query('UPDATE jobs SET body=$2,updated_at=now() WHERE id=$1', [prior.id, body]); return prior.id;
         }
       }
@@ -68,15 +70,15 @@ export class Store {
   async recoveryEvent(snap: Snapshot, now = Date.now()): Promise<Event | null> {
     const key = targetKey(snap);
     if ((await this.pool.query("SELECT 1 FROM jobs WHERE target_key=$1 AND kind='review' AND state IN ('queued','running','ready','publishing') LIMIT 1", [key])).rowCount) return null;
-    const prior = (await this.pool.query("SELECT id,body,result,updated_at FROM jobs WHERE target_key=$1 AND kind='review' AND result->>'state'='failed' AND result->'snapshot'->>'headSha'=$2 AND result->'snapshot'->>'baseSha'=$3 AND result->'snapshot'->>'startSha'=$4 ORDER BY updated_at DESC,id DESC LIMIT 1", [key, snap.headSha, snap.baseSha, snap.startSha])).rows[0];
+    const prior = (await this.pool.query("SELECT id,body,result,updated_at FROM jobs WHERE target_key=$1 AND kind='review' AND state='failed' AND (result->>'state'='failed' OR (result IS NULL AND body ? 'recoveryAttempt')) AND coalesce(result->'snapshot',body->'recoverySnapshot',body->'target')->>'headSha'=$2 AND coalesce(result->'snapshot',body->'recoverySnapshot',body->'target')->>'baseSha'=$3 AND coalesce(result->'snapshot',body->'recoverySnapshot',body->'target')->>'startSha'=$4 ORDER BY updated_at DESC,id DESC LIMIT 1", [key, snap.headSha, snap.baseSha, snap.startSha])).rows[0];
     if (!prior) return null;
-    const attempt = (prior.body.recoveryAttempt ?? 0) + 1;
-    const failure = (prior.result as Report).failure;
+    const attempt = recoveryAttempts(prior.body, snap) + 1;
+    const failure = (prior.result as Report | null)?.failure;
     if (attempt > 3 || (failure && !retryableFailure(failure))) return null;
     const retryAt = failure?.retryAt ? Date.parse(failure.retryAt) : new Date(prior.updated_at).getTime() + 5 * 60000;
     if (!Number.isFinite(retryAt) || now < retryAt) return null;
     // Every controller derives the same key from the preceding failed job; enqueue admits it once.
-    return { kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `recover:questions-v3:${prior.id}:${attempt}`, regenerate: true, recoveryAttempt: attempt };
+    return { kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `recover:questions-v3:${prior.id}:${attempt}`, regenerate: true, recoveryAttempt: attempt, recoverySnapshot: snap };
   }
   async saveCommandResult(id: string, owner: string, result: CommandResult): Promise<void> {
     const saved = await this.pool.query("UPDATE jobs SET command_result=$3,updated_at=now() WHERE id=$1 AND owner=$2 AND kind='command' AND state='running' AND lease_until>now() AND command_result IS NULL", [id, owner, result]);

@@ -14,7 +14,7 @@ import { commentKey, type Comment, type Event } from './webhooks.js';
 import { syncAnswerGate } from './answer-gate.js';
 import { sameRevision, questionId } from './learning.js';
 import type { Mattermost } from './mattermost.js';
-import { failureInfo, failureMessage, scheduleFailure } from './model-failure.js';
+import { failureInfo, failureMessage, scheduleFailure, recoveryAttempts } from './model-failure.js';
 
 export class Controller {
   active: Promise<void> | null = null;
@@ -89,7 +89,7 @@ export class Controller {
       const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
       if (superseded) await this.store.supersede(job.id, job.owner);
       else if (snap && job.state !== 'publishing' && (job.attempts >= 3 || ['rate_limit', 'authentication'].includes(failureInfo(error).code))) {
-        const failure = (job.body.recoveryAttempt ?? 0) < 3 ? scheduleFailure(failureInfo(error)) : failureInfo(error);
+        const failure = recoveryAttempts(job.body, snap) < 3 ? scheduleFailure(failureInfo(error)) : failureInfo(error);
         const failed = { ...emptyReport(snap, 'failed', failureMessage(failure)), failure, requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
         try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
       } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import type { Snapshot } from './contracts.js';
+import type { Event } from './webhooks.js';
 
 export const FailureSchema = z.strictObject({
   code: z.enum(['rate_limit', 'authentication', 'timeout', 'unavailable', 'invalid_output', 'unknown']),
@@ -18,6 +20,13 @@ export function failureInfo(error: unknown, provider?: 'claude' | 'codex'): Fail
   return { code, ...(provider ? { provider } : {}) };
 }
 export function retryableFailure(failure: FailureInfo): boolean { return ['rate_limit', 'timeout', 'unavailable', 'unknown'].includes(failure.code); }
+export function recoveryAttempts(event: Event, snapshot: Snapshot): number {
+  // Older recovery jobs carried the snapshot in target; automatic merges keep it explicitly now.
+  const prior = event.recoverySnapshot ?? event.target;
+  return 'headSha' in prior && 'baseSha' in prior && 'startSha' in prior
+    && prior.headSha === snapshot.headSha && prior.baseSha === snapshot.baseSha && prior.startSha === snapshot.startSha
+    ? event.recoveryAttempt ?? 0 : 0;
+}
 export function scheduleFailure(failure: FailureInfo, now = Date.now()): FailureInfo {
   return retryableFailure(failure) ? { ...failure, retryAt: new Date(now + (failure.code === 'rate_limit' ? 15 : 5) * 60000).toISOString() } : failure;
 }
