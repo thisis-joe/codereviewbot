@@ -1,0 +1,66 @@
+{
+  "task": "GitLab hey bot migration",
+  "tests": {
+    "unit": 122,
+    "integration": 52
+  },
+  "deployment": {
+    "source": "7609e14484fd5cf4af4a81dccbc07465a488a691",
+    "at": "2026-10-22T08:17:59.323Z",
+    "status": "healthy",
+    "registeredComments": 38,
+    "servicesChanged": [
+      "controller"
+    ],
+    "supportsPreserved": true,
+    "environmentChanges": [
+      "GITLAB_TOKEN"
+    ],
+    "configChanges": [
+      "botLogin",
+      "retiredBotLogins"
+    ]
+  },
+  "preservation": {
+    "at": "2026-10-22T08:21:53.442Z",
+    "name": "hey",
+    "userId": 33826,
+    "originalTargetsPreserved": 22,
+    "originalJobsPreserved": 80,
+    "originalCommandResultsPreserved": 1,
+    "originalCommentBodiesPreserved": 38,
+    "registeredComments": 38,
+    "mr15": {
+      "questions": 4,
+      "noteId": "2908852",
+      "url": "https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/15#note_2908852"
+    }
+  },
+  "retirement": {
+    "at": "2026-10-22T08:21:45.291Z",
+    "oldTokenId": 46478,
+    "oldTokenStatus": 401,
+    "newTokenId": 46599,
+    "newUserId": 33826,
+    "newName": "hey",
+    "oldConnectionRevoked": true,
+    "requestNote": "2908867",
+    "replyNote": "2908869",
+    "replyUrl": "https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/15#note_2908869",
+    "command": {
+      "state": "completed",
+      "gradesRecorded": 0,
+      "answers": 0,
+      "questions": 4
+    }
+  },
+  "screenshots": [
+    ".local/bot-migration/hey-active-old-revoked.png",
+    ".local/bot-migration/hey-existing-question-reply.png"
+  ],
+  "review": {
+    "base": "1d72579",
+    "independent": false,
+    "authorDiffReviewed": true
+  }
+}
