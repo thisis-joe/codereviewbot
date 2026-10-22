@@ -239,6 +239,9 @@ for (const name of ['github', 'gitlab']) {
     await f.tick();
     assert.equal((await f.store.getJob(commandId)).state, 'completed');
     assert.equal(f.calls.length, 0, 'The command dispatches generation through the durable queue');
+    const reply = f.writes.find(value => value.kind === 'reply').body;
+    assert.match(reply, /질문 재생성을 요청했습니다/);
+    assert.doesNotMatch(reply, /코드 근거|후속 조치|^###/m);
     const queued = (await f.pool.query("SELECT * FROM jobs WHERE kind='review' AND state='queued'")).rows;
     assert.equal(queued.length, 1);
     assert.equal(queued[0].body.regenerate, true);

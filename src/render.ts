@@ -109,8 +109,11 @@ function renderFindingBody(f: Finding, s: Snapshot): string {
     '', COMMAND_HELP_HINT].join('\n');
 }
 export function renderAnswer(a: { answer: string; evidence: string[]; next: string }, marker: string): string {
-  return [`<!-- codereviewbot:reply:${marker.replace(/[^\w-]/g, '')} -->`, '### 답변', '', plain(a.answer), '',
-    '### 코드 근거', '', list(a.evidence), '', '### 후속 조치·한계', '', ...(a.next !== COMMAND_HELP_HINT ? [plain(a.next), ''] : []), COMMAND_HELP_HINT].join('\n');
+  const next = a.next.trim();
+  const followUp = next && next !== COMMAND_HELP_HINT && !/^(?:없음|해당 없음)[.!。]?$/.test(next);
+  return [replyMarker(marker), plain(a.answer),
+    ...(a.evidence.length ? ['', '#### 코드 근거', '', list(a.evidence)] : []),
+    ...(followUp ? ['', '#### 참고', '', plain(next)] : []), '', COMMAND_HELP_HINT].join('\n');
 }
 // Q-IDs stay in hidden markers for threading and the merge gate; readers see revision-wide numbers.
 // Basic is the default, so only advanced review questions carry a tag; 심화N labels already say so.
