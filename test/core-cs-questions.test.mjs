@@ -23,6 +23,7 @@ test('generation assigns change-effect and principle-application goals in a sing
  assert.match(prompt,/같은 개념을 다루더라도 Q1은 변경 효과, Q2는 원리 적용/);
  assert.match(prompt,/함수명을 반드시 질문에 넣을 필요는 없습니다/);
  assert.match(prompt,/단순한 값 조회나 실행 순서 추적만으로 평가가 끝나지 않는다/);
+ assert.match(prompt,/선택지의 차이가 예외 처리 경로나 내부 규칙의 결과뿐이면/);
  assert.match(prompt,/key.explanation: 관련 원리의 뜻/);
  assert.match(prompt,/정확히 2개/);assert.match(prompt,/level은 모두 basic/);
  assert.doesNotMatch(prompt,/서로 다른 CS 원리 두 가지|나머지는 기존처럼 동작|정확히 4개|basic 3개/);

@@ -341,6 +341,9 @@ test('follow-ups deepen principles and exclude repeated learning goals before pu
   assert.match(prompt, /함수명, 숫자, 사례만 바꾼 질문도 중복/);
   assert.match(prompt, /여러 선택이 타당한 상황에서 현재 구현과 다르다는 이유만으로 오답 처리하지 마세요/);
   assert.match(prompt, /핵심 보장의 유지 또는 위반/);
+  assert.match(prompt, /문항 난이도·개수 같은 제품 내부 규칙/);
+  assert.match(prompt, /책임 경계.*표현을 붙여도 출제하지 마세요/);
+  assert.match(prompt, /조건 → 원리 → 보장 또는 위험/);
   assert.match(prompt, /key.explanation: 관련 원리, 성립 조건/);
   assert.match(prompt, /정확히 5개/);assert.match(prompt, /level은 모두 advanced/);
   const data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
