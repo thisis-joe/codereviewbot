@@ -63,7 +63,7 @@ flowchart LR
 | 서비스 | 역할 |
 |---|---|
 | `controller` | 웹훅 인증, 작업 큐, Git 캐시·스냅샷 준비, 플랫폼 API 호출과 댓글 게시 |
-| `runner` | Codex CLI 또는 Claude Code CLI 실행 (`MODEL_PROVIDER`로 선택, 계정 로그인 또는 API 키). 고정 스냅샷 읽기·검색 도구만 쓰며 Git 쓰기 권한이 없습니다. |
+| `runner` | 기본값은 GMS Responses API 직접 호출입니다. `MODEL_PROVIDER`로 GMS·Codex CLI·Claude Code CLI를 선택합니다. 고정 스냅샷 읽기·검색 도구만 쓰며 Git 쓰기 권한이 없습니다. |
 | `postgres` | 보고서, 작업 상태, 웹훅 중복 제거, 질문·답변 이력 |
 | `n8n` | 주기적인 dispatch·recovery 호출. 질문 생성과 학습 로직은 컨트롤러에 있습니다. |
 | `tunnel` | 선택 사항. Cloudflare Tunnel로 웹훅 경로만 외부에 노출합니다. |

@@ -1,0 +1,171 @@
+{
+  "verifiedAt": "2026-10-23T06:31:48.029Z",
+  "ticket": "S15P31E102-96",
+  "source": "5dbd1d2fc3ad6d3d64a349c08a9592076d162b03",
+  "scope": "GMS direct API cutover and all question/explanation changes through 5dbd1d2",
+  "deployment": {
+    "at": "2026-10-23T06:21:37.798Z",
+    "status": "healthy",
+    "services": {
+      "controller": {
+        "id": "ec5e30e6b4a79436365674f3f2c1914cf7efe9e0fe5090fc4b0a1628afb16fbd",
+        "image": "sha256:577a474c512353b7a71086b8d160fd9b76d1c4b8bd0887067857be06c50324ad",
+        "source": "5dbd1d2fc3ad6d3d64a349c08a9592076d162b03",
+        "health": "healthy"
+      },
+      "runner": {
+        "id": "c4335a6428289259ed86a59f1a90120ddfd0a0710ad85cfa91adc2a489a1d4ad",
+        "image": "sha256:9589ce5571c6bf33d69de2e0d790e6aca4f33af2c9e73deee8da557e97ba7b86",
+        "source": "5dbd1d2fc3ad6d3d64a349c08a9592076d162b03",
+        "health": "healthy",
+        "provider": "gms"
+      }
+    },
+    "supportingContainerIdsUnchanged": [
+      "postgres",
+      "n8n",
+      "tunnel"
+    ],
+    "configuration": "Exact prior environment except the four GMS runner settings; volumes, networks, limits and log policy preserved",
+    "defaultImageAliasesUpdated": true,
+    "addedImageBytes": {
+      "controller": {
+        "source": "5dbd1d2fc3ad6d3d64a349c08a9592076d162b03",
+        "additionalBytes": 107411,
+        "sizeBytes": 120496453
+      },
+      "runner": {
+        "source": "5dbd1d2fc3ad6d3d64a349c08a9592076d162b03",
+        "additionalBytes": 107410,
+        "sizeBytes": 390098658
+      }
+    }
+  },
+  "provider": {
+    "before": "claude",
+    "after": "gms",
+    "model": "gpt-6.1-sol",
+    "url": "https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses",
+    "keyConfigured": true,
+    "claudeFallback": false
+  },
+  "live": {
+    "calls": [
+      {
+        "phase": "initial_questions",
+        "elapsedMs": 38064,
+        "status": "passed"
+      },
+      {
+        "phase": "questions",
+        "elapsedMs": 73098,
+        "status": "passed"
+      },
+      {
+        "phase": "grade",
+        "elapsedMs": 15930,
+        "status": "passed"
+      }
+    ],
+    "checks": {
+      "initialBasic": 2,
+      "extra": 5,
+      "gradeIndentedOptions": 4,
+      "revealInitialOnly": 2,
+      "revealExtraModelCalls": 0,
+      "comparisonTagsAbsent": true,
+      "sentenceLimitsPassed": true,
+      "externalCommentsPosted": 0
+    },
+    "networkObservations": 60,
+    "gmsEstablishedTlsSamples": 59,
+    "processNames": [
+      "docker-init",
+      "node"
+    ],
+    "claudeProcessObserved": false,
+    "startupLogProvider": "gms",
+    "externalTestCommentsPosted": 0
+  },
+  "sourceAndHistory": {
+    "at": "2026-10-23T06:29:02.671Z",
+    "originalTargetsPreserved": 32,
+    "originalJobsPreserved": 123,
+    "compiledModuleCount": 30,
+    "bothServiceCodeHashesMatch": true,
+    "healthBefore": {
+      "failed": 10,
+      "queued": 0,
+      "active": false
+    },
+    "changedOriginalJobs": 0,
+    "changedOriginalTargets": 0,
+    "originalJobs": 123,
+    "currentJobs": 123,
+    "originalTargets": 32,
+    "currentTargets": 32
+  },
+  "health": {
+    "failed": 10,
+    "queued": 0,
+    "active": false
+  },
+  "endpoints": {
+    "at": "2026-10-23T06:25:29.442Z",
+    "controller": 200,
+    "n8n": 200,
+    "publicWebhook": 401
+  },
+  "workflow": {
+    "at": "2026-10-23T06:31:03.047Z",
+    "wakeStatus": 202,
+    "authenticatedControllerTickStatus": 202,
+    "sequenceBefore": 24401,
+    "sequenceAfter": 24402,
+    "newManagedExecutionRows": 1,
+    "allNewRowsEligibleForNativeDeletion": true,
+    "completionRecord": "Not persisted by the existing error-only n8n retention policy; running placeholders are not proof of unfinished execution"
+  },
+  "verification": {
+    "unit": {
+      "passed": 142,
+      "failed": 0,
+      "sourceUnchangedSinceRun": true
+    },
+    "integration": {
+      "passed": 54,
+      "failed": 0,
+      "sourceUnchangedSinceRun": true
+    },
+    "audit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "authorReview": true,
+    "independentReview": "Unavailable; not claimed"
+  },
+  "rollback": {
+    "command": "node .local/gms-production-20261023/deploy.mjs --rollback",
+    "retainedImages": {
+      "controller": "hey-controller:gms-before-5dbd1d2-20261023",
+      "runner": "hey-runner:gms-before-5dbd1d2-20261023"
+    },
+    "dataRollbackNeeded": false,
+    "triggers": [
+      "failed service health",
+      "persistent new GMS authentication/output errors",
+      "unexpected history or configuration drift"
+    ],
+    "plansValidatedBeforeActivation": true
+  },
+  "limits": [
+    "Existing saved questions and answer keys were preserved; basic-only two-question generation applies to new generation.",
+    "Ten failed jobs are pre-existing history; baseline and post-release counts match.",
+    "n8n successful execution data remains unsaved under the existing error-only retention policy.",
+    "Actual production RPC was verified without posting test comments to external PRs/MRs."
+  ]
+}
