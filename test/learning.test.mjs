@@ -49,17 +49,18 @@ test('published questions expose revision-bound answer IDs and visible choices w
   assert.equal(new Set(ids).size, 3);
   // Readers see Q1..Q3 as level-4 headings with bold A–D labels on their own lines; hash IDs and code links stay out of the question list.
   assert.doesNotMatch(first, /기본/);
-  assert.match(first, /^#### Q1\. 이번 pay [^\n]*\?\n(&nbsp;){4}\*\*A\.\*\* 새 키\\\n(&nbsp;){4}\*\*B\.\*\* 같은 키\\\n(&nbsp;){4}\*\*C\.\*\* 보기 C\\\n(&nbsp;){4}\*\*D\.\*\* 보기 D$/m);
-  assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. \[심화\] 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
+  assert.match(first, /^#### Q1\. 이번 pay [^\n]*\?\n\n- \*\*A\.\*\* 새 키\n- \*\*B\.\*\* 같은 키\n- \*\*C\.\*\* 보기 C\n- \*\*D\.\*\* 보기 D$/m);
+  assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
-  assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏$/m); assert.doesNotMatch(first, /^#{1,3} /m);
+  assert.match(first, /^#### hey! 이건 알고 머지한거지\? 😏$/m);
   assert.match(first, /답변 0\/3/);
   assert.ok(!first.includes(answerKey().explanation) && !first.includes('보기 해설'));
   assert.match(first, /^명령어 안내: `\/hey help`$/m);
-  assert.doesNotMatch(first, /\| 명령어|\/hey morequestion|더 알아보자/);
-  // Answer and reveal instructions sit above the questions; revision and progress sit below them, without a 완료 label.
-  assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏\n\n답변 달기: `\/hey answer Q1 B` .*\\\n정답·해설 한 번에 보기: `\/hey showanswer` .*\n\n<!-- codereviewbot:question:/m);
-  assert.match(first, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\) · 답변 0\/3\\\n명령어 안내: `\/hey help`$/); assert.doesNotMatch(first, /완료|전체 ·|증분/);
+  assert.doesNotMatch(first, /\| 명령어|더 알아보자/);
+  // Questions lead; short action hints follow the full question set.
+  assert.ok(first.indexOf('#### Q3.') < first.indexOf('답변 달기:'));
+  assert.match(first, /더 풀어보기: `\/hey morequestion`/);
+  assert.match(first, /답변 0\/3\n\n##### 기준 커밋\n\n- \[결제 재시도 처리 개선\]\(.*\)\n\n명령어 안내: `\/hey help`$/); assert.doesNotMatch(first, /완료|전체 ·|증분/);
   const marked = renderReport(report({ questions }), new Map([[ids[0], 'correct'], [ids[1], 'incorrect']]));
   assert.match(marked, /^#### Q1\. .* · ✅ 정답$/m); assert.match(marked, /^#### Q2\. .* · ❌ 오답$/m); assert.doesNotMatch(marked, /^#### Q3\. .* · /m); assert.match(marked, /답변 2\/3/);
   const changed = renderReport(report({ questions, snapshot: { ...report().snapshot, headSha: 'c'.repeat(40) } }));
@@ -72,17 +73,20 @@ test('question and grading comments keep one help entry point without repeating 
   const grade = { verdict: 'correct', explanation: '', expectedAnswer: '같은 키를 재사용합니다.', optionExplanations: answerKey().options, evidence: [{ path: q.path, line: q.line, side: q.side, reason: '호출' }] };
   for (const body of [renderReport(r), renderQuestionBatch(r.questions, r.snapshot, 'batch'), renderGrade(q, r.snapshot, grade, 'grade', 'Q1', 'B')]) {
     assert.equal((body.match(/명령어 안내: `\/hey help`/g) ?? []).length, 1);
-    // Question comments teach answering and revealing; every other command stays behind help.
-    assert.doesNotMatch(body.replace(/^(답변 달기|정답·해설 한 번에 보기): .*$/gm, ''), /\| 명령어|사용 예시|\/hey (?!help)[a-z]+/);
+    // Question comments teach answering, revealing and optional follow-up learning.
+    assert.doesNotMatch(body.replace(/^(답변 달기|정답·해설 (?:한 번에 )?보기|더 풀어보기): .*$/gm, ''), /\| 명령어|사용 예시|\/hey (?!help)[a-z]+/);
   }
 });
 
 test('follow-up batches and inline threads name their own labels for answering and revealing', () => {
   const r = report(), batch = renderQuestionBatch(r.questions, r.snapshot, 'batch', 6);
-  assert.match(batch, /^### 심화 질문\n\n답변 달기: `\/hey answer 심화6 B` — 여러 개는 `\/hey answer 심화6 B 심화7 C`\\\n정답·해설 한 번에 보기: `\/hey showanswer 심화6 심화7 심화8`\n\n<!-- codereviewbot:question:/m);
-  assert.match(batch, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\/commit\/b{40}\)\\\n명령어 안내: `\/hey help`$/);
+  assert.match(batch, /^<!-- codereviewbot:reply:batch -->\n<!-- codereviewbot:question:/m);
+  assert.ok(batch.indexOf('#### 심화8.') < batch.indexOf('답변 달기:'));
+  assert.match(batch, /답변 달기: `\/hey answer 심화6 B 심화7 C`/);
+  assert.match(batch, /정답·해설 보기: `\/hey showanswer 심화6 심화7 심화8`/);
+  assert.match(batch, /##### 기준 커밋\n\n- \[결제 재시도 처리 개선\]\(.*\/commit\/b{40}\)\n\n명령어 안내: `\/hey help`$/);
   for (const label of ['심화6', '심화7', '심화8']) assert.ok(parseCommand(`/hey showanswer 심화6 심화7 심화8`).ids.includes(label));
-  assert.match(renderQuestionThread(r.questions[1], r.snapshot, 2), /보기 문자\(A~D\)만 답글로 .*\\\n정답·해설 보기: `\/hey showanswer Q2`$/);
+  assert.match(renderQuestionThread(r.questions[1], r.snapshot, 2), /보기 문자\(A~D\)만 답글로 .*\n\n정답·해설 보기: `\/hey showanswer Q2`$/);
 });
 
 test('grading preserves question, verdict, all option explanations and valid links under the comment budget', () => {
@@ -90,8 +94,8 @@ test('grading preserves question, verdict, all option explanations and valid lin
   const grade = { verdict: 'partial', explanation: '&'.repeat(2000), expectedAnswer: '&'.repeat(2000), optionExplanations: q.options.map(o => ({ id: o.id, explanation: '&'.repeat(799) + o.id })), evidence: Array(6).fill({ path: q.path, line: 1, side: 'RIGHT', reason: '&'.repeat(6000) }) };
   assert.equal(contracts.ChangeQuestionSchema.safeParse(q).success, true); assert.equal(contracts.GradeSchema.safeParse(grade).success, true);
   const body = renderGrade(q, report().snapshot, grade, 'human1', 'Q2', 'C');
-  assert.match(body, /^\*\*C\.\*\* &amp;.*C \(내 답\) — /m); assert.match(body, /^\*\*D\.\*\* &amp;.*D \(정답\) — /m); assert.doesNotMatch(body, /^\*\*A\.\*\* .*\(내 답\)/m);
-  assert.ok(body.length <= 60000, `got ${body.length}`); assert.match(body, /^### Q2 · 🟡 부분 정답$/m); assert.match(body, /^\*\*Q2\. \[심화\] /m); assert.match(body, /^내 답: \*\*C\*\* · 정답: \*\*D\*\*$/m);
-  for (const id of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`^\\*\\*${id}\\.\\*\\* `, 'm'));
+  assert.match(body, /^- \*\*C\.\*\* &amp;.*C\n\n  > &amp;/m); assert.match(body, /^- \*\*D\.\*\* &amp;.*D\n\n  > &amp;/m); assert.doesNotMatch(body, /내 답:|정답:|\(내 답\)|\(정답\)|\[심화\]/);
+  assert.ok(body.length <= 60000, `got ${body.length}`); assert.match(body, /^### Q2 · 🟡 부분 정답$/m); assert.match(body, /^#### Q2\. /m); assert.match(body, /^&amp;.*D$/m);
+  for (const id of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`^- \\*\\*${id}\\.\\*\\* `, 'm'));
   assert.ok(body.includes('%E6%BC%A2'.repeat(99))); assert.ok(body.includes('&amp;'.repeat(500)));
 });

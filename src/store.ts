@@ -2,7 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { Pool, PoolClient } from 'pg';
 import type { Report, Target, Snapshot, ChangeQuestion, Verdict } from './contracts.js';
-import type { Event } from './webhooks.js';
+import { commentKey, type Event } from './webhooks.js';
+import type { RemoteComment } from './platform.js';
 import type { DiffMetadata } from './review.js';
 import { retryableFailure, recoveryAttempts } from './model-failure.js';
 
@@ -18,6 +19,14 @@ export class Store {
   async transaction<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
     const c = await this.pool.connect(); try { await c.query('BEGIN'); const result = await fn(c); await c.query('COMMIT'); return result; }
     catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
+  }
+  /** Exclude pending work and hold the same lock as claim until source deletion ends. */
+  async cleanupWorkspaces(cleanup: (protectedJobs: ReadonlySet<string>) => Promise<void>): Promise<void> {
+    await this.transaction(async c => {
+      await c.query('SELECT pg_advisory_xact_lock(710632418)');
+      const rows = await c.query("SELECT id FROM jobs WHERE state IN ('queued','running','ready','publishing')");
+      await cleanup(new Set(rows.rows.map(row => String(row.id))));
+    });
   }
   async enqueue(event: Event, force = false): Promise<string | null> {
     const key = targetKey(event.target);
@@ -67,6 +76,25 @@ export class Store {
   }
   async getJob(id: string): Promise<Job | null> { return (await this.pool.query('SELECT * FROM jobs WHERE id=$1', [id])).rows[0] ?? null; }
   async getTarget(t: Target): Promise<{ report: Report | null } | null> { return (await this.pool.query('SELECT * FROM targets WHERE key=$1', [targetKey(t)])).rows[0] ?? null; }
+  /** Operator-only import from authenticated platform reads; bodies alone never establish trust. */
+  async rememberBotComments(target: Target, comments: RemoteComment[], botLogin: string): Promise<void> {
+    await this.transaction(async c => {
+      const key = targetKey(target);
+      await c.query('INSERT INTO targets(key,target) VALUES($1,$2) ON CONFLICT DO NOTHING', [key, target]);
+      for (const comment of comments) {
+        if (comment.author !== botLogin || !comment.body.includes('<!-- codereviewbot:')) continue;
+        await c.query('INSERT INTO bot_comment_history(target_key,surface,comment_id,bot_login) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING', [key, comment.surface, comment.id, botLogin]);
+      }
+    });
+  }
+  async botCommentHistory(target: Target): Promise<Set<string>> {
+    const rows = await this.pool.query('SELECT surface,comment_id AS id FROM bot_comment_history WHERE target_key=$1', [targetKey(target)]);
+    return new Set(rows.rows.map(commentKey));
+  }
+  async recoveryTargets(scope: Pick<Target, 'platform' | 'instance' | 'repository'>): Promise<Target[]> {
+    const rows = await this.pool.query("SELECT DISTINCT body->'target' AS target FROM jobs WHERE kind='review' AND state='failed' AND (body->>'merged'='true' OR body->>'requested'='true') AND body->'target'->>'platform'=$1 AND body->'target'->>'instance'=$2 AND body->'target'->>'repository'=$3", [scope.platform, scope.instance, scope.repository]);
+    return rows.rows.map(r => r.target);
+  }
   async recoveryEvent(snap: Snapshot, now = Date.now()): Promise<Event | null> {
     const key = targetKey(snap);
     if ((await this.pool.query("SELECT 1 FROM jobs WHERE target_key=$1 AND kind='review' AND state IN ('queued','running','ready','publishing') LIMIT 1", [key])).rowCount) return null;
@@ -78,7 +106,7 @@ export class Store {
     const retryAt = failure?.retryAt ? Date.parse(failure.retryAt) : new Date(prior.updated_at).getTime() + 5 * 60000;
     if (!Number.isFinite(retryAt) || now < retryAt) return null;
     // Every controller derives the same key from the preceding failed job; enqueue admits it once.
-    return { kind: 'review', target: snap, headSha: snap.headSha, deliveryId: `recover:questions-v3:${prior.id}:${attempt}`, regenerate: true, recoveryAttempt: attempt, recoverySnapshot: snap };
+    return { kind: 'review', target: snap, ...(prior.body.merged ? { merged: true } : {}), ...(prior.body.requested ? { requested: true } : {}), headSha: snap.headSha, deliveryId: `recover:questions-v3:${prior.id}:${attempt}`, regenerate: true, recoveryAttempt: attempt, recoverySnapshot: snap };
   }
   async saveCommandResult(id: string, owner: string, result: CommandResult): Promise<void> {
     const saved = await this.pool.query("UPDATE jobs SET command_result=$3,updated_at=now() WHERE id=$1 AND owner=$2 AND kind='command' AND state='running' AND lease_until>now() AND command_result IS NULL", [id, owner, result]);

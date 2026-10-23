@@ -17,7 +17,7 @@ test('same-revision recovery survives an already-consumed delivery key without d
   const failure = report({ snapshot: f.snap, state: 'failed', questions: [], failure: { code: 'rate_limit', provider: 'claude', apiStatus: 429, retryAt: '2020-01-01T00:00:00.000Z' } });
   await f.seed(failure);
   const oldKey = `recover:questions-v2:${f.snap.headSha}:${f.snap.startSha}:${f.snap.baseSha}`;
-  const id = await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey });
+  const id = await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey, requested: true });
   const running = await f.store.claim(); await f.store.saveResult(id, running.owner, failure, {}, 0);
   const publishing = await f.store.claim(); await f.store.complete(id, publishing.owner);
   assert.equal(await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey }), null);
@@ -26,7 +26,7 @@ test('same-revision recovery survives an already-consumed delivery key without d
   const queued = (await f.pool.query("SELECT * FROM jobs WHERE state='queued'")).rows;
   assert.equal(queued.length, 1, 'a failed revision gets one new recovery attempt instead of permanent deduplication');
   assert.equal(queued[0].body.recoveryAttempt, 1);
-  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 4);
+  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 2);
   assert.equal((await f.store.health()).failed, 0);
   await f.controller.recover(); assert.equal((await f.store.health()).queued, 0);
 });
@@ -118,7 +118,7 @@ test('explicit retry regenerates a failed report instead of republishing the sav
   assert.equal(await f.store.retry(id), true);
   assert.equal((await f.store.getJob(id)).state, 'queued');
   assert.equal((await f.store.getJob(id)).result, null);
-  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 4);
+  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 2);
 });
 
 async function fixture(t, name) {
@@ -177,7 +177,7 @@ async function fixture(t, name) {
     assert.fail('Question work did not finish within ten queue claims');
   };
   const seed = async (value, { ready = false, kind = 'review' } = {}) => {
-    const id = await store.enqueue({ kind, target: snap, deliveryId: `seed-${kind}`, headSha: snap.headSha });
+    const id = await store.enqueue({ kind, target: snap, deliveryId: `seed-${kind}`, requested: true, headSha: snap.headSha });
     const running = await store.claim();
     assert.equal(running.id, id);
     await store.saveResult(id, running.owner, { ...value, snapshot: { ...snap } }, diff, 5);
@@ -209,13 +209,13 @@ for (const name of ['github', 'gitlab']) {
     assert.deepEqual(f.calls.map(c => c.phase), ['initial_questions']);
     assert.equal(f.preparations.length, 1);
     assert.equal(f.preparations[0].previous, null, 'A legacy SHA must not become an empty incremental diff');
-    assert.equal(current.questions.length, 4);
+    assert.equal(current.questions.length, 2);
     assert.deepEqual(current.findings.map(item => [item.id, item.status]), [['CRB-0001', 'unverified'], ['CRB-0002', 'dismissed']]);
     assert.ok((await f.store.questionHistory(f.snap)).some(q => questionId(f.snap, q) === oldId));
     assert.equal((await f.store.answerResults(f.snap)).get(oldId), 'correct');
     assert.equal(current.requireAnswers, true);
     assert.equal(f.statuses.at(-1).state, 'pending');
-    assert.match(f.statuses.at(-1).description, /0\/4/);
+    assert.match(f.statuses.at(-1).description, /0\/2/);
     assert.equal(f.checks(), 0);
     assert.ok(f.writes.some(value => value.kind === 'inline' && value.body.includes('codereviewbot:question:')));
     assert.ok(f.writes.every(value => !value.body.includes('codereviewbot:finding:') && !value.body.includes('CRB-0001')));
@@ -261,34 +261,27 @@ for (const name of ['github', 'gitlab']) {
     await f.controller.recover();
     await f.controller.recover();
     const queued = (await f.pool.query("SELECT * FROM jobs WHERE state='queued'")).rows;
-    assert.equal(queued.length, 1);
-    assert.equal(queued[0].kind, 'review');
-    assert.match(queued[0].body.deliveryId, /questions-v2/);
-    assert.equal(f.checks(), 0);
+    assert.equal(queued.length, 0, 'periodic recovery must not backfill questions for an open MR');
+    assert.equal(f.calls.length, 0);
+    assert.equal((await f.store.getTarget(f.snap)).report.schemaVersion, '1');
     assert.equal(f.cleanups(), 2);
-    await f.drain();
-    assert.equal((await f.store.getTarget(f.snap)).report.schemaVersion, '2');
-    assert.equal(f.calls.length, 1);
-    const writes = f.writes.length, statuses = f.statuses.length;
-
-    await f.controller.recover();
-    assert.equal((await f.store.health()).queued, 0);
-    assert.equal(f.calls.length, 1);
-    assert.equal(f.writes.length, writes);
-    assert.equal(f.statuses.length, statuses, 'Recovery keeps gate reconciliation idempotent');
-    assert.equal(f.checks(), 0);
   });
 
   test(`${name}: current same-SHA cache and queued CI do not generate questions or poll checks`, async t => {
     const f = await fixture(t, name);
     const current = report({ schemaVersion: '2', requireAnswers: true });
+    delete f.snap.commits;
     await f.seed(current);
+    const commits = [{ sha: f.snap.headSha, title: '기존 질문의 커밋 제목 보강' }];
+    const prepare = f.workspaces.prepare;
+    f.workspaces.prepare = async (...args) => { const value = await prepare(...args); args[1].commits = commits; return value; };
     const id = await f.store.enqueue({ kind: 'review', target: f.snap, deliveryId: 'cached-sha', headSha: f.snap.headSha });
     await f.drain();
     assert.equal((await f.store.getJob(id)).state, 'completed');
     assert.equal(f.calls.length, 0);
     assert.equal((await f.store.getTarget(f.snap)).report.schemaVersion, '2');
     assert.deepEqual((await f.store.getTarget(f.snap)).report.questions, current.questions);
+    assert.deepEqual((await f.store.getTarget(f.snap)).report.snapshot.commits, commits);
 
     const writes = f.writes.length, preparations = f.preparations.length;
     const ci = await f.store.enqueue({ kind: 'ci', target: f.snap, deliveryId: 'already-queued-ci', headSha: f.snap.headSha });
@@ -305,7 +298,11 @@ for (const name of ['github', 'gitlab']) {
   test(`${name}: an explicit tryagain command regenerates current same-SHA questions with a full source fallback`, async t => {
     const f = await fixture(t, name);
     const current = report({ schemaVersion: '2', requireAnswers: true });
+    delete f.snap.commits;
     await f.seed(current);
+    const commits = [{ sha: f.snap.headSha, title: '기존 질문의 커밋 제목 보강' }];
+    const prepare = f.workspaces.prepare;
+    f.workspaces.prepare = async (...args) => { const value = await prepare(...args); args[1].commits = commits; return value; };
     const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'explicit-tryagain', comment: {
       id: 'explicit-tryagain', body: '/hey tryagain', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
     } });
@@ -476,6 +473,24 @@ for (const name of ['github', 'gitlab']) {
     await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'answer-latest-push', comment: { id: 'answer-latest', body: `/hey answer Q1 ${first.key.answer}`, author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null } });
     await f.drain();
     assert.equal(older.body, saved);
-    assert.match(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).at(-1).body, /답변 1\/4/);
+    assert.match(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).at(-1).body, /답변 1\/2/);
   });
 }
+
+test('accepted merged work recovers after closure without rediscovering open pushes', async t => {
+  const f = await fixture(t,'gitlab');
+  const id = await f.seed(report({state:'failed',questions:[],failure:{code:'unavailable',retryAt:'2020-01-01T00:00:00Z'}}));
+  await f.pool.query("UPDATE jobs SET body=(body-'requested')||'{\"merged\":true}'::jsonb WHERE id=$1",[id]);
+  f.platform.openNumbers=async()=>[];
+  f.platform.snapshot=async(_n,allowClosed)=>{if(!allowClosed)throw new HttpError(410,'merged');return {...f.snap};};
+  await f.controller.recover();
+  const queued=(await f.pool.query("SELECT body FROM jobs WHERE state='queued'")).rows;
+  assert.equal(queued.length,1);assert.equal(queued[0].body.merged,true);
+  await f.drain();assert.equal(f.calls.length,1);assert.equal((await f.store.getTarget(f.snap)).report.requireAnswers,false);
+});
+
+test('merge generation reviews the full final change even after earlier questions',async t=>{
+ const f=await fixture(t,'gitlab');await f.seed(report({state:'completed'}));f.snap.headSha='e'.repeat(40);
+ await f.store.enqueue({kind:'review',target:f.snap,headSha:f.snap.headSha,deliveryId:'merged-final',merged:true,regenerate:true});await f.drain();
+ assert.equal(f.preparations[0].previous,null);
+});

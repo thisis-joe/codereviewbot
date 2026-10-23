@@ -53,3 +53,12 @@ UPDATE jobs SET state='failed' WHERE kind='review' AND state='completed' AND res
 -- Retire command-only state on both existing and fresh databases.
 ALTER TABLE targets DROP COLUMN IF EXISTS paused;
 DROP TABLE IF EXISTS feedback;
+
+-- Remote IDs keep retired bot questions recognizable after GitLab moves their author to ghost.
+CREATE TABLE IF NOT EXISTS bot_comment_history (
+  target_key text NOT NULL REFERENCES targets(key),
+  surface text NOT NULL CHECK (surface IN ('issue','review','note')),
+  comment_id text NOT NULL,
+  bot_login text NOT NULL,
+  PRIMARY KEY(target_key,surface,comment_id)
+);

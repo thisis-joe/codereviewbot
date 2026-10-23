@@ -1,4 +1,4 @@
-import { INITIAL_QUESTION_COUNT, isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
+import { isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
 import { createHash } from 'node:crypto';
 import { questionId } from './learning.js';
 import { failureMessage } from './model-failure.js';
@@ -27,24 +27,25 @@ function ref(s: Snapshot, path: string, line?: number, side = 'RIGHT', labelLimi
   const label = path.length > labelLimit ? `${path.slice(0, half - 1)}…${path.slice(-half)}` : path;
   return `[${plain(label)}${line ? `:${line}` : ''}](${codeLink(s, path, line, side)})`;
 }
-function commitLink(s: Snapshot): string {
+function commitLink(s: Snapshot, sha = s.headSha): string {
   const web = new URL(s.webUrl);
   const repo = s.platform === 'github' ? web.pathname.split('/pull/')[0]! : web.pathname.split('/-/merge_requests/')[0]!;
-  return `${web.origin}${repo}/${s.platform === 'github' ? 'commit' : '-/commit'}/${s.headSha}`;
+  return `${web.origin}${repo}/${s.platform === 'github' ? 'commit' : '-/commit'}/${sha}`;
 }
 function clip(value: string, length: number): string { return value.length > length ? value.slice(0, length) + '…' : value; }
-// A trailing backslash is a CommonMark hard break, so consecutive lines render apart on GitHub and GitLab alike.
-function lines(values: string[]): string[] { return values.map((v, i) => i < values.length - 1 ? v + '\\' : v); }
-// Four literal spaces would start a Markdown code block, so options are indented with non-breaking spaces.
-const indent = '&nbsp;'.repeat(4);
+// Separate paragraphs instead of exposing hard-break escapes or HTML spacing entities.
+function lines(values: string[]): string[] { return values.flatMap((v, i) => i ? ['', v] : [v]); }
+function commitLines(s: Snapshot): string[] {
+  return ['##### 기준 커밋', '', ...(s.commits?.length ? s.commits.map(c => `- [${plain(c.title)}](${commitLink(s, c.sha)})`) : ['- 커밋 제목 정보가 아직 없습니다.'])];
+}
 export const COMMAND_HELP_HINT = '명령어 안내: `/hey help`';
-const answerHelp = ['답변 달기: `/hey answer Q1 B` — 여러 개는 `/hey answer Q1 B Q2 C`', '정답·해설 한 번에 보기: `/hey showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인'];
+const answerHelp = ['답변 달기: `/hey answer Q1 B Q2 C`', '정답·해설 보기: `/hey showanswer`', '더 풀어보기: `/hey morequestion`'];
 const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '🟡 부분 정답', incorrect: '❌ 오답', unverifiable: '⏸ 판정 보류' };
 /** Latest grade per question ID; null marks an answer graded before verdicts were recorded. */
 export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
   ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화 질문: 심화1 B', '/hey answer Q1 B'],
-  ['/hey showanswer', '정답 보기', '전체 정답·해설 보기. 번호를 붙이면 해당 질문만 표시<br>예: Q1 심화2 · 답변 수와 머지 조건에는 반영하지 않음', '/hey showanswer'],
+  ['/hey showanswer', '정답 보기', '최초 질문 전체의 정답·해설 보기. 추가 질문은 심화 번호 지정<br>예: Q1 심화2 · 답변 수와 머지 조건에는 반영하지 않음', '/hey showanswer'],
   ['/hey morequestion', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey morequestion'],
   ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],
   ['@hey', '코드 질문', '관련 코드를 확인해 질문에 답변', '@hey 키를 재사용하는 이유는?'],
@@ -58,8 +59,8 @@ export function renderCommandHelp(commentId: string): string { return [replyMark
 function list(values: string[]): string { return values.length ? values.map(x => `- ${plain(x)}`).join('\n') : '없음'; }
 export function renderReport(r: Report, results: AnswerResults = new Map()): string {
   const full = renderReportBody(r, results); if (full.length <= 60000) return full;
-  // Preserve complete questions, including the trailing advanced one; the gate uses exactly the visible IDs.
-  const compact: Report = { ...r, questions: r.questions.slice(0, INITIAL_QUESTION_COUNT), limitations: [`댓글 길이 제한으로 질문 ${INITIAL_QUESTION_COUNT}개만 표시합니다.`] };
+  // Preserve the historical four-question compaction limit for oversized legacy reports.
+  const compact: Report = { ...r, questions: r.questions.slice(0, 4), limitations: ['댓글 길이 제한으로 질문 4개만 표시합니다.'] };
   const body = renderReportBody(compact, results);
   if (body.length > 60000) throw new Error('Question report exceeds comment budget');
   return body;
@@ -69,23 +70,23 @@ function renderReportBody(r: Report, results: AnswerResults): string {
   const questions = available ? renderQuestions(r.questions, s, 1, results)
     : [plain(r.state === 'failed' && r.failure ? failureMessage(r.failure) : r.questionsUnavailableReason ?? (r.state === 'failed' ? '질문 생성에 실패했습니다. /hey tryagain 명령으로 다시 요청하거나 봇 운영자에게 알려주세요.' : '출제할 수 있는 코드 근거가 없어 질문을 생성하지 못했습니다.'))];
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
-  const meta = [...(r.state === 'completed' ? [] : [status[r.state]]), `기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`,
+  const meta = [...(r.state === 'completed' ? [] : [status[r.state]]),
     ...(available ? [`답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`] : [])].join(' · ');
-  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v5 -->', '#### hey! 이건 알고 머지하는거지? 😏', '', ...(available ? [...lines(answerHelp), ''] : []),
-    ...questions, ...(r.limitations.length && available ? ['', ...r.limitations.slice(0, 3).map(l => `- ${plain(clip(l, 200))}`)] : []), '', ...lines([meta, COMMAND_HELP_HINT])].join('\n');
+  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v7 -->', '#### hey! 이건 알고 머지한거지? 😏', '',
+    ...questions, ...(available ? ['', '---', '', ...lines(answerHelp)] : []), ...(r.limitations.length && available ? ['', ...r.limitations.slice(0, 3).map(l => `- ${plain(clip(l, 200))}`)] : []), '', ...(meta ? [meta, ''] : []), ...commitLines(s), '', COMMAND_HELP_HINT].join('\n');
 }
 export interface ReviewEstimate { minutes: number; measured: boolean }
 /** Posted in place of the summary as soon as a review starts; the finished report overwrites it. */
 export function renderProgress(s: Snapshot, estimate: ReviewEstimate, previous?: { report: Report; results: AnswerResults }): string {
-  const head = [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:progress:v1 -->', '#### hey! 이건 알고 머지하는거지? 😏', '',
-    `**질문 생성 중** · 기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, '',
+  const head = [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:progress:v1 -->', '#### hey! 이건 알고 머지한거지? 😏', '',
+    '**질문 생성 중**', '', ...commitLines(s), '',
     `질문 생성을 시작했습니다. 예상 소요 시간은 약 ${estimate.minutes}분입니다${estimate.measured ? ' (최근 질문 생성 기준)' : ''}. 생성이 끝나면 이 댓글이 결과로 바뀝니다.`].join('\n');
   if (!previous || !isQuestionReport(previous.report) || previous.report.state === 'failed') return head;
   // The earlier report stays readable while the new one runs; its markers are dropped so only this comment owns the summary.
   let prior: string;
   try { prior = renderReport(previous.report, previous.results); } catch { return head; }
   prior = prior.split('\n').filter(line => !/^<!-- codereviewbot:/.test(line)).join('\n');
-  const body = [head, '', `<details><summary>이전 질문 (커밋 ${previous.report.snapshot.headSha.slice(0, 8)})</summary>`, '', prior, '', '</details>'].join('\n');
+  const body = [head, '', '<details><summary>이전 질문</summary>', '', prior, '', '</details>'].join('\n');
   return body.length <= 60000 ? body : head;
 }
 export function renderFinding(f: Finding, s: Snapshot): string {
@@ -116,18 +117,14 @@ export function renderAnswer(a: { answer: string; evidence: string[]; next: stri
     ...(followUp ? ['', '#### 참고', '', plain(next)] : []), '', COMMAND_HELP_HINT].join('\n');
 }
 // Q-IDs stay in hidden markers for threading and the merge gate; readers see revision-wide numbers.
-// Basic is the default, so only advanced review questions carry a tag; 심화N labels already say so.
-function levelTag(q: ChangeQuestion, label: string): string {
-  return q.level === 'advanced' && !label.startsWith('심화') ? '[심화] ' : '';
-}
-// The question is a heading of its own, so options start right below it; code locations appear only in solutions.
+// Questions are H4 headings with a blank line before native Markdown list choices.
 function questionLines(q: ChangeQuestion, s: Snapshot, label: string, mark = ''): string[] {
-  return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `#### ${label}. ${levelTag(q, label)}${plain(q.question)}${mark}`, ...lines((q.options ?? []).map(o => `${indent}**${o.id}.** ${plain(o.text)}`))];
+  return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `#### ${label}. ${plain(q.question)}${mark}`, '', ...(q.options ?? []).map(o => `- **${o.id}.** ${plain(o.text)}`)];
 }
 function renderQuestions(questions: ChangeQuestion[], s: Snapshot, start = 1, results: AnswerResults = new Map(), prefix = 'Q'): string[] {
   return questions.flatMap((q, i) => {
     const id = questionId(s, q), verdict = results.get(id);
-    return [...(i ? [''] : []), ...questionLines(q, s, `${prefix}${start + i}`, results.has(id) ? ` · ${verdict ? verdictMark[verdict] : '답변함'}` : '')];
+    return [...(i ? ['', '---', ''] : []), ...questionLines(q, s, `${prefix}${start + i}`, results.has(id) ? ` · ${verdict ? verdictMark[verdict] : '답변함'}` : '')];
   });
 }
 /** One inline thread per question, so a bare option letter replied in the thread is graded. */
@@ -147,10 +144,10 @@ export function renderAck(id: string, state: AckState = 'received'): string { re
 // Follow-ups are never revealed by a bare showanswer, so the batch names its own labels for one-step reveal.
 export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
   const labels = questions.map((_, i) => `심화${start + i}`);
-  const help = [`답변 달기: \`/hey answer ${labels[0]} B\` — 여러 개는 \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
-    `정답·해설 한 번에 보기: \`/hey showanswer ${labels.join(' ')}\``];
-  return [replyMarker(commentId), '### 심화 질문', '', ...lines(help), '', ...renderQuestions(questions, s, start, new Map(), '심화'), '',
-    ...lines([`기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, COMMAND_HELP_HINT])].join('\n');
+  const help = [`답변 달기: \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
+    `정답·해설 보기: \`/hey showanswer ${labels.join(' ')}\``, '더 풀어보기: `/hey morequestion`'];
+  return [replyMarker(commentId), ...renderQuestions(questions, s, start, new Map(), '심화'), '', '---', '',
+    ...lines(help), '', ...commitLines(s), '', COMMAND_HELP_HINT].join('\n');
 }
 export interface GradeItem { q: ChangeQuestion; grade: Grade; label: string; picked?: string }
 export function renderGrade(q: ChangeQuestion, s: Snapshot, grade: Grade, commentId: string, label = questionId(s, q), picked?: string): string {
@@ -163,20 +160,18 @@ export function renderGrades(items: GradeItem[], s: Snapshot, commentId: string)
   const levels: [((g: Grade) => Grade), string][] = [[g => g, ''], [g => shrink(g, 700, 400, 3, 300), '댓글 길이 제한으로 해설과 근거를 축약했습니다.'], [g => shrink(g, 250, 120, 1, 120), '댓글 길이 제한으로 해설과 근거를 크게 축약했습니다.']];
   for (const [fit, note] of levels) {
     const body = [replyMarker(commentId), items.map(i => renderGradeSection({ ...i, grade: fit(i.grade) }, s)).join('\n\n---\n\n'), '',
-      ...lines([`기준 커밋: ${s.headSha.slice(0, 8)}`, COMMAND_HELP_HINT]), ...(note ? ['', note] : [])].join('\n');
+      ...commitLines(s), '', COMMAND_HELP_HINT, ...(note ? ['', note] : [])].join('\n');
     if (body.length <= 59000) return body;
   }
   throw new Error('Grading response exceeds comment budget');
 }
-function renderGradeSection({ q, grade, label, picked }: GradeItem, s: Snapshot): string {
-  const answer = q.key?.answer, level = levelTag(q, label);
-  const choice = [...(picked ? [`내 답: **${picked}**`] : []), ...(answer ? [`정답: **${answer}**`] : [])].join(' · ');
-  const tags = (id: string) => [...(id === picked ? ['내 답'] : []), ...(id === answer ? ['정답'] : [])];
+function renderGradeSection({ q, grade, label }: GradeItem, s: Snapshot): string {
+  const answer = q.options?.find(o => o.id === q.key?.answer)?.text;
   return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `### ${label} · ${verdictMark[grade.verdict]}`, '',
-    `**${label}. ${level}${plain(q.question)}**`, ...(choice ? ['', choice] : []),
-    ...(grade.explanation ? ['', '**답변 평가**', plain(grade.explanation)] : []), '', '**문제 해설**', plain(grade.expectedAnswer),
-    ...((q.options ?? []).length ? ['', '**보기별 해설**', ...q.options.flatMap(o => ['', `**${o.id}.** ${plain(o.text)}${tags(o.id).length ? ` (${tags(o.id).join('·')})` : ''} — ${plain(grade.optionExplanations.find(e => e.id === o.id)?.explanation ?? '해설 없음')}`])] : []), '',
-    '**코드 근거**', ...(grade.evidence.length ? grade.evidence.map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, 700))}`) : ['확인 가능한 코드 근거가 부족해 정답·오답을 확정하지 않았습니다.'])].join('\n');
+    `#### ${label}. ${plain(q.question)}`, ...(answer ? ['', plain(answer)] : []),
+    ...(grade.explanation ? ['', '##### 답변 평가', '', plain(grade.explanation)] : []), '', '##### 해설', '', plain(grade.expectedAnswer),
+    ...((q.options ?? []).length ? ['', '##### 보기별 해설', ...optionExplanationLines(q, id => grade.optionExplanations.find(e => e.id === id)?.explanation ?? '해설 없음')] : []), '',
+    '##### 코드 근거', '', ...(grade.evidence.length ? grade.evidence.map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, 700))}`) : ['확인 가능한 코드 근거가 부족해 정답·오답을 확정하지 않았습니다.'])].join('\n');
 }
 export interface RevealItem { q: ChangeQuestion; label: string }
 /** Answer sheet for /hey showanswer: the stored key only, so no model runs and nothing is graded. */
@@ -184,14 +179,18 @@ export function renderReveal(items: RevealItem[], s: Snapshot, commentId: string
   const levels: [number, number, string][] = [[1500, 500, ''], [600, 200, '댓글 길이 제한으로 해설을 축약했습니다.'], [200, 80, '댓글 길이 제한으로 해설을 크게 축약했습니다.']];
   for (const [text, option, note] of levels) {
     const body = [replyMarker(commentId), '### 정답·해설', '', items.map(i => renderRevealSection(i, s, text, option)).join('\n\n---\n\n'), '',
-      ...lines([`기준 커밋: ${s.headSha.slice(0, 8)}`, COMMAND_HELP_HINT]), ...(note ? ['', note] : [])].join('\n');
+      ...commitLines(s), '', COMMAND_HELP_HINT, ...(note ? ['', note] : [])].join('\n');
     if (body.length <= 59000) return body;
   }
   throw new Error('Answer sheet exceeds comment budget');
 }
+function optionExplanationLines(q: ChangeQuestion, explain: (id: string) => string): string[] {
+  return (q.options ?? []).flatMap(o => ['', `- **${o.id}.** ${plain(o.text)}`, '', `  > ${plain(explain(o.id))}`]);
+}
 function renderRevealSection({ q, label }: RevealItem, s: Snapshot, text: number, option: number): string {
-  const key = q.key, head = `#### ${label}. ${levelTag(q, label)}${plain(q.question)}`;
+  const key = q.key, head = `#### ${label}. ${plain(q.question)}`;
   if (!key) return [head, '', '저장된 정답이 없는 이전 질문입니다. `/hey answer`로 답하면 채점과 해설을 받을 수 있습니다.'].join('\n');
-  return [head, '', `정답: **${key.answer}** · 코드 위치: ${ref(s, q.path, q.line, q.side, 80)}`, '', '**문제 해설**', plain(clip(key.explanation, text)),
-    ...((q.options ?? []).length ? ['', '**보기별 해설**', ...q.options.flatMap(o => ['', `**${o.id}.** ${plain(o.text)}${o.id === key.answer ? ' (정답)' : ''} — ${plain(clip(key.options.find(e => e.id === o.id)?.explanation ?? '해설 없음', option))}`])] : [])].join('\n');
+  const answer = q.options?.find(o => o.id === key.answer)?.text;
+  return [head, ...(answer ? ['', plain(answer)] : []), '', '##### 해설', '', plain(clip(key.explanation, text)),
+    ...((q.options ?? []).length ? ['', '##### 보기별 해설', ...optionExplanationLines(q, id => clip(key.options.find(e => e.id === id)?.explanation ?? '해설 없음', option))] : []), '', '##### 코드 근거', '', `- ${ref(s, q.path, q.line, q.side, 80)}`].join('\n');
 }

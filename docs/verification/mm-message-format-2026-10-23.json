@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-23",
+  "timezone": "Asia/Seoul",
+  "source": "0b2ca5e4a484573380b54f89577f6b8bcf94a53a",
+  "image": "hey-controller:mm-format-0b2ca5e",
+  "deployedAt": "2026-10-23T01:51:39.281Z",
+  "status": "healthy",
+  "scope": "Only controller replaced; supporting container IDs, environment, mounts, networks, memory and logging preserved",
+  "validation": {
+    "unitPassed": 126,
+    "integrationPassed": 54,
+    "candidateImageMattermostTestsPassed": 9,
+    "independentReview": "No release blockers",
+    "liveModuleSha256": "2891432c1383954fae9cbaa9a30315e8ee1073a41991d4f353b4d5e943586fa1",
+    "at": "2026-10-23T01:52:35.675Z",
+    "controllerHealth": 200,
+    "unauthorizedController": 401,
+    "unauthorizedN8n": 403,
+    "authorizedN8nWebhook": 202,
+    "n8nNetworkDispatch": 202,
+    "dispatchFailuresSinceDeployment": 0,
+    "legacySmoke": "Unavailable: checks saved successes, disabled by production retention policy",
+    "realMattermostMessage": "Not synthesized; awaiting real events"
+  },
+  "diskGateException": "User explicitly approved this 616KiB dist-only derived image with approximately 6.1GiB free; normal 8GiB policy remains unchanged",
+  "rollback": {
+    "image": "sha256:0484f41b092091067f2f1e0b39cdbda58cd4c9b557aff624dddeb34ceee4626e",
+    "command": "node .local/mm-format-20261023/deploy.mjs --rollback",
+    "plan": "Validated with compose config and dry-run; prior image preserved"
+  },
+  "remoteBranchPush": false,
+  "mainMerge": false
+}

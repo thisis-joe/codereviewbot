@@ -1,5 +1,5 @@
 import { ApiClient, HttpError, type TokenSource } from './http-client.js';
-import type { RepositoryConfig } from './config.js';
+import { isBotLogin, type RepositoryConfig } from './config.js';
 import { Sha, type Snapshot, type Target, type Check, type Candidate } from './contracts.js';
 import type { DiffPosition } from './review.js';
 import { GATE_CONTEXT, type GateStatus } from './answer-gate.js';
@@ -21,6 +21,10 @@ export class Platform {
     let baseSha: string, headSha: string, startSha: string;
     if (gh) {
       headSha = Sha.parse(pr.head?.sha); startSha = Sha.parse(pr.base?.sha);
+      if (pr.merged) {
+        const commit = await this.api.request(`${this.root}/commits/${Sha.parse(pr.merge_commit_sha)}`);
+        startSha = Sha.parse(commit.parents?.[0]?.sha);
+      }
       const comparison = await this.api.request(`${this.root}/compare/${startSha}...${headSha}`);
       baseSha = Sha.parse(comparison.merge_base_commit?.sha);
     } else {
@@ -75,7 +79,7 @@ export class Platform {
     await this.api.request(`${this.root}/${gh ? `${c.surface === 'review' ? 'pulls' : 'issues'}/comments` : `merge_requests/${number}/notes`}/${encodeURIComponent(c.id)}`, 'DELETE');
   }
   async permission(username: string): Promise<'none' | 'write' | 'maintain'> {
-    if (!username || username === this.config.botLogin) return 'none';
+    if (!username || isBotLogin(this.config, username)) return 'none';
     try {
       if (this.config.platform === 'github') {
         const p = await this.api.request(`${this.root}/collaborators/${encodeURIComponent(username)}/permission`);

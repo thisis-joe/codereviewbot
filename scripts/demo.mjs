@@ -13,17 +13,9 @@ const question = (text, line, level, options, answer, explanation, notes) => ({
 const initial = InitialQuestionsSchema.parse({ questions: [
   question('pay의 재시도에 첫 요청의 멱등 키를 전달하는 이유는 무엇인가요?', 2, 'basic',
     ['재시도마다 새 승인을 만들기 위해', '외부 승인 서비스가 동일 요청을 식별하도록 하기 위해', '주문 저장을 생략하기 위해', '모든 오류의 재시도를 금지하기 위해'], 'B',
-    '같은 논리 요청의 재시도에는 같은 멱등 키를 전달해 외부 승인 서비스가 기존 승인을 식별하도록 합니다.',
+    '멱등성은 같은 요청을 반복해도 최종 효과가 같다는 성질입니다. 이 예시의 pay는 재시도에 같은 멱등 키를 전달해 charge가 기존 승인을 식별하도록 합니다.',
     ['새 승인을 만드는 것이 아니라 기존 요청을 식별해야 합니다.', '같은 키가 동일 요청과 기존 승인을 연결합니다.', '승인과 주문 저장은 별도 단계이며 주문 저장도 필요합니다.', '멱등 처리는 안전한 재시도를 돕습니다.']),
-  question('외부 승인이 성공하고 주문 저장이 실패한 뒤 같은 키로 재시도하면 무엇을 기대하나요?', 3, 'basic',
-    ['새로운 결제 승인이 반드시 발생한다', '주문 저장은 항상 생략한다', '외부 승인이 자동 취소된다', '같은 승인을 식별하고 주문 저장을 다시 시도한다'], 'D',
-    '예시의 charge는 같은 키의 승인을 재사용하므로, 재시도는 새 승인 없이 실패한 주문 저장을 다시 시도할 수 있습니다.',
-    ['같은 키의 승인을 재사용하므로 새 승인을 기대하지 않습니다.', '실패한 주문 저장을 복구해야 합니다.', '로컬 저장 실패가 외부 승인을 자동 취소하지 않습니다.', '멱등 승인과 저장 재시도를 조합해 실패를 복구합니다.']),
-  question('외부 승인은 성공했지만 주문 저장이 실패한 주문은 어떤 상태로 남나요?', 3, 'basic',
-    ['승인과 주문이 모두 없는 상태', '승인은 있고 주문 기록은 없는 상태', '주문 기록만 있고 승인은 없는 상태', '승인과 주문이 모두 완료된 상태'], 'B',
-    'charge가 성공한 뒤 save가 실패했으므로 외부 승인은 남고 주문 기록은 저장되지 않은 상태입니다.',
-    ['승인은 이미 성공했습니다.', '외부 승인 성공과 로컬 주문 저장 실패를 구분한 상태입니다.', '실패한 단계는 주문 저장이며 승인은 성공했습니다.', '주문 저장이 실패했으므로 모두 완료된 상태가 아닙니다.']),
-  question('DB 트랜잭션만으로 외부 승인을 되돌릴 수 없는 이유는 무엇인가요?', 2, 'advanced',
+  question('DB 트랜잭션만으로 외부 승인을 되돌릴 수 없는 이유는 무엇인가요?', 2, 'basic',
     ['외부 서비스의 부작용이 로컬 DB 트랜잭션에 참여하지 않기 때문에', 'DB 트랜잭션은 읽기만 허용하기 때문에', '멱등 키가 DB 잠금을 해제하기 때문에', '주문 저장보다 승인이 항상 느리기 때문에'], 'A',
     '외부 승인은 로컬 DB 트랜잭션의 롤백 범위 밖에 있으므로 멱등 처리와 명시적인 복구 전략이 필요합니다.',
     ['외부 서비스는 이 예시의 로컬 DB 트랜잭션에 참여하지 않습니다.', 'DB 트랜잭션은 쓰기도 포함합니다.', '멱등 키는 요청 식별자이며 DB 잠금 해제 명령이 아닙니다.', '호출 속도가 아니라 트랜잭션의 참여 범위가 이유입니다.']),
@@ -54,9 +46,11 @@ const value = report({ schemaVersion: '2', questions: initial, findings: [], che
 const grade = GradeSchema.parse({ verdict: 'correct', explanation: '같은 키로 기존 요청을 식별한다는 답이 맞습니다.', expectedAnswer: initial[0].key.explanation,
   optionExplanations: initial[0].key.options, evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '같은 멱등 키를 charge에 전달하는 예시 흐름' }] });
 const disclaimer = '# 댓글 학습 흐름 예시\n\nFixture 예시이며 실제 모델 평가가 아닙니다. pay가 같은 키로 charge를 호출한 뒤 주문을 저장하고, charge가 같은 키의 승인을 재사용한다고 가정합니다.\n\n';
+// Examples show public content; reconciliation markers belong only to live comments.
+const visible = text => text.split('\n').filter(line => !/^<!-- codereviewbot:/.test(line)).join('\n');
 await mkdir('.local', { recursive: true });
-await writeFile('.local/demo-report.md', renderReport(value, new Map([[questionId(value.snapshot, initial[0]), 'correct']])) + '\n');
-await writeFile('.local/demo-inline.md', renderQuestionThread(initial[0], value.snapshot, 1) + '\n');
-await writeFile('.local/demo-help.md', renderCommandHelp('issue-demo-help') + '\n');
-await writeFile('.local/demo-learning.md', disclaimer + renderQuestionBatch(deeper, value.snapshot, 'issue-demo-more') + '\n\n---\n\n' + renderGrade(initial[0], value.snapshot, grade, 'issue-demo-answer', 'Q1', 'B') + '\n');
+await writeFile('.local/demo-report.md', visible(renderReport(value, new Map([[questionId(value.snapshot, initial[0]), 'correct']]))) + '\n');
+await writeFile('.local/demo-inline.md', visible(renderQuestionThread(initial[0], value.snapshot, 1)) + '\n');
+await writeFile('.local/demo-help.md', visible(renderCommandHelp('issue-demo-help')) + '\n');
+await writeFile('.local/demo-learning.md', disclaimer + visible(renderQuestionBatch(deeper, value.snapshot, 'issue-demo-more')) + '\n\n---\n\n' + visible(renderGrade(initial[0], value.snapshot, grade, 'issue-demo-answer', 'Q1', 'B')) + '\n');
 console.log('Created .local/demo-report.md, .local/demo-inline.md, .local/demo-learning.md and .local/demo-help.md (fixtures, no model calls).');

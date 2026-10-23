@@ -28,9 +28,12 @@ export const CheckSchema = z.strictObject({
 export const optionIds = ['A', 'B', 'C', 'D'] as const;
 const inOrder = (v: { id: string }[]) => v.map(o => o.id).join('') === optionIds.join('');
 // The answer key is fixed when the question is written so grading stays consistent; only grading and /hey showanswer publish it.
+const sentences = new Intl.Segmenter('ko', { granularity: 'sentence' });
+const explanationText = (max: number) => z.string().trim().min(1).max(max)
+  .refine(value => [...sentences.segment(value)].filter(s => s.segment.trim()).length <= 3, 'Explain in one to three sentences');
 export const AnswerKeySchema = z.strictObject({
-  answer: z.enum(optionIds), explanation: z.string().trim().min(1).max(1500),
-  options: z.array(z.strictObject({ id: z.enum(optionIds), explanation: z.string().trim().min(1).max(500) })).length(4).refine(inOrder, 'Explain options A–D in order'),
+  answer: z.enum(optionIds), explanation: explanationText(1500),
+  options: z.array(z.strictObject({ id: z.enum(optionIds), explanation: explanationText(500) })).length(4).refine(inOrder, 'Explain options A–D in order'),
 });
 export const ChangeQuestionSchema = z.strictObject({
   question: z.string().trim().min(1).max(500), path: Path, line: z.int().positive(),
@@ -40,17 +43,16 @@ export const ChangeQuestionSchema = z.strictObject({
   key: AnswerKeySchema,
 });
 export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10);
-// Initial generation is fixed at four questions: three basic and one advanced.
-export const INITIAL_QUESTION_COUNT = 4;
-export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(INITIAL_QUESTION_COUNT)
-  .refine(v => v.filter(q => q.level === 'basic').length === INITIAL_QUESTION_COUNT - 1, 'Write three basic questions and one advanced question') });
+// Initial questions cover fundamental CS principles; advanced learning is opt-in.
+export const INITIAL_QUESTION_COUNT = 2;
+export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema.extend({ level: z.literal('basic') })).length(INITIAL_QUESTION_COUNT) });
 // Each /hey morequestion batch is fixed at five questions.
 export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
 export const GradeSchema = z.strictObject({
   verdict: z.enum(['correct', 'partial', 'incorrect', 'unverifiable']),
-  explanation: z.string().trim().min(1).max(2000), expectedAnswer: z.string().trim().min(1).max(2000),
-  optionExplanations: z.array(z.strictObject({ id: z.enum(['A', 'B', 'C', 'D', 'E']), explanation: z.string().trim().min(1).max(800) })).max(5),
+  explanation: explanationText(2000), expectedAnswer: explanationText(2000),
+  optionExplanations: z.array(z.strictObject({ id: z.enum(['A', 'B', 'C', 'D', 'E']), explanation: explanationText(800) })).max(5),
   evidence: z.array(EvidenceSchema).max(6),
 });
 export type Grade = z.infer<typeof GradeSchema>;
@@ -81,6 +83,7 @@ export type Finding = Omit<Candidate, 'id'> & { id: string; status: FindingStatu
 export interface Target { platform: 'github' | 'gitlab'; instance: string; repository: string; number: number }
 export interface Snapshot extends Target {
   baseSha: string; headSha: string; startSha: string;
+  commits?: { sha: string; title: string }[];
   policyVersion: string; title: string; description: string; webUrl: string;
 }
 export interface Report extends Omit<Analysis, 'findings' | 'resolutions' | 'questions'> {
@@ -96,7 +99,7 @@ export function reviewed(report: Report | null | undefined): report is Report {
   return report?.state === 'completed' || report?.state === 'partial';
 }
 export function hasChangeQuestions(report: Report): boolean {
-  return reviewed(report) && report.questions.length >= 3;
+  return reviewed(report) && report.questions.length >= INITIAL_QUESTION_COUNT;
 }
 export function emptyReport(snapshot: Snapshot, state: Report['state'], detail: string): Report {
   return { schemaVersion: '2', snapshot, state, mode: 'full', summary: detail, findings: [],

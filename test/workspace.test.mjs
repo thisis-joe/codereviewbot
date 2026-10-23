@@ -63,7 +63,13 @@ test('real Git preparation preserves canonical rename hunks and excludes sensiti
   const provider = { config: { instance: 'https://api.github.com', platform: 'github' }, token: async () => 'fixture-token' };
   const workspaces = new Workspaces(data), prior = snapshot({ baseSha, startSha: baseSha, headSha: firstSha });
   await workspaces.prepare(provider, prior, '11111111-1111-4111-8111-111111111111', null);
-  const result = await workspaces.prepare(provider, snapshot({ baseSha, startSha: baseSha, headSha }), '22222222-2222-4222-8222-222222222222', prior);
+  assert.deepEqual(prior.commits, [{ sha: firstSha, title: 'first rename' }]);
+  const current = snapshot({ baseSha, startSha: baseSha, headSha });
+  const result = await workspaces.prepare(provider, current, '22222222-2222-4222-8222-222222222222', prior);
+  assert.deepEqual(current.commits, [{ sha: headSha, title: 'second rename' }]);
+  const cached = snapshot({ baseSha, startSha: baseSha, headSha });
+  await workspaces.prepare(provider, cached, '44444444-4444-4444-8444-444444444444', current);
+  assert.deepEqual(cached.commits.map(c => c.title), ['first rename', 'second rename']);
   assert.equal(result.mode, 'incremental'); assert.equal(result.context.diff['current.ts'].oldPath, 'original.ts');
   assert.match(result.context.diff['current.ts'].patch, /second = true/);
   assert.equal(result.context.changesSincePrevious.fromHeadSha, firstSha);
@@ -78,6 +84,8 @@ test('real Git preparation preserves canonical rename hunks and excludes sensiti
   assert.doesNotMatch(JSON.stringify(result.context), /old-private-value/);
   await writeFile(join(repo, 'original.ts'), 'NEW_OTHER_ONLY\n'); git('add', '.'); git('commit', '-qm', 'reuse old filename');
   execFileSync(realGit, ['-C', join(data, 'cache', key), 'fetch', '-q', repo, 'HEAD']);
-  const reused = await workspaces.prepare(provider, snapshot({ baseSha, startSha: baseSha, headSha: git('rev-parse', 'HEAD') }), '33333333-3333-4333-8333-333333333333', null);
+  const full = snapshot({ baseSha, startSha: baseSha, headSha: git('rev-parse', 'HEAD') });
+  const reused = await workspaces.prepare(provider, full, '33333333-3333-4333-8333-333333333333', null);
+  assert.deepEqual(full.commits.map(c => c.title), ['first rename', 'second rename', 'reuse old filename']);
   assert.doesNotMatch(reused.context.diff['current.ts'].patch, /NEW_OTHER_ONLY/);
 });

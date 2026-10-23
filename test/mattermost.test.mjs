@@ -9,22 +9,23 @@ test('MM uses given names without surnames, team labels or login IDs', () => {
     assert.equal(givenName(display), expected);
 });
 
-test('MR lifecycle notifications link the MR number in the sentence and keep the title as text', () => {
-  const mr = '**[MR !15](https://gitlab.example/team/project/-/merge_requests/15)**';
-  const expected = { opened: `📬 찬형님의 ${mr}이 열렸어요`, reopened: `🔄 찬형님의 ${mr}이 다시 열렸어요`, merged: `🎉 찬형님의 ${mr} 머지 완료`, closed: `🚪 찬형님의 ${mr}이 닫혔어요` };
+test('MR lifecycle notifications use one author-attributed sentence and one bold MR-title link', () => {
+  const expected = { opened: '**찬형**님이 **새 MR**을 열었어요. 📬', reopened: '**찬형**님이 **MR을 다시 열었어요.** 🔄', merged: '**찬형**님의 **MR이 머지됐어요!** 🎉', closed: '**찬형**님의 **MR이 닫혔어요.** 🗃️' };
   for (const [kind, first] of Object.entries(expected)) {
     const text = renderNotification(target, { kind, title: 'docs(data): 대금 자료 조사' }, '박찬형[소속]팀원');
-    assert.equal(text, `${first}\ndocs\\(data\\): 대금 자료 조사`);
+    assert.equal(text, `${first}\n[**MR !15 · docs\\(data\\): 대금 자료 조사**](https://gitlab.example/team/project/-/merge_requests/15)`);
     assert.equal(text.split('\n').length, 2);
     assert.doesNotMatch(text, /project_\d+_bot|codereviewbot|\[소속\]|박찬형/);
   }
 });
 
-test('question notifications contain the count and exact question-comment link without tags or keys', () => {
+test('question notices omit counts and partial-scope status while linking the full MR title to the questions', () => {
   const text = renderNotification(target, { kind: 'questions', title: '@channel [링크](https://evil.example)', count: 4, noteId: '321' }, '박찬형');
-  assert.ok(text.startsWith('😏 찬형님의 **[MR !15 · 질문 4개](https://gitlab.example/team/project/-/merge_requests/15#note_321)** 준비됐어요\n'));
-  assert.doesNotMatch(text, /@channel|<!--|summary:v|revision:/);
+  assert.ok(text.startsWith('**찬형**님의 MR에 **질문이 준비됐어요.** 🧩\n[**MR !15 · '));
+  assert.ok(text.endsWith('**](https://gitlab.example/team/project/-/merge_requests/15#note_321)'));
+  assert.doesNotMatch(text, /@channel|<!--|summary:v|revision:|질문 4개|일부 변경 제외/);
   assert.ok(text.includes('@\u200bchannel'));
+  assert.equal(renderNotification(target, { kind: 'questions', title: '@channel [링크](https://evil.example)', count: 9, noteId: '321', partial: true }, '박찬형'), text);
 });
 
 test('MM destinations are opt-in per repository and refuse unsafe configured URLs', () => {
@@ -39,20 +40,53 @@ test('MM destinations are opt-in per repository and refuse unsafe configured URL
 test('push notifications show the pusher given name, branch and full commit count with hashes only in the URL', () => {
   const after = 'a'.repeat(40), before = 'b'.repeat(40);
   const text = renderNotification({ ...target, number: 0 }, { kind: 'push', branch: 'feature/data', count: 24, author: '박찬형[소속]팀원', before, after }, '');
-  assert.equal(text, `📦 찬형님이 **[feature/data](https://gitlab.example/team/project/-/compare/${before}...${after})**에 커밋 24개를 푸시했어요`);
-  const created = renderNotification({ ...target, number: 0 }, { kind: 'push', branch: 'feature/new', count: 0, author: '우동균', before: '0'.repeat(40), after }, '');
-  assert.ok(created.includes('동균님이 **[feature/new](https://gitlab.example/team/project/-/commits/feature%2Fnew)** 브랜치를 올렸어요'));
-  assert.equal(text.split('\n').length, 1);
+  assert.equal(text, `**찬형**님의 **커밋 24개**가 올라왔어요. 🚀\n[**feature/data**](https://gitlab.example/team/project/-/compare/${before}...${after})`);
+  const created = renderNotification({ ...target, number: 0 }, { kind: 'push', branch: 'feature/new', count: 3, author: '우동균', before: '0'.repeat(40), after }, '');
+  assert.equal(created, '**동균**님의 **새 브랜치가 생겼어요.** 🌱\n[**feature/new**](https://gitlab.example/team/project/-/commits/feature%2Fnew)');
+  const empty = renderNotification(target, { kind: 'push', branch: 'feature/data', count: 0, author: '박찬형', before, after }, '');
+  assert.ok(empty.startsWith('**찬형**님의 **커밋 0개**가 올라왔어요. 🚀\n'));
+  assert.equal(text.split('\n').length, 2);
   assert.doesNotMatch(text, /변경 내용 보기/);
 });
 
-test('comment notices link the MR number directly to the comment', () => {
+test('comment notices link the full MR title directly to the comment', () => {
   const text = renderNotification(target, { kind: 'commented', title: '대금 자료 조사', noteId: '123' }, '박찬형');
-  assert.equal(text, '💬 찬형님의 **[MR !15](https://gitlab.example/team/project/-/merge_requests/15#note_123)** · 새 댓글이 달렸어요\n대금 자료 조사');
+  assert.equal(text, '**찬형**님이 MR에 **댓글을 남겼어요.** 💬\n[**MR !15 · 대금 자료 조사**](https://gitlab.example/team/project/-/merge_requests/15#note_123)');
 });
 
 test('branch links preserve parentheses as URL data and keep mentions inert', () => {
   const text = renderNotification(target, { kind: 'push', branch: 'feat(ai)/close)@channel', count: 0, author: '우동균', before: '0'.repeat(40), after: 'a'.repeat(40) }, '');
-  assert.ok(text.includes('/-/commits/feat%28ai%29%2Fclose%29%40channel)**'));
+  assert.ok(text.includes('/-/commits/feat%28ai%29%2Fclose%29%40channel)'));
   assert.doesNotMatch(text, /@channel/);
+});
+
+test('push admission sorts commit messages chronologically and renders linked one-line subjects without visible dates or hashes', async () => {
+  let payload;
+  const config = { ...target, enabled: true, mattermostWebhookEnv: 'MM_URL' };
+  const mm = new Mattermost({ pool: { query: async (_sql, values) => { payload = values[2]; return { rowCount: 1 }; } } }, [{ config }], { MM_URL: 'https://mm.example/hooks/test' });
+  const commits = [
+    { id: 'b'.repeat(40), timestamp: '2026-10-23T02:00:00Z', message: 'fix: 빈 배열 반환\n\n본문 제외' },
+    { id: 'a'.repeat(40), timestamp: '2026-10-23T10:00:00+09:00', message: 'feat: 조회 API 추가' },
+    { id: 'c'.repeat(40), timestamp: '2026-10-23T03:00:00Z', message: '일반 커밋 @channel [링크]' },
+  ];
+  await mm.capture({ repo: config, deliveryId: 'push', body: { object_kind: 'push', ref: 'refs/heads/feature/data', before: 'd'.repeat(40), after: 'c'.repeat(40), user_name: '박찬형', total_commits_count: 3, commits } });
+  const text = renderNotification(target, payload, '');
+  assert.match(text, /\n\n- \[\*feat:\* \*\*조회 API 추가\*\*\]/);
+  assert.ok(text.indexOf('조회 API 추가') < text.indexOf('빈 배열 반환'));
+  assert.ok(text.indexOf('빈 배열 반환') < text.indexOf('일반 커밋'));
+  assert.equal(text.split('\n').filter(line => line.startsWith('- ')).length, 3);
+  assert.ok(text.includes('/-/commit/' + 'a'.repeat(40)));
+  const visible = text.replace(/\]\([^)]*\)/g, ']');
+  assert.doesNotMatch(visible, /2026-|02:00|aaaaaaa|bbbbbbb|본문 제외|@channel/);
+});
+
+test('comment capture uses the commenter and an escaped italic first-line preview', async () => {
+  let payload;
+  const config = { ...target, enabled: true, mattermostWebhookEnv: 'MM_URL' };
+  const mm = new Mattermost({ pool: { query: async (_sql, values) => { payload = values[2]; return { rowCount: 1 }; } } }, [{ config }], { MM_URL: 'https://mm.example/hooks/test' });
+  await mm.capture({ repo: config, deliveryId: 'note', body: { object_kind: 'note', user: { username: 'human', name: '우동균' }, merge_request: { iid: 15, title: '조회 API' }, object_attributes: { id: 123, noteable_type: 'MergeRequest', note: '확인 *부탁* @channel\n둘째 줄 제외' } } });
+  const text = renderNotification(target, payload, '박찬형');
+  assert.ok(text.startsWith('**동균**님이 MR에 **댓글을 남겼어요.** 💬'));
+  assert.ok(text.includes('\n\n*“확인 \\*부탁\\* @\u200bchannel”*'));
+  assert.doesNotMatch(text, /둘째 줄 제외|@channel/);
 });

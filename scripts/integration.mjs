@@ -12,4 +12,4 @@ try {
   const binding=execFileSync('docker',['port',name,'5432/tcp'],{encoding:'utf8'}).trim();
   const port=binding.match(/^127\.0\.0\.1:(\d+)$/)?.[1];if(!port)throw new Error('Unexpected test port');
   await run('npm',['run','test:integration'],{...process.env,TEST_DATABASE_URL:`postgres://postgres:local-test-only@127.0.0.1:${port}/hey_test`});
-} finally { try { execFileSync('docker',['rm','--force',name],{stdio:'ignore'}); } catch {} }
+} finally { try { execFileSync('docker',['rm','--force','--volumes',name],{stdio:'ignore'}); } catch {} }

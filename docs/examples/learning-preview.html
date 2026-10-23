@@ -1,0 +1,120 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>hey 질문 미리보기</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#24292f;font:15px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}main{max-width:1000px;margin:32px auto;padding:0 24px}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}header strong{font-size:22px}nav{display:flex;gap:8px}button{font:inherit;border:1px solid #d0d7de;background:white;border-radius:7px;padding:7px 16px;cursor:pointer}button[aria-selected="true"]{background:#0969da;color:white;border-color:#0969da}section{background:#fff;border:1px solid #d0d7de;border-radius:10px;padding:30px 38px}h3{font-size:22px;margin:0 0 24px}h4{font-size:18px;line-height:1.6;margin:26px 0 16px;word-break:keep-all;overflow-wrap:anywhere}blockquote{margin:10px 0 18px 12px;padding:0 0 0 14px;border-left:3px solid #d8dee4;color:#57606a}blockquote p{margin:8px 0}h5{font-size:16px;margin:24px 0 12px}p{margin:14px 0}ul{padding-left:24px;margin:14px 0}li{margin:6px 0}hr{height:1px;border:0;background:#e6e9ed;margin:28px 0}a{color:#0969da;text-decoration:none}code{font:13px/1.5 ui-monospace,monospace;background:#f0f2f5;border-radius:4px;padding:3px 6px}footer{font-size:12px;color:#6e7781;margin-top:12px}@media(max-width:600px){section{padding:20px}main{padding:0 12px}header{display:block}nav{margin-top:12px}}
+</style><main><header><strong>hey · 댓글 미리보기</strong><nav aria-label="예시 선택"><button type="button" data-tab="initial" aria-selected="true">최초 질문</button><button type="button" data-tab="more" aria-selected="false">추가 질문</button><button type="button" data-tab="answer" aria-selected="false">해설</button></nav></header><section id="initial" ><h4>hey! 이건 알고 머지한거지? 😏</h4>
+<h4>Q1. Gms.run이 응답 청크의 누적 크기를 Buffer.concat과 JSON 파싱 전에 검사하는 것은 메모리 자원 관리에 어떤 효과가 있나요?</h4>
+<ul>
+<li><strong>A.</strong> 크기 제한을 넘은 응답도 끝까지 모은 뒤 파싱 결과만 폐기한다.</li>
+<li><strong>B.</strong> 크기 제한을 넘으면 중단하여 큰 응답을 합치고 파싱하는 추가 작업을 막는다.</li>
+<li><strong>C.</strong> 각 청크의 크기를 개별 검사하므로 작은 청크로 구성된 응답은 계속 누적한다.</li>
+<li><strong>D.</strong> 크기 제한을 넘은 청크를 버리고 앞부분을 정상 응답으로 파싱한다.</li>
+</ul>
+<hr>
+<h4>Q2. Gms.run의 여러 fetch가 같은 AbortSignal을 공유할 때, 도구 실행 뒤 다음 API 요청의 시간 초과 예산은 어떻게 적용되나요?</h4>
+<ul>
+<li><strong>A.</strong> 다음 요청을 보낼 때마다 timeoutMs 전체가 새로 주어진다.</li>
+<li><strong>B.</strong> 도구 실행 중에는 시간 예산의 소모가 일시 정지된다.</li>
+<li><strong>C.</strong> 시간 초과 신호는 첫 요청에 적용되고 다음 요청에는 적용되지 않는다.</li>
+<li><strong>D.</strong> 다음 요청도 신호 생성 시 시작된 공통 시간 예산을 사용한다.</li>
+</ul>
+<hr>
+<p>답변 달기: <code>/hey answer Q1 B Q2 C</code></p>
+<p>정답·해설 보기: <code>/hey showanswer</code></p>
+<p>더 풀어보기: <code>/hey morequestion</code></p>
+<p>답변 0/2</p>
+<h5>기준 커밋</h5>
+<ul>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/c3a1367fff593afc14b18f0a23c26a952020606c">feat: call GMS Responses API directly (S15P31E102-83)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/0a03c54d29d2df8ad34acd7daa67f0bd0025d673">feat: focus initial learning on two core CS questions (S15P31E102-84)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/5bf83b22c72bc0a9c148ac7c89914f0cd6ed88ac">feat: explain CS principles and align follow-up question layout (S15P31E102-85)</a></li>
+</ul>
+<p>명령어 안내: <code>/hey help</code></p>
+</section><section id="more" hidden><h4>심화1. Gms.run의 도구 호출에서 arguments의 JSON 손상과 call_id 누락을 각각 주입하면, 실패 격리 범위의 차이를 어떻게 검증해야 하나요?</h4>
+<ul>
+<li><strong>A.</strong> 두 경우 모두 오류 도구 결과를 추가하고 다음 API 요청을 진행한다.</li>
+<li><strong>B.</strong> arguments의 JSON 손상은 오류 도구 결과로 바뀌지만 call_id 누락은 실행 전체를 invalid_output으로 종료한다.</li>
+<li><strong>C.</strong> arguments의 JSON 손상은 실행 전체를 종료하지만 call_id 누락은 오류 도구 결과로 바뀐다.</li>
+<li><strong>D.</strong> 두 경우 모두 unavailable로 분류되어 현재 도구 호출을 즉시 재시도한다.</li>
+</ul>
+<hr>
+<h4>심화2. Gms.run에서 유효한 도구 호출 16개와 17개를 반환하는 테스트는 실행 순서와 배치 상한에 관해 어떤 동작을 검증해야 하나요?</h4>
+<ul>
+<li><strong>A.</strong> 16개는 병렬 실행하고 17개는 앞의 16개만 실행한다.</li>
+<li><strong>B.</strong> 16개는 순차 실행하고 17개는 두 배치로 나누어 실행한다.</li>
+<li><strong>C.</strong> 16개는 병렬 실행하고 17개는 도구 실행 전에 전체를 거부한다.</li>
+<li><strong>D.</strong> 16개는 순차 실행하고 17개는 도구 실행 전에 전체를 거부한다.</li>
+</ul>
+<hr>
+<h4>심화3. Gms.run이 API에 strict: false인 출력 스키마를 전달할 때, 최종 JSON이 phaseSchemas[phase]를 위반하는 테스트는 무엇을 확인해야 하나요?</h4>
+<ul>
+<li><strong>A.</strong> 로컬 스키마 검증이 반환을 막고 invalid_output으로 분류하는지 확인한다.</li>
+<li><strong>B.</strong> API 응답의 status가 completed이면 스키마와 무관하게 반환하는지 확인한다.</li>
+<li><strong>C.</strong> 유효한 JSON이면 로컬 검증 없이 호출자에게 반환하는지 확인한다.</li>
+<li><strong>D.</strong> 스키마 위반을 오류 도구 결과로 바꾸어 다음 라운드에 전달하는지 확인한다.</li>
+</ul>
+<hr>
+<h4>심화4. Gms.run의 HTTP 오류 분류를 scheduleFailure와 연결할 때, 응답 본문 취소가 성공한 429와 401은 복구 정책에서 어떻게 달라지나요?</h4>
+<ul>
+<li><strong>A.</strong> 429와 401 모두 Gms.run 내부에서 같은 요청을 즉시 재전송한다.</li>
+<li><strong>B.</strong> 429는 재시도 시각을 만들지 않고 401은 5분 뒤로 예약한다.</li>
+<li><strong>C.</strong> 429는 15분 뒤 재시도 시각을 부여받고 401은 재시도 시각을 부여받지 않는다.</li>
+<li><strong>D.</strong> 429와 401 모두 unavailable로 변환되어 5분 뒤로 예약된다.</li>
+</ul>
+<hr>
+<h4>심화5. Gms.run이 completed 응답에서 유효한 최종 output_text와 function_call을 함께 받으면, 종료 판단과 다음 요청의 대화 이력은 어떻게 처리되나요?</h4>
+<ul>
+<li><strong>A.</strong> output_text를 최종 결과로 반환하고 함께 받은 도구 호출은 실행하지 않는다.</li>
+<li><strong>B.</strong> 도구를 실행하고 두 출력과 도구 결과를 이력에 유지한 채 다음 라운드로 진행한다.</li>
+<li><strong>C.</strong> 최종 텍스트와 도구 호출의 공존을 프로토콜 위반으로 판단해 즉시 거부한다.</li>
+<li><strong>D.</strong> 도구를 실행한 뒤 같은 응답의 output_text를 파싱하여 즉시 반환한다.</li>
+</ul>
+<hr>
+<p>답변 달기: <code>/hey answer 심화1 B 심화2 C</code></p>
+<p>정답·해설 보기: <code>/hey showanswer 심화1 심화2 심화3 심화4 심화5</code></p>
+<p>더 풀어보기: <code>/hey morequestion</code></p>
+<h5>기준 커밋</h5>
+<ul>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/c3a1367fff593afc14b18f0a23c26a952020606c">feat: call GMS Responses API directly (S15P31E102-83)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/0a03c54d29d2df8ad34acd7daa67f0bd0025d673">feat: focus initial learning on two core CS questions (S15P31E102-84)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/5bf83b22c72bc0a9c148ac7c89914f0cd6ed88ac">feat: explain CS principles and align follow-up question layout (S15P31E102-85)</a></li>
+</ul>
+<p>명령어 안내: <code>/hey help</code></p>
+</section><section id="answer" hidden><h3>심화1 · ✅ 정답</h3>
+<h4>심화1. Gms.run의 도구 호출에서 arguments의 JSON 손상과 call_id 누락을 각각 주입하면, 실패 격리 범위의 차이를 어떻게 검증해야 하나요?</h4>
+<p>arguments의 JSON 손상은 오류 도구 결과로 바뀌지만 call_id 누락은 실행 전체를 invalid_output으로 종료한다.</p>
+<h5>해설</h5>
+<p>실패 격리는 예외를 잡는 경계 안의 오류만 국소적으로 처리하는 방식입니다. arguments의 JSON 파싱은 내부 try 안에 있지만 호출 구조 검증은 밖에 있으므로, 전자는 오류 결과로 변환되고 후자의 ZodError는 외부 catch에서 invalid_output으로 변환됩니다.</p>
+<h5>보기별 해설</h5>
+<ul>
+<li><p><strong>A.</strong> 두 경우 모두 오류 도구 결과를 추가하고 다음 API 요청을 진행한다.</p>
+<blockquote>
+<p>call_id 누락은 55행의 구조 검증에서 실패하므로 내부 catch까지 도달하지 않습니다. 따라서 오류 도구 결과를 추가하는 경로로 복구되지 않습니다.</p>
+</blockquote>
+</li>
+<li><p><strong>B.</strong> arguments의 JSON 손상은 오류 도구 결과로 바뀌지만 call_id 누락은 실행 전체를 invalid_output으로 종료한다.</p>
+<blockquote>
+<p>문자열 arguments에 잘못된 JSON을 넣으면 58행에서 발생한 예외가 65행에서 처리됩니다. 반면 call_id가 누락되면 55행의 ZodError가 외부 catch로 전파됩니다.</p>
+</blockquote>
+</li>
+<li><p><strong>C.</strong> arguments의 JSON 손상은 실행 전체를 종료하지만 call_id 누락은 오류 도구 결과로 바뀐다.</p>
+<blockquote>
+<p>내부 try의 범위를 반대로 해석한 설명입니다. JSON.parse(call.arguments)는 내부에 있고 call_id를 포함한 호출 구조 파싱은 외부에 있습니다.</p>
+</blockquote>
+</li>
+<li><p><strong>D.</strong> 두 경우 모두 unavailable로 분류되어 현재 도구 호출을 즉시 재시도한다.</p>
+<blockquote>
+<p>호출 구조의 ZodError는 invalid_output으로 분류되며 도구 인자 파싱 오류는 국소적인 오류 결과가 됩니다. 현재 도구 호출을 즉시 재시도하는 코드도 없습니다.</p>
+</blockquote>
+</li>
+</ul>
+<h5>코드 근거</h5>
+<ul>
+<li><a href="https://github.com/thisis-joe/codereviewbot/blob/5bf83b22c72bc0a9c148ac7c89914f0cd6ed88ac/src/gms.ts#L55">src/gms.ts:55</a>: 질문이 가리키는 변경 위치</li>
+</ul>
+<h5>기준 커밋</h5>
+<ul>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/c3a1367fff593afc14b18f0a23c26a952020606c">feat: call GMS Responses API directly (S15P31E102-83)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/0a03c54d29d2df8ad34acd7daa67f0bd0025d673">feat: focus initial learning on two core CS questions (S15P31E102-84)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/5bf83b22c72bc0a9c148ac7c89914f0cd6ed88ac">feat: explain CS principles and align follow-up question layout (S15P31E102-85)</a></li>
+</ul>
+<p>명령어 안내: <code>/hey help</code></p>
+</section><footer>실제 GMS 생성 문항을 렌더링한 로컬 예시 · 운영 PR/MR에는 게시하지 않았습니다.</footer></main><script>document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('section').forEach(s=>s.hidden=s.id!==b.dataset.tab);document.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',String(x===b)));}));</script></html>

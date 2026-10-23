@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Controller } from '../dist/controller.js';
-import { snapshot, report, choices, answerKey } from './fixtures.mjs';
+import { snapshot, report, choices, answerKey, initialQuestions } from './fixtures.mjs';
 import { questionId } from '../dist/learning.js';
 import { parseCommand } from '../dist/commands.js';
 
@@ -72,7 +72,7 @@ test('more-learning generates a source-bound technical batch and persists it bef
   const h = learningHarness('/hey morequestion'); await h.run();
   assert.deepEqual(h.data.calls.map(c => c.phase), ['questions']);
   assert.equal(h.data.saved.questions.length, 5);
-  assert.match(h.data.replies[0][1], /심화 질문/);
+  assert.match(h.data.replies[0][1], /^#### 심화1\./m);
   assert.equal(new Set([...h.data.replies[0][1].matchAll(/codereviewbot:question:(Q-[a-f0-9]{12})/g)].map(m => m[1])).size, 5);
   assert.equal(h.data.saved.snapshot.headSha, 'b'.repeat(40));
 });
@@ -83,8 +83,8 @@ test('a bare option letter is graded from the stored key without a model call an
   for (const [answer, verdict] of [['B', /✅ 정답/], ['b입니다.', /✅ 정답/], ['A', /❌ 오답/]]) {
     const h = learningHarness(`/hey answer ${id} ${answer}`, { report: r, comment: { parentId: 'root1' } }); await h.run();
     assert.equal(h.data.calls.length, 0); assert.equal(h.data.replies[0][2], 'root1');
-    const body = h.data.replies[0][1]; assert.match(body, verdict); assert.match(body, /정답: \*\*B\*\*/); assert.match(body, /정답은 B입니다/);
-    for (const option of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`^\\*\\*${option}\\.\\*\\* .* — ${option} 보기 해설$`, 'm'));
+    const body = h.data.replies[0][1]; assert.match(body, verdict); assert.match(body, /^같은 키$/m); assert.doesNotMatch(body, /내 답:|정답:/); assert.match(body, /정답은 B입니다/);
+    for (const option of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`^- \\*\\*${option}\\.\\*\\* [^\\n]*\\n\\n  > ${option} 보기 해설$`, 'm'));
     assert.deepEqual(h.data.saved.grades, [{ id, verdict: answer === 'A' ? 'incorrect' : 'correct' }]);
   }
 });
@@ -95,7 +95,8 @@ test('reasoning goes to the model with the key, but the key alone decides right 
   for (const [answer, model, expected] of [['B 같은 키를 재사용합니다', 'incorrect', 'partial'], ['B 같은 키', 'unverifiable', 'correct'], ['A 새 키가 안전합니다', 'correct', 'incorrect'], ['B 같은 키', 'partial', 'partial']]) {
     const h = learningHarness(`/hey answer ${id} ${answer}`, { report: r, output: output(model) }); await h.run();
     assert.equal(h.data.calls[0].phase, 'grade'); assert.match(h.data.calls[0].prompt, /정답은 B입니다/);
-    assert.deepEqual(h.data.saved.grades, [{ id, verdict: expected }]); assert.match(h.data.replies[0][1], /\*\*답변 평가\*\*\n이유 평가/);
+    assert.match(h.data.calls[0].prompt, /CS 개념.*정의/); assert.match(h.data.calls[0].prompt, /코드에 적용/);
+    assert.deepEqual(h.data.saved.grades, [{ id, verdict: expected }]); assert.match(h.data.replies[0][1], /##### 답변 평가\n\n이유 평가/);
   }
 });
 
@@ -160,7 +161,7 @@ test('display numbers resolve to review questions first and then continue throug
   const r = report(), extra = extraQuestions();
   const second = learningHarness('/hey answer Q2 B', { report: r, output: grade }); await second.run();
   assert.deepEqual(second.data.saved.grades, [{ id: questionId(r.snapshot, r.questions[1]), verdict: 'correct' }]); assert.match(second.data.replies[0][1], /^### Q2 · ✅ 정답$/m);
-  assert.match(second.data.replies[0][1], /^내 답: \*\*B\*\* · 정답: \*\*B\*\*$/m);
+  assert.match(second.data.replies[0][1], /^보기 B$/m);
   const batch = learningHarness('/hey answer 심화2 C', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }], output: grade }); await batch.run();
   assert.deepEqual(batch.data.saved.grades, [{ id: questionId(r.snapshot, extra[1]), verdict: 'incorrect' }]); assert.match(batch.data.replies[0][1], /^### 심화2 · ❌ 오답$/m); assert.doesNotMatch(batch.data.replies[0][1], /\[심화\]/);
   const clash = learningHarness('/hey answer Q5 C', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await clash.run();
@@ -230,7 +231,7 @@ test('large but valid accumulated learning context fits the runner prompt bounda
   const options = ['A', 'B', 'C', 'D', 'E'].map(id => ({ id, text: id + 'x'.repeat(299) }));
   const questions = Array.from({ length: 50 }, (_, i) => ({ question: String(i).padStart(3, '0') + 'q'.repeat(497), path: 'src/pay.ts', line: 2, side: 'RIGHT', options }));
   const h = learningHarness('/hey morequestion', { report: report({ questions: questions.slice(0, 10) }), batches: [0, 1, 2, 3].map(i => ({ snapshot: snapshot(), questions: questions.slice((i + 1) * 10, (i + 2) * 10) })), policy: { pathInstructions: Array.from({ length: 25 }, (_, i) => ({ path: `src/${i}`, instructions: 'p'.repeat(4000) })) }, context: { ...context(), diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -0,0 +1 @@\n+' + '\t'.repeat(139000), lines: new Set([1, 2]) } } } });
-  await h.run(); assert.ok(h.data.calls[0].prompt.length <= 500000); assert.match(h.data.replies[0][1], /심화 질문/);
+  await h.run(); assert.ok(h.data.calls[0].prompt.length <= 500000); assert.match(h.data.replies[0][1], /^#### 심화41\./m);
   assert.ok(h.data.calls[0].prompt.includes(questions[49].question));
 });
 
@@ -257,8 +258,8 @@ test('showanswer reveals stored keys without grading, a model call or answer cre
   const body = all.data.replies[0][1];
   assert.equal(all.data.calls.length, 0); assert.equal(all.data.saved.grades, undefined);
   assert.match(body, /^### 정답·해설$/m); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3); assert.doesNotMatch(body, /심화1|codereviewbot:question:/);
-  assert.match(body, /^정답: \*\*B\*\* · 코드 위치: \[src\/pay\\\.ts:2\]\(.*\/blob\/.*#L2\)$/m);
-  assert.ok(body.includes('**문제 해설**') && body.includes('**보기별 해설**')); assert.match(body, /^\*\*B\.\*\* 보기 B \(정답\) — /m);
+  assert.match(body, /^- \[src\/pay\\\.ts:2\]\(.*\/blob\/.*#L2\)$/m);
+  assert.ok(body.includes('##### 해설\n\n') && body.includes('##### 보기별 해설\n\n')); assert.match(body, /^- \*\*B\.\*\* 보기 B\n\n  > B 보기 해설/m);
   const picked = learningHarness('/hey showanswer 심화2 Q9', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await picked.run();
   assert.match(picked.data.replies[0][1], /Q9: .*찾을 수 없습니다/); assert.doesNotMatch(picked.data.replies[0][1], /정답:/);
   const follow = learningHarness('/hey showanswer 심화2', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await follow.run();
@@ -273,7 +274,7 @@ test('grading reserves comment room for the request link near the output boundar
   const output = { verdict: 'correct', explanation: '&'.repeat(2000), expectedAnswer: '&'.repeat(1426), optionExplanations: r.questions[0].options.map(o => ({ id: o.id, explanation: '&'.repeat(799) + o.id })), evidence: Array(6).fill({ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '&'.repeat(400) }) };
   const h = learningHarness(`/hey answer ${id} A`, { report: r, output, comment: { id: '123456789', surface: 'issue' }, remote: [{ id: '123456789', author: 'joe', surface: 'issue', body: 'answer', url: 'https://github.com/joe/demo/pull/1#issuecomment-123456789' }] });
   await h.run(); assert.equal(h.data.replies.length, 1); assert.ok(h.data.replies[0][1].length <= 60000); assert.match(h.data.replies[0][1], /요청 댓글/);
-  for (const id of ['A', 'B', 'C', 'D', 'E']) assert.match(h.data.replies[0][1], new RegExp(`^\\*\\*${id}\\.\\*\\*`, 'm'));
+  for (const id of ['A', 'B', 'C', 'D', 'E']) assert.match(h.data.replies[0][1], new RegExp(`^- \\*\\*${id}\\.\\*\\*`, 'm'));
 });
 
 test('oversized follow-up batches keep all five questions and their choices within the comment budget', async () => {
@@ -282,7 +283,7 @@ test('oversized follow-up batches keep all five questions and their choices with
   const h = learningHarness('/hey morequestion', { output: { questions }, context: { ...context(), files: { [path]: 'source' }, diff: { [path]: { oldPath: path, patch: '@@ -0,0 +1 @@\n+source', lines: new Set([1]) } } } });
   await h.run(); const body = h.data.replies[0][1]; assert.ok(body.length <= 60000, `got ${body.length}`);
   assert.equal(h.data.saved.questions.length, 5); assert.equal([...body.matchAll(/^#### 심화\d+\. /gm)].length, 5);
-  assert.equal([...body.matchAll(/^(&nbsp;){4}\*\*[A-D]\.\*\* /gm)].length, 20);
+  assert.equal([...body.matchAll(/^- \*\*[A-D]\.\*\* /gm)].length, 20);
   assert.ok(!body.includes(answerKey().explanation));
 });
 
@@ -316,4 +317,57 @@ test('removed commands return help without code, model, queue or legacy finding 
     assert.match(h.data.replies[0][1], /명령.*확인/);
     assert.match(h.data.replies[0][1], /명령어 안내: `\/hey help`/);
   }
+});
+
+test('stored CS explanations accompany both bare-option grading and answer reveal without extra inference', async () => {
+  const r = report();
+  r.questions[0].key.explanation = '멱등성은 같은 요청을 반복해도 최종 효과가 같다는 성질입니다. pay는 같은 키로 기존 승인을 식별해 재시도 중 중복 결제를 막습니다.';
+  for (const command of ['/hey answer Q1 B', '/hey showanswer Q1']) {
+    const h = learningHarness(command, { report: r }); await h.run();
+    assert.equal(h.data.calls.length, 0);
+    const body = h.data.replies[0][1];
+    assert.match(body, /##### 해설\n\n/);
+    assert.match(body, /멱등성은 같은 요청/); assert.match(body, /pay는 같은 키/);
+  }
+});
+
+test('follow-ups lead with questions and request CS explanations at generation time', async () => {
+  const h = learningHarness('/hey morequestion'); await h.run();
+  const body = h.data.replies[0][1];
+  assert.ok(body.indexOf('#### 심화5.') < body.indexOf('답변 달기:'));
+  assert.match(body, /^#### 심화1\./m);
+  assert.match(h.data.calls[0].prompt, /CS 개념.*정의/);
+  assert.match(h.data.calls[0].prompt, /코드.*적용/);
+  assert.doesNotMatch(body, /정답은 B입니다/);
+});
+
+test('code questions request relevant CS knowledge before applying it to the repository', async () => {
+  const h = learningHarness('@hey 같은 키를 재사용하는 이유는?', { output: { answer: '멱등성은 같은 요청의 반복이 같은 효과를 내는 성질입니다. pay는 같은 키를 재사용합니다.', evidence: ['src/pay.ts:2'], next: '없음' } });
+  await h.run();
+  assert.equal(h.data.calls[0].phase, 'answer');
+  assert.match(h.data.calls[0].prompt, /CS 개념.*정의/);
+  assert.match(h.data.calls[0].prompt, /코드에 어떻게 적용/);
+  assert.match(h.data.replies[0][1], /멱등성은 같은 요청/);
+});
+
+test('answer and reveal retain stored commit titles when the live snapshot omits metadata', async () => {
+  const r = report(); r.snapshot.commits = [{ sha: r.snapshot.headSha, title: '질문 생성 흐름 개선' }];
+  for (const command of ['/hey answer Q1 B', '/hey showanswer Q1']) {
+    const h = learningHarness(command, { report: r, snap: { ...r.snapshot, commits: undefined } }); await h.run();
+    assert.match(h.data.replies[0][1], /- \[질문 생성 흐름 개선\]/);
+    assert.deepEqual(h.data.saved.snapshot.commits, r.snapshot.commits);
+  }
+});
+
+
+test('bare showanswer still covers only the initial two questions after requesting more', async () => {
+  const r = report({ questions: initialQuestions() }), extra = extraQuestions();
+  const before = learningHarness('/hey showanswer', { report: r }); await before.run();
+  const after = learningHarness('/hey showanswer', { report: r, batches: [{ snapshot: r.snapshot, questions: extra, start: 1 }] }); await after.run();
+  assert.equal(before.data.replies[0][1], after.data.replies[0][1]);
+  assert.equal([...after.data.replies[0][1].matchAll(/^#### Q\d+\./gm)].length, 2);
+  assert.doesNotMatch(after.data.replies[0][1], /^#### 심화/m);
+  const all = learningHarness('/hey showanswer Q1 Q2 심화1 심화2 심화3 심화4 심화5', { report: r, batches: [{ snapshot: r.snapshot, questions: extra, start: 1 }] }); await all.run();
+  assert.equal([...all.data.replies[0][1].matchAll(/^#### (?:Q|심화)\d+\./gm)].length, 7);
+  assert.equal(all.data.calls.length, 0); assert.equal(all.data.saved.grades, undefined);
 });

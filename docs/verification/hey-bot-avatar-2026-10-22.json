@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-22T08:54:06.001Z",
+  "sourceUserId": 33767,
+  "userId": 33826,
+  "name": "hey",
+  "sourceAvatarUrl": "https://lab.ssafy.com/uploads/-/system/user/avatar/33767/hey-avatar.jpeg",
+  "avatarUrl": "https://lab.ssafy.com/uploads/-/system/user/avatar/33826/hey-avatar.jpeg",
+  "sourceSha256": "285b36abe68468cea6595213b40a24b6f80b6543a3604235d423ead7e74825ae",
+  "bytes": 7750,
+  "uploadStatus": 200,
+  "apiReadbackVerified": true,
+  "identityUnchanged": true,
+  "browser": [
+    {
+      "alt": "hey",
+      "loaded": true,
+      "src": "https://lab.ssafy.com/uploads/-/system/user/avatar/33826/hey-avatar.jpeg"
+    },
+    {
+      "alt": "hey",
+      "loaded": true,
+      "src": "https://lab.ssafy.com/uploads/-/system/user/avatar/33826/hey-avatar.jpeg"
+    }
+  ],
+  "screenshot": ".local/bot-avatar/hey-avatar-restored.png"
+}

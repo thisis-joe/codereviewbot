@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile, mkdtemp, rm, readdir, stat } from 'node:fs/promises';
+import { mkdir, writeFile, mkdtemp, rm, readdir, lstat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execute } from './process.js';
@@ -75,6 +75,11 @@ export class Workspaces {
       if (ancestry.code === 0) { mode = 'incremental'; previousSha = previous.headSha; }
     }
     const diffBase = previousSha ?? snapshot.baseSha;
+    // Read immutable Git history for exactly the reviewed range, oldest first.
+    const commitBase = diffBase === snapshot.headSha ? snapshot.baseSha : diffBase;
+    const commitFields = (await git(cache, ['log', '--reverse', '--topo-order', '-z', '--format=%H%x00%s', `${commitBase}..${snapshot.headSha}`])).toString('utf8').split('\0');
+    snapshot.commits = [];
+    for (let i = 0; i + 1 < commitFields.length; i += 2) snapshot.commits.push({ sha: Sha.parse(commitFields[i]), title: redact(commitFields[i + 1]!) });
     const names = (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--name-status', '-z', '-M', snapshot.baseSha, snapshot.headSha])).toString('utf8');
     const incremental = mode === 'incremental' ? (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--name-status', '-z', '-M', diffBase, snapshot.headSha])).toString('utf8') : null;
     const denied = diffEntries(names).filter(e => blocked(e.path, policy.exclude) || blocked(e.oldPath, policy.exclude)).flatMap(e => [e.oldPath, e.path]);
@@ -128,8 +133,12 @@ export class Workspaces {
     }
     return { context, policy, guidelines, mode };
   }
-  async cleanup(olderThanMs = 7 * 86400000): Promise<void> {
+  async cleanup(olderThanMs = 6 * 3600000, protectedJobs: ReadonlySet<string> = new Set()): Promise<void> {
     const root = join(this.root, 'jobs'); await mkdir(root, { recursive: true });
-    for (const name of await readdir(root)) if (/^[a-f0-9-]{36}$/.test(name)) { const path = join(root, name); if ((await stat(path)).mtimeMs < Date.now() - olderThanMs) await rm(path, { recursive: true, force: true }); }
+    for (const entry of await readdir(root, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !/^[a-f0-9-]{36}$/.test(entry.name) || protectedJobs.has(entry.name)) continue;
+      const path = join(root, entry.name), info = await lstat(path);
+      if (info.isDirectory() && info.mtimeMs < Date.now() - olderThanMs) await rm(path, { recursive: true, force: true });
+    }
   }
 }

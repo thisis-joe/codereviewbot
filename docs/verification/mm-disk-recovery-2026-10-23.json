@@ -1,0 +1,93 @@
+{
+  "at": "2026-10-23T01:13:36.254Z",
+  "repository": "s15-final/S15P31E102",
+  "cause": "Docker disk full prevented PostgreSQL recovery/checkpoint writes; controller failed startup and GitLab received 502",
+  "before": {
+    "freeBytes": 0,
+    "lastNotificationSentAt": "2026-10-22T09:07:34.501Z",
+    "postgresPanic": "No space left on device",
+    "postgresOomKilled": true
+  },
+  "after": {
+    "freeBytes": 6395895808,
+    "services": {
+      "controller": {
+        "id": "3827ab1f6994c25aaa69fc9a5018f98b9d3d3238ea5d2faa0aa879ad43c8e017",
+        "status": "running",
+        "health": "healthy",
+        "image": "hey-controller:bot-migration-7609e14"
+      },
+      "postgres": {
+        "id": "3869dd6954f230316fe94ed6c226dd2405ab684b3a64b63d7b8412bc60374ee7",
+        "status": "running",
+        "health": "healthy",
+        "image": "postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24"
+      },
+      "runner": {
+        "id": "97cee712386cd19b9932e693852bc95e509de55d97e98ad2bde67dad943c1489",
+        "status": "running",
+        "health": "healthy",
+        "image": "hey-runner:main-6baf6f6"
+      },
+      "n8n": {
+        "id": "1705ec568c14f9115e521cbc83d90527733323d91d14fc1dd0637a1fbc65b416",
+        "status": "running",
+        "health": null,
+        "image": "docker.n8n.io/n8nio/n8n:2.43.8"
+      },
+      "tunnel": {
+        "id": "dcce34d2a8c43dad576f9cc305f26ee2cd0d423e3df98bf3d8d29f978bfb112f",
+        "status": "running",
+        "health": null,
+        "image": "cloudflare/cloudflared:2026.5.0"
+      }
+    },
+    "health": {
+      "failed": 6,
+      "queued": 0,
+      "active": false
+    },
+    "publicInvalidWebhookStatus": 401,
+    "activeBot": {
+      "id": 33826,
+      "name": "hey"
+    },
+    "notifications": [
+      {
+        "created_at": "2026-10-23T01:11:11.400Z",
+        "updated_at": "2026-10-23T01:11:20.492Z",
+        "state": "sent",
+        "attempts": 1,
+        "error": null,
+        "kind": "questions",
+        "mr": "26"
+      },
+      {
+        "created_at": "2026-10-23T01:11:39.573Z",
+        "updated_at": "2026-10-23T01:11:39.781Z",
+        "state": "sent",
+        "attempts": 1,
+        "error": null,
+        "kind": "push",
+        "mr": "0"
+      }
+    ],
+    "projectHistoryCounts": {
+      "targets": 26,
+      "jobs": 100
+    }
+  },
+  "replayedFailedHook": {
+    "id": 14650340,
+    "event": "Push Hook",
+    "result": 202
+  },
+  "dataVolumesPreserved": true,
+  "oldNotificationsBulkReplayed": false,
+  "sourceChanged": false,
+  "screenshot": ".local/mm-outage-20261023/mm-recovered.png",
+  "browserPostIds": [
+    "post_6ttrq4m3u7ngum5tco4newz75a",
+    "post_738c53bxmjyxb8qs9t3yyf4hec"
+  ]
+}

@@ -5,7 +5,7 @@
 
 ## 1. 질문 생성 엔진 선택과 로그인
 
-`.env`의 `MODEL_PROVIDER`로 엔진을 고른다. `codex`(기본값) 또는 `claude`.
+`.env`의 `MODEL_PROVIDER`로 엔진을 고른다. `gms`(기본값), `codex` 또는 `claude`.
 엔진마다 계정 로그인과 API 키 중 하나를 쓴다. API 키는 `*_BASE_URL`로 호환 프록시(예: GMS)를 지정할 수 있다.
 값을 바꾼 뒤 `docker compose up -d --force-recreate runner`로 다시 읽는다. 실행기 로그의 `provider`로 적용 여부를 확인한다.
 
@@ -44,18 +44,25 @@ docker compose exec runner claude auth login
 docker compose exec runner claude auth status
 ```
 
-### API 게이트웨이로 전환 (예: SSAFY GMS)
+### GMS Responses API 직접 호출 (기본 엔진)
 
-계정 로그인에서 기관이 발급한 API 키로 바꿀 때는 `.env`만 고친다. 주소와 모델 이름은 게이트웨이 문서의 값을 그대로 쓴다.
+Claude CLI 없이 GMS의 OpenAI Responses API를 직접 호출한다. `.env`에 다음 값을 설정한다.
 
-1. 계정 인증을 지운다. `CLAUDE_CODE_OAUTH_TOKEN`을 비우고, 실행기 안에서 로그인했다면 `docker compose exec runner claude auth logout`을 실행한다. 남아 있으면 어느 인증이 쓰였는지 헷갈린다.
-2. 게이트웨이가 제공하는 API 형식에 맞춰 설정한다.
-   - Anthropic Messages 형식: `MODEL_PROVIDER=claude`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`. 게이트웨이가 `Authorization: Bearer`를 요구하면 `ANTHROPIC_AUTH_TOKEN`에 넣는다.
-   - OpenAI Responses 형식: `MODEL_PROVIDER=codex`, `CODEX_BASE_URL`(`/v1` 포함), `CODEX_API_KEY`.
-3. `CLAUDE_MODEL` 또는 `CODEX_MODEL`에 게이트웨이가 허용하는 모델 이름을 넣는다.
-4. `docker compose up -d --force-recreate runner` 후 테스트 MR로 확인한다.
+```dotenv
+MODEL_PROVIDER=gms
+GMS_KEY=<기관에서 발급한 키>
+GMS_MODEL=gpt-6.1-sol
+GMS_RESPONSES_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses
+```
 
-Chat Completions 형식만 제공하는 게이트웨이는 두 CLI 모두 직접 호출할 수 없다. 이 경우 별도 어댑터가 필요하다.
+키는 `.env`에만 보관한다. `GMS_KEY`가 없으면 실행기가 시작하지 않는다.
+기존 Claude/Codex 인증은 GMS 요청에 사용하지 않는다.
+`docker compose up -d --build --force-recreate runner`로 적용하고 실행기 로그의 `provider: gms`를 확인한다.
+
+요청은 Bearer 인증과 `store: false`를 사용한다. 모델은 스냅샷의 파일 목록·읽기·검색·기준 커밋 읽기 도구만 호출할 수 있다.
+소스는 기존 비밀정보 제거 및 경로 제한을 거치며, 최종 JSON은 단계별 스키마로 검증한다.
+호출 전체의 제한 시간, 최대 64회 요청, 회당 16개 도구 호출, 응답·대화 크기 제한을 적용한다.
+인증 실패·사용량 제한·시간 초과는 GMS 실패로 보고하며 다른 엔진으로 자동 전환하지 않는다.
 
 ### Claude 실행 제한
 
@@ -132,7 +139,7 @@ docker compose --profile tunnel up -d
 설정 변경 후 `docker compose up -d --force-recreate controller`로 환경을 다시 읽는다.
 질문봇은 자동 코드 리뷰·결함 탐색·CI 보고를 수행하지 않는다. 코드 품질 검토는 작성자가 코드를 작성하면서 수행한다. 실연동에서는 다음 흐름을 양쪽 플랫폼에서 확인한다.
 
-1. 작은 텍스트 변경으로 PR/MR을 열고 `질문 생성 중` 댓글이 질문 4개(기본 3·`[심화]` 1)로 바뀌는지 확인한다. 각 질문에는 A~D 보기 4개가 있고 정답은 공개되지 않아야 한다. 초기 출제 로그는 `initial_questions` 호출 1회, 호출 제한은 120,000ms다. 큐 대기·코드 준비·게시 시간은 별도다.
+1. 작은 텍스트 변경으로 PR/MR을 열고 `질문 생성 중` 댓글이 핵심 CS 질문 2개로 바뀌는지 확인한다. 각 질문에는 A~D 보기 4개가 있고 정답은 공개되지 않아야 한다. 초기 출제 로그는 `initial_questions` 호출 1회, 호출 제한은 120,000ms다. 큐 대기·코드 준비·게시 시간은 별도다.
 2. 요약 댓글에는 변경 요약·발견 사항·검증/CI 표·리뷰 판정이 없어야 한다. 진행 댓글의 예상 시간은 새 질문 생성 이력만 사용하고 이력이 없으면 기본값 2분을 표시해야 한다. 게시 가능한 diff 줄에는 질문 스레드가 생기고 결함 지적은 새로 게시하지 않아야 한다.
 3. 질문 스레드에 보기 문자만 답하고, 다른 질문에는 번호·보기·이유로 답해 채점과 보기별 해설·답변 진행률 갱신을 확인한다. 심화 요청 한 번으로 중복 없는 질문 5개가 생성되는지 확인한다.
 4. 일반 질문·심화·채점 댓글에는 도움말 진입점 한 줄만 있고, `/hey help` 요청에는 전체 6개 명령의 명령어·뜻·설명·사용 예시 표가 나오는지 확인한다. 아직 질문이 없는 PR/MR에서도 도움말이 모델 호출 없이 동작해야 한다.
