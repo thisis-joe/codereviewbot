@@ -139,3 +139,9 @@ Colima VM의 디스크는 Mac 호스트의 여유 공간과 별개다. `colima s
 기존 토큰을 해제하기 전에 해당 프로젝트의 MR별 notes/discussions를 인증된 API로 읽고, 예전 봇이 작성한 hey 마커 댓글을 `Store.rememberBotComments`로 등록한다. `bot_comment_history`의 MR·댓글 종류·원격 ID가 일치하는 댓글만 과거 봇 댓글로 인정한다. 일반 사용자가 마커를 복사한 댓글은 인정하지 않는다. GitLab이 만료·해제된 봇의 작성자를 ghost로 바꿔도 등록된 질문 스레드는 계속 인식한다.
 
 질문 ID와 `targets.report`, `jobs.result`, `jobs.command_result`는 변경하지 않는다. 새 봇은 자기 요약 댓글을 작성·갱신하며 예전 댓글을 수정하거나 삭제하지 않는다. 요약에는 저장된 채점이 반영되고, 등록된 인라인 질문은 중복 게시하지 않는다. 프로젝트별 이력과 댓글 본문을 전후 비교하고 새 봇의 실제 명령 응답을 확인한 뒤 기존 토큰을 해제한다. 해제 후에는 기존 토큰을 되살릴 수 없으므로 코드 롤백에도 새 토큰을 유지한다.
+
+### MM 알림이 갑자기 멈춘 경우
+
+MM 전송 오류와 GitLab 수신 중단을 먼저 구분한다. 해당 프로젝트의 `mattermost_notifications` 마지막 성공 시각·대기 상태와 GitLab Webhook Recent events 응답을 함께 확인한다. DB 접속이 `57P03`(recovery mode)로 실패하면 Colima 디스크의 여유 공간과 PostgreSQL의 `No space left on device` 오류를 확인한다. 컨트롤러 재시작만 반복하거나 DB/WAL 파일을 삭제하지 않는다. 데이터·인증 볼륨과 운영·직전 복구 이미지를 보존하고 공간을 확보한 다음 PostgreSQL 연결 수락, 컨트롤러 health, n8n tick 순서로 확인한다.
+
+공개 `/healthz`는 터널 경로 설정에 따라 404일 수 있다. 로컬 `/healthz` 200, 공개 `/webhooks/gitlab`의 인증 없는 POST 401, GitLab에서 재전송한 실제 요청 202와 MM 채널의 실제 메시지를 복구 기준으로 삼는다. 장애 중 요청은 DB 알림 큐에 들어오지 못했을 수 있으므로 큐가 비었다고 누락이 없다고 판단하지 않는다. 최신 열린 MR은 recover로 재동기화하고, 과거 이벤트를 전부 무차별 재전송하지 않는다.
