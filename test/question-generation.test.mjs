@@ -30,7 +30,7 @@ test('unreadable changes return explicit unavailable results without inference',
   assert.match(result.questionsUnavailableReason, /변경 근거/);
 });
 
-test('incremental generation supplies the exact push delta and asks evidence-backed intent without dropping ordinary questions', async () => {
+test('incremental generation preserves the exact delta and grounds purpose without confusing base revisions', async () => {
   const ctx = { ...context(), changesSincePrevious: { fromHeadSha: 'c'.repeat(40), files: {
     'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -2 +2 @@\n-oldCharge();\n+charge();' },
   } } };
@@ -41,9 +41,12 @@ test('incremental generation supplies the exact push delta and asks evidence-bac
   const prompt = calls[0][1], data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
   assert.deepEqual(data.changesSincePrevious, ctx.changesSincePrevious);
   assert.deepEqual(data.previousQuestions, previous.questions.map(q => q.question));
-  assert.match(prompt, /최소 1개.*목적.*이유/);
+  assert.match(prompt, /Q1은 변경의 핵심 효과/);
   assert.match(prompt, /작성자의.*추측/);
-  assert.match(prompt, /외부 콜백.*예외.*구분/);
-  assert.match(prompt, /그 보기가 틀리는.*조건/);
+  assert.match(prompt, /이번 증분의 실제 변경만 출제/);
+  assert.match(prompt, /변경 전 코드는 직전 출제 커밋/);
+  assert.match(prompt, /diff의 LEFT는 MR\/PR 기준 커밋/);
+  assert.match(prompt, /내부에서 생성하는 예외와 외부에서 전파되는 예외를 구분/);
+  assert.match(prompt, /오답에 없는 주장을 추가하거나 확인되지 않은 일반 법칙/);
   assert.equal(calls.length, 1);
 });

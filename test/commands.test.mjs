@@ -331,13 +331,21 @@ test('stored CS explanations accompany both bare-option grading and answer revea
   }
 });
 
-test('follow-ups lead with questions and request CS explanations at generation time', async () => {
+test('follow-ups deepen principles and exclude repeated learning goals before publishing questions', async () => {
   const h = learningHarness('/hey morequestion'); await h.run();
   const body = h.data.replies[0][1];
   assert.ok(body.indexOf('#### 심화5.') < body.indexOf('답변 달기:'));
   assert.match(body, /^#### 심화1\./m);
-  assert.match(h.data.calls[0].prompt, /CS 개념.*정의/);
-  assert.match(h.data.calls[0].prompt, /코드.*적용/);
+  const prompt = h.data.calls[0].prompt;
+  assert.match(prompt, /보장이 성립하는 조건과 그 한계/);
+  assert.match(prompt, /함수명, 숫자, 사례만 바꾼 질문도 중복/);
+  assert.match(prompt, /여러 선택이 타당한 상황에서 현재 구현과 다르다는 이유만으로 오답 처리하지 마세요/);
+  assert.match(prompt, /핵심 보장의 유지 또는 위반/);
+  assert.match(prompt, /key.explanation: 관련 원리, 성립 조건/);
+  assert.match(prompt, /정확히 5개/);assert.match(prompt, /level은 모두 advanced/);
+  const data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
+  assert.deepEqual(data.priorQuestions, h.data.report.questions.map(q => q.question));
+  assert.deepEqual(Object.keys(data.diff), ['src/pay.ts']);
   assert.doesNotMatch(body, /정답은 B입니다/);
 });
 

@@ -22,8 +22,12 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 
 ## Observable contract
 
-- Initial generation produces exactly two distinct multiple-choice questions about
-  the core CS principles behind the actual change, in priority order, in one
+- Initial generation produces exactly two complementary multiple-choice questions:
+  Q1 asks about the change's core effect or guarantee, and Q2 applies a principle
+  needed to understand it. The same concept may support different learning goals;
+  unrelated CS terminology is not required for documentation/configuration/data changes.
+  These goals are generation instructions, not a deterministic semantic validator.
+  Questions are produced in one
   `initial_questions` model call with a 120,000 ms budget per attempt. Each question
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
   anchor. Both initial questions must be basic; advanced learning is opt-in.
