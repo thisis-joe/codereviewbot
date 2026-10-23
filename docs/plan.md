@@ -22,8 +22,12 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 
 ## Observable contract
 
-- Initial generation produces exactly two distinct multiple-choice questions about
-  the core CS principles behind the actual change, in priority order, in one
+- Initial generation produces exactly two complementary multiple-choice questions:
+  Q1 asks about the change's core effect or guarantee, and Q2 applies a principle
+  needed to understand it. The same concept may support different learning goals;
+  unrelated CS terminology is not required for documentation/configuration/data changes.
+  These goals are generation instructions, not a deterministic semantic validator.
+  Questions are produced in one
   `initial_questions` model call with a 120,000 ms budget per attempt. Each question
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
   anchor. Both initial questions must be basic; advanced learning is opt-in.
@@ -52,8 +56,10 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   `approve`, `reject` and the former `review` spelling) return the help hint and
   trigger no code/model/state effects. Pause state and feedback storage are retired;
   repository policy and guide files remain the source of instructions.
-- `showanswer` reveals stored answer keys and explanations without a model call; it
-  records no grade, so answer progress and the merge gate are unchanged.
+- `showanswer` takes no selectors and reveals only questions in the trusted question
+  comment of the originating thread, without inference or grade credit. Follow-up
+  batches open separate replyable threads (GitLab discussion / GitHub code thread).
+  Unscoped, mixed or stale threads receive guidance rather than unrelated answers.
 - Question IDs, same-ref history, supplementary numbering, durable grading replies,
   per-option explanations, inline letter replies and opt-in answer merge gates remain.
   The answer gate concerns questions visible in the current summary, not review quality.
