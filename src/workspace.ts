@@ -75,6 +75,11 @@ export class Workspaces {
       if (ancestry.code === 0) { mode = 'incremental'; previousSha = previous.headSha; }
     }
     const diffBase = previousSha ?? snapshot.baseSha;
+    // Read immutable Git history for exactly the reviewed range, oldest first.
+    const commitBase = diffBase === snapshot.headSha ? snapshot.baseSha : diffBase;
+    const commitFields = (await git(cache, ['log', '--reverse', '--topo-order', '-z', '--format=%H%x00%s', `${commitBase}..${snapshot.headSha}`])).toString('utf8').split('\0');
+    snapshot.commits = [];
+    for (let i = 0; i + 1 < commitFields.length; i += 2) snapshot.commits.push({ sha: Sha.parse(commitFields[i]), title: redact(commitFields[i + 1]!) });
     const names = (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--name-status', '-z', '-M', snapshot.baseSha, snapshot.headSha])).toString('utf8');
     const incremental = mode === 'incremental' ? (await git(cache, ['diff', '--no-ext-diff', '--no-textconv', '--name-status', '-z', '-M', diffBase, snapshot.headSha])).toString('utf8') : null;
     const denied = diffEntries(names).filter(e => blocked(e.path, policy.exclude) || blocked(e.oldPath, policy.exclude)).flatMap(e => [e.oldPath, e.path]);

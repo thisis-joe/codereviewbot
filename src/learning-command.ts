@@ -98,6 +98,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
   }
   if (!response) {
     const state = await store.getTarget(target), report = state?.report;
+    if (report && sameRevision(report.snapshot, snap) && report.snapshot.commits) snap.commits = report.snapshot.commits;
     let body = '', questions: ChangeQuestion[] | undefined, grades: CommandResult['grades'], start: number | undefined;
     const batches = (await store.learningBatches(snap)).filter(b => sameRevision(b.snapshot, snap));
     const current = report && hasChangeQuestions(report) && sameRevision(report.snapshot, snap) ? report.questions : [];

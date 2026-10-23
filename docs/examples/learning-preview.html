@@ -1,0 +1,103 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>hey 질문 미리보기</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#24292f;font:15px/1.7 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}main{max-width:1000px;margin:32px auto;padding:0 24px}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}header strong{font-size:22px}nav{display:flex;gap:8px}button{font:inherit;border:1px solid #d0d7de;background:white;border-radius:7px;padding:7px 16px;cursor:pointer}button[aria-selected="true"]{background:#0969da;color:white;border-color:#0969da}section{background:#fff;border:1px solid #d0d7de;border-radius:10px;padding:30px 38px}h3{font-size:22px;margin:0 0 24px}h4{font-size:18px;line-height:1.6;margin:26px 0 16px;word-break:keep-all;overflow-wrap:anywhere}h5{font-size:16px;margin:24px 0 12px}p{margin:14px 0}ul{padding-left:24px;margin:14px 0}li{margin:6px 0}hr{height:1px;border:0;background:#e6e9ed;margin:28px 0}a{color:#0969da;text-decoration:none}code{font:13px/1.5 ui-monospace,monospace;background:#f0f2f5;border-radius:4px;padding:3px 6px}footer{font-size:12px;color:#6e7781;margin-top:12px}@media(max-width:600px){section{padding:20px}main{padding:0 12px}header{display:block}nav{margin-top:12px}}
+</style><main><header><strong>hey · 댓글 미리보기</strong><nav aria-label="예시 선택"><button type="button" data-tab="initial" aria-selected="true">최초 질문</button><button type="button" data-tab="more" aria-selected="false">추가 질문</button><button type="button" data-tab="answer" aria-selected="false">해설</button></nav></header><section id="initial" ><h3>핵심 CS 질문 2개</h3>
+<h4>Q1. [심화] Gms.run이 API에 도구 스키마를 보내고도 호출 인자를 로컬에서 검증해 RepositoryReader로 실행하는 것은 어떤 신뢰 경계를 위한 것인가요?</h4>
+<ul>
+<li><strong>A.</strong> API에 전달한 스키마가 로컬 파일 접근 권한을 대신 집행하게 한다.</li>
+<li><strong>B.</strong> 저장소에 적힌 지시문에 따라 실행 가능한 도구를 확장한다.</li>
+<li><strong>C.</strong> 외부 모델의 요청을 허용된 도구·인자와 스냅샷 접근 범위로 제한한다.</li>
+<li><strong>D.</strong> JSON으로 해석되는 인자는 경로 검증 없이 파일 읽기에 사용한다.</li>
+</ul>
+<hr>
+<h4>Q2. [심화] Gms.run이 여러 도구 왕복에 하나의 AbortSignal.timeout을 공유할 때, 라운드마다 신호를 새로 만드는 방식과 HTTP 시간 예산이 어떻게 달라지나요?</h4>
+<ul>
+<li><strong>A.</strong> 후속 HTTP 요청도 최초 신호 생성 시점부터 흐른 시간 예산을 공유한다.</li>
+<li><strong>B.</strong> 각 HTTP 요청을 시작할 때 timeoutMs만큼의 시간 예산이 새로 주어진다.</li>
+<li><strong>C.</strong> RepositoryReader 실행 중에는 신호의 시간 예산이 일시 정지된다.</li>
+<li><strong>D.</strong> 시간 예산이 끝난 HTTP 요청은 새 신호로 자동 재시도된다.</li>
+</ul>
+<hr>
+<p>답변 달기: <code>/hey answer Q1 B Q2 C</code></p>
+<p>정답·해설 보기: <code>/hey showanswer</code></p>
+<p>더 풀어보기: <code>/hey morequestion</code></p>
+<p>답변 0/2</p>
+<h5>기준 커밋</h5>
+<ul>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/c3a1367fff593afc14b18f0a23c26a952020606c">feat: call GMS Responses API directly (S15P31E102-83)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/0a03c54d29d2df8ad34acd7daa67f0bd0025d673">feat: focus initial learning on two core CS questions (S15P31E102-84)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/5bf83b22c72bc0a9c148ac7c89914f0cd6ed88ac">feat: explain CS principles and align follow-up question layout (S15P31E102-85)</a></li>
+</ul>
+<p>명령어 안내: <code>/hey help</code></p>
+</section><section id="more" hidden><h3>심화 질문 5개</h3>
+<h4>심화1. Gms.run에서 최종 텍스트의 512000바이트 제한과 별도로 응답 스트림에 2MiB 제한을 두는 것은 어떤 자원 보호 효과가 있나요?</h4>
+<ul>
+<li><strong>A.</strong> JSON 파싱을 마친 뒤 생성된 객체의 메모리 크기를 제한합니다.</li>
+<li><strong>B.</strong> 최종 텍스트 외의 응답 데이터도 파싱 전에 수신량으로 제한합니다.</li>
+<li><strong>C.</strong> 여러 왕복에서 받은 응답의 합계를 2MiB로 제한합니다.</li>
+<li><strong>D.</strong> 응답 본문이 커지면 청크를 디스크로 옮겨 메모리를 확보합니다.</li>
+</ul>
+<hr>
+<h4>심화2. Gms.run에서 arguments의 잘못된 JSON과 call_id 누락을 각각 주입하면, 예외 처리 경계에 따라 실패 복구 흐름이 어떻게 달라지나요?</h4>
+<ul>
+<li><strong>A.</strong> 두 오류 모두 해당 도구의 오류 출력으로 변환되어 대화가 계속됩니다.</li>
+<li><strong>B.</strong> 두 오류 모두 즉시 실행 전체의 invalid_output 실패로 전파됩니다.</li>
+<li><strong>C.</strong> arguments 오류는 실행을 종료하고 call_id 누락은 도구 오류 출력으로 변환됩니다.</li>
+<li><strong>D.</strong> arguments 오류는 도구 오류 출력으로 변환되고 call_id 누락은 실행을 종료합니다.</li>
+</ul>
+<hr>
+<h4>심화3. Gms.run에서 각 도구 왕복이 같은 양의 이력을 추가한다면, 크기 한도 내 n회 요청의 누적 input 전송량은 어떤 증가 양상을 보이나요?</h4>
+<ul>
+<li><strong>A.</strong> 전체 이력을 매번 다시 보내므로 n의 제곱에 비례하는 항이 생깁니다.</li>
+<li><strong>B.</strong> 새로 추가된 이력만 보내므로 n에 비례해 증가합니다.</li>
+<li><strong>C.</strong> 이전 응답은 서버에만 남으므로 초기 프롬프트 크기로 일정합니다.</li>
+<li><strong>D.</strong> 매 왕복마다 이력을 두 배로 복제하므로 지수적으로 증가합니다.</li>
+</ul>
+<hr>
+<h4>심화4. Gms.run에서 서로 독립적인 도구 호출 여러 개를 처리할 때, 현재 for문의 await 배치가 병렬 실행과 비교해 만드는 지연 특성은 무엇인가요?</h4>
+<ul>
+<li><strong>A.</strong> 각 도구 작업이 겹쳐 실행되어 가장 느린 작업이 대기 시간을 결정합니다.</li>
+<li><strong>B.</strong> 첫 도구가 끝나면 나머지 결과를 기다리지 않고 다음 API 요청을 보냅니다.</li>
+<li><strong>C.</strong> 각 도구 완료 후 다음 도구를 시작하므로 작업 대기 시간이 누적됩니다.</li>
+<li><strong>D.</strong> 호출 수가 16개 이하이면 런타임이 도구 작업을 자동으로 병렬화합니다.</li>
+</ul>
+<hr>
+<h4>심화5. Gms.run의 HTTP 오류 분류가 scheduleFailure로 전달될 때, 429와 401에 적용되는 자동 복구 정책의 차이는 무엇인가요?</h4>
+<ul>
+<li><strong>A.</strong> 두 상태 모두 같은 지연을 둔 자동 재시도 대상으로 분류됩니다.</li>
+<li><strong>B.</strong> 429는 지연 재시도 대상으로, 401은 자동 재시도 제외 대상으로 분류됩니다.</li>
+<li><strong>C.</strong> 429는 자동 재시도에서 제외되고 401은 지연 재시도 대상으로 분류됩니다.</li>
+<li><strong>D.</strong> 두 상태 모두 Gms.run 내부에서 즉시 같은 HTTP 요청을 재시도합니다.</li>
+</ul>
+<hr>
+<p>답변 달기: <code>/hey answer 심화1 B 심화2 C</code></p>
+<p>정답·해설 보기: <code>/hey showanswer 심화1 심화2 심화3 심화4 심화5</code></p>
+<p>더 풀어보기: <code>/hey morequestion</code></p>
+<h5>기준 커밋</h5>
+<ul>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/c3a1367fff593afc14b18f0a23c26a952020606c">feat: call GMS Responses API directly (S15P31E102-83)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/0a03c54d29d2df8ad34acd7daa67f0bd0025d673">feat: focus initial learning on two core CS questions (S15P31E102-84)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/5bf83b22c72bc0a9c148ac7c89914f0cd6ed88ac">feat: explain CS principles and align follow-up question layout (S15P31E102-85)</a></li>
+</ul>
+<p>명령어 안내: <code>/hey help</code></p>
+</section><section id="answer" hidden><h3>심화1 · ✅ 정답</h3>
+<h4>심화1. Gms.run에서 최종 텍스트의 512000바이트 제한과 별도로 응답 스트림에 2MiB 제한을 두는 것은 어떤 자원 보호 효과가 있나요?</h4>
+<p>내 답: <strong>B</strong> · 정답: <strong>B</strong></p>
+<h5>해설</h5>
+<p>입력 크기 제한은 외부 데이터를 파싱하거나 보관하기 전에 처리량을 제한하는 자원 보호 기법입니다. 최종 결과 크기만 검사하면 그 결과를 추출하기 위해 먼저 읽는 전체 응답은 보호하지 못합니다. 이 코드는 청크 누적 크기가 2MiB를 넘으면 JSON 파싱 전에 실패시키므로 도구 호출 등 최종 텍스트 이외의 응답 데이터에도 제한이 적용됩니다.</p>
+<h5>보기별 해설</h5>
+<p><strong>A.</strong> JSON 파싱을 마친 뒤 생성된 객체의 메모리 크기를 제한합니다. — 검사 대상은 파싱된 객체가 아니라 수신 청크의 바이트 합계이며, 검사는 JSON.parse보다 먼저 수행됩니다.</p>
+<p><strong>B.</strong> 최종 텍스트 외의 응답 데이터도 파싱 전에 수신량으로 제한합니다. (내 답·정답) — 전체 응답 본문의 청크 크기를 검사하므로 최종 output_text뿐 아니라 같은 본문에 포함된 다른 데이터도 제한됩니다.</p>
+<p><strong>C.</strong> 여러 왕복에서 받은 응답의 합계를 2MiB로 제한합니다. — chunks와 size는 왕복 루프 안에서 초기화되므로 2MiB 제한은 각 응답에 적용됩니다.</p>
+<p><strong>D.</strong> 응답 본문이 커지면 청크를 디스크로 옮겨 메모리를 확보합니다. — 청크는 배열에 보관되며, 제한을 초과하면 ModelFailure를 던집니다. 디스크로 옮기는 경로는 없습니다.</p>
+<h5>코드 근거</h5>
+<ul>
+<li><a href="https://github.com/thisis-joe/codereviewbot/blob/5bf83b22c72bc0a9c148ac7c89914f0cd6ed88ac/src/gms.ts#L42">src/gms.ts:42</a>: 질문이 가리키는 변경 위치</li>
+</ul>
+<h5>기준 커밋</h5>
+<ul>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/c3a1367fff593afc14b18f0a23c26a952020606c">feat: call GMS Responses API directly (S15P31E102-83)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/0a03c54d29d2df8ad34acd7daa67f0bd0025d673">feat: focus initial learning on two core CS questions (S15P31E102-84)</a></li>
+<li><a href="https://github.com/thisis-joe/codereviewbot/commit/5bf83b22c72bc0a9c148ac7c89914f0cd6ed88ac">feat: explain CS principles and align follow-up question layout (S15P31E102-85)</a></li>
+</ul>
+<p>명령어 안내: <code>/hey help</code></p>
+</section><footer>실제 GMS 생성 문항을 렌더링한 로컬 예시 · 운영 PR/MR에는 게시하지 않았습니다.</footer></main><script>document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('section').forEach(s=>s.hidden=s.id!==b.dataset.tab);document.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',String(x===b)));}));</script></html>

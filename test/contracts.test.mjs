@@ -70,7 +70,7 @@ test('oversized escaped questions retain four complete questions and visible com
 test('generation progress keeps only current question results collapsed and never includes old findings', () => {
   const s = snapshot({ headSha: 'c'.repeat(40) });
   const first = renderProgress(s, { minutes: 2, measured: false });
-  assert.ok(first.startsWith(SUMMARY_MARKER)); assert.match(first, /\*\*질문 생성 중\*\* · 기준 커밋 \[cccccccc\]/);
+  assert.ok(first.startsWith(SUMMARY_MARKER)); assert.match(first, /\*\*질문 생성 중\*\*\n\n##### 기준 커밋\n\n- \[결제 재시도 처리 개선\]/);
   assert.match(first, /약 2분/); assert.doesNotMatch(first, /최근 질문 생성 기준|<details>/);
   const next = renderProgress(s, { minutes: 1, measured: true }, { report: report({ findings: [finding({ id: 'CRB-0001' })] }), results: new Map() });
   assert.match(next, /약 1분입니다 \(최근 질문 생성 기준\)[\s\S]*이전 질문/);

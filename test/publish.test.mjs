@@ -57,7 +57,7 @@ test('each review question gets one inline thread on its diff line and the summa
   const threads = p.stored.inline.filter(c => c.body.includes('codereviewbot:question:'));
   assert.equal(threads.length, 2, 'line 9 is outside the hunk, so Q3 stays in the summary only');
   assert.match(threads[0].body, new RegExp(`<!-- codereviewbot:question:${ids[0]} -->\\n#### Q1\\. (?!\\[)`)); assert.match(threads[1].body, /^#### Q2\. /m);
-  assert.match(threads[0].body, /^(&nbsp;){4}\*\*D\.\*\* /m); assert.match(threads[0].body, /보기 문자\(A~D\)만 답글로/);
+  assert.match(threads[0].body, /^- \*\*D\.\*\* /m); assert.match(threads[0].body, /보기 문자\(A~D\)만 답글로/);
   assert.deepEqual(threads[0].input.coordinates, { newLine: 2 }); assert.ok(!threads[0].body.includes(answerKey().explanation));
   assert.match(p.stored.comments[0].body, /^#### Q1\. .* · ✅ 정답$/m); assert.match(p.stored.comments[0].body, /답변 1\/3/);
   await publish(p, r, diff, 5, async () => {});

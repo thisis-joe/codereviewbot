@@ -80,6 +80,7 @@ export type Finding = Omit<Candidate, 'id'> & { id: string; status: FindingStatu
 export interface Target { platform: 'github' | 'gitlab'; instance: string; repository: string; number: number }
 export interface Snapshot extends Target {
   baseSha: string; headSha: string; startSha: string;
+  commits?: { sha: string; title: string }[];
   policyVersion: string; title: string; description: string; webUrl: string;
 }
 export interface Report extends Omit<Analysis, 'findings' | 'resolutions' | 'questions'> {

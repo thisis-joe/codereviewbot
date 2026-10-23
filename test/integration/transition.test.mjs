@@ -282,13 +282,18 @@ for (const name of ['github', 'gitlab']) {
   test(`${name}: current same-SHA cache and queued CI do not generate questions or poll checks`, async t => {
     const f = await fixture(t, name);
     const current = report({ schemaVersion: '2', requireAnswers: true });
+    delete f.snap.commits;
     await f.seed(current);
+    const commits = [{ sha: f.snap.headSha, title: '기존 질문의 커밋 제목 보강' }];
+    const prepare = f.workspaces.prepare;
+    f.workspaces.prepare = async (...args) => { const value = await prepare(...args); args[1].commits = commits; return value; };
     const id = await f.store.enqueue({ kind: 'review', target: f.snap, deliveryId: 'cached-sha', headSha: f.snap.headSha });
     await f.drain();
     assert.equal((await f.store.getJob(id)).state, 'completed');
     assert.equal(f.calls.length, 0);
     assert.equal((await f.store.getTarget(f.snap)).report.schemaVersion, '2');
     assert.deepEqual((await f.store.getTarget(f.snap)).report.questions, current.questions);
+    assert.deepEqual((await f.store.getTarget(f.snap)).report.snapshot.commits, commits);
 
     const writes = f.writes.length, preparations = f.preparations.length;
     const ci = await f.store.enqueue({ kind: 'ci', target: f.snap, deliveryId: 'already-queued-ci', headSha: f.snap.headSha });
@@ -305,7 +310,11 @@ for (const name of ['github', 'gitlab']) {
   test(`${name}: an explicit tryagain command regenerates current same-SHA questions with a full source fallback`, async t => {
     const f = await fixture(t, name);
     const current = report({ schemaVersion: '2', requireAnswers: true });
+    delete f.snap.commits;
     await f.seed(current);
+    const commits = [{ sha: f.snap.headSha, title: '기존 질문의 커밋 제목 보강' }];
+    const prepare = f.workspaces.prepare;
+    f.workspaces.prepare = async (...args) => { const value = await prepare(...args); args[1].commits = commits; return value; };
     const commandId = await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'explicit-tryagain', comment: {
       id: 'explicit-tryagain', body: '/hey tryagain', author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null,
     } });

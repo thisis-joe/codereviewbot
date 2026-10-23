@@ -46,9 +46,11 @@ const value = report({ schemaVersion: '2', questions: initial, findings: [], che
 const grade = GradeSchema.parse({ verdict: 'correct', explanation: '같은 키로 기존 요청을 식별한다는 답이 맞습니다.', expectedAnswer: initial[0].key.explanation,
   optionExplanations: initial[0].key.options, evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '같은 멱등 키를 charge에 전달하는 예시 흐름' }] });
 const disclaimer = '# 댓글 학습 흐름 예시\n\nFixture 예시이며 실제 모델 평가가 아닙니다. pay가 같은 키로 charge를 호출한 뒤 주문을 저장하고, charge가 같은 키의 승인을 재사용한다고 가정합니다.\n\n';
+// Examples show public content; reconciliation markers belong only to live comments.
+const visible = text => text.split('\n').filter(line => !/^<!-- codereviewbot:/.test(line)).join('\n');
 await mkdir('.local', { recursive: true });
-await writeFile('.local/demo-report.md', renderReport(value, new Map([[questionId(value.snapshot, initial[0]), 'correct']])) + '\n');
-await writeFile('.local/demo-inline.md', renderQuestionThread(initial[0], value.snapshot, 1) + '\n');
-await writeFile('.local/demo-help.md', renderCommandHelp('issue-demo-help') + '\n');
-await writeFile('.local/demo-learning.md', disclaimer + renderQuestionBatch(deeper, value.snapshot, 'issue-demo-more') + '\n\n---\n\n' + renderGrade(initial[0], value.snapshot, grade, 'issue-demo-answer', 'Q1', 'B') + '\n');
+await writeFile('.local/demo-report.md', visible(renderReport(value, new Map([[questionId(value.snapshot, initial[0]), 'correct']]))) + '\n');
+await writeFile('.local/demo-inline.md', visible(renderQuestionThread(initial[0], value.snapshot, 1)) + '\n');
+await writeFile('.local/demo-help.md', visible(renderCommandHelp('issue-demo-help')) + '\n');
+await writeFile('.local/demo-learning.md', disclaimer + visible(renderQuestionBatch(deeper, value.snapshot, 'issue-demo-more')) + '\n\n---\n\n' + visible(renderGrade(initial[0], value.snapshot, grade, 'issue-demo-answer', 'Q1', 'B')) + '\n');
 console.log('Created .local/demo-report.md, .local/demo-inline.md, .local/demo-learning.md and .local/demo-help.md (fixtures, no model calls).');

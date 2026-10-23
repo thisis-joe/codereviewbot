@@ -24,6 +24,9 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   `/hey morequestion` generates additional questions only on explicit request,
   using the same question-first layout. Newly generated answer keys and grading
   explanations teach a relevant CS concept and connect it to the actual code.
+  Questions use H4 headings; explanation sections use H5 and blank lines.
+  Commit references list every reviewed commit title as a separate linked bullet.
+  User-facing example previews omit internal reconciliation markers.
 - Schema version 2 results display only a commit, generation state, answer progress,
   code-linked questions and one `/hey help` entry point. Old sections 1–3, review
   verdicts, repeated command examples and automatic finding comments disappear.

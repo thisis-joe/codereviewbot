@@ -75,7 +75,8 @@ export class Controller {
       const prepareMs = Date.now() - prepareStarted;
       await lease();
       if (!job.body.force && !job.body.regenerate && isQuestionReport(previous) && reviewed(previous) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha && previous.snapshot.policyVersion === snap.policyVersion) {
-        await this.store.saveResult(job.id, job.owner, previous, {}, 0); return;
+        const cached = previous.snapshot.commits ? previous : { ...previous, snapshot: { ...previous.snapshot, commits: snap.commits } };
+        await this.store.saveResult(job.id, job.owner, cached, {}, 0); return;
       }
       await this.announce(platform, snap, prepared.mode, previous);
       const issues = (await platform.linkedIssues(snap.description)).map(redact);
