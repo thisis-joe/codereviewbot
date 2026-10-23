@@ -13,7 +13,7 @@ test('initial generation makes one bounded question-only call and archives prior
   assert.equal(calls.length, 1); assert.equal(calls[0][0], 'initial_questions'); assert.equal(calls[0][3], 120000);
   assert.match(calls[0][1], /질문|출제/); assert.match(calls[0][1], /read_file/);
   assert.doesNotMatch(calls[0][1], /previousFindings|recommendedTests|resolutions|CRB-0001/);
-  assert.equal(result.schemaVersion, '2'); assert.equal(result.state, 'completed'); assert.equal(result.questions.length, 4);
+  assert.equal(result.schemaVersion, '2'); assert.equal(result.state, 'completed'); assert.equal(result.questions.length, 2);
   assert.equal(result.findings[0].status, 'unverified'); assert.equal(old.status, 'open');
   assert.deepEqual(result.checks, []); assert.deepEqual(result.recommendedTests, []);
 });

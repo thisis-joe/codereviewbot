@@ -101,7 +101,7 @@ test('partial publication keeps count and limitations on GitLab while sending th
   assert.ok(f.received[0].text.endsWith('**](https://gitlab.example/team/project/-/merge_requests/15#note_321)'));
   assert.doesNotMatch(f.received[0].text, /질문 4개|일부 변경 제외|source size limit/);
   assert.match(f.comments[0].body, /부분 완료/);
-  assert.match(f.comments[0].body, /답변 0\/4/);
+  assert.match(f.comments[0].body, /답변 0\/2/);
   assert.match(f.comments[0].body, /source size limit/);
   assert.equal(f.received[0].text.split('\n').length, 2);
   for (const value of [result, { ...result, state: 'completed' }, { ...result, state: 'failed' }, { ...result, questions: [] }]) await f.notifications.questionsPublished(f.platform, value);

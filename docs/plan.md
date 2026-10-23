@@ -15,11 +15,13 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 
 ## Observable contract
 
-- Initial generation produces exactly four distinct multiple-choice questions (three
-  basic, one advanced) in one
+- Initial generation produces exactly two distinct multiple-choice questions about
+  the core CS principles behind the actual change, in priority order, in one
   `initial_questions` model call with a 120,000 ms budget per attempt. Each question
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
-  anchor. Basic/advanced levels and actual change relevance remain required.
+  anchor. Each question retains a basic/advanced level, without a difficulty quota.
+  Questions and choices come before concise answer/reveal/optional-morequestion hints.
+  `/hey morequestion` generates additional questions only on explicit request.
 - Schema version 2 results display only a commit, generation state, answer progress,
   code-linked questions and one `/hey help` entry point. Old sections 1–3, review
   verdicts, repeated command examples and automatic finding comments disappear.

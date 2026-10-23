@@ -40,10 +40,9 @@ export const ChangeQuestionSchema = z.strictObject({
   key: AnswerKeySchema,
 });
 export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10);
-// Initial generation is fixed at four questions: three basic and one advanced.
-export const INITIAL_QUESTION_COUNT = 4;
-export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(INITIAL_QUESTION_COUNT)
-  .refine(v => v.filter(q => q.level === 'basic').length === INITIAL_QUESTION_COUNT - 1, 'Write three basic questions and one advanced question') });
+// Prioritize two change-grounded CS principles; difficulty does not determine the count.
+export const INITIAL_QUESTION_COUNT = 2;
+export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(INITIAL_QUESTION_COUNT) });
 // Each /hey morequestion batch is fixed at five questions.
 export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
@@ -96,7 +95,7 @@ export function reviewed(report: Report | null | undefined): report is Report {
   return report?.state === 'completed' || report?.state === 'partial';
 }
 export function hasChangeQuestions(report: Report): boolean {
-  return reviewed(report) && report.questions.length >= 3;
+  return reviewed(report) && report.questions.length >= INITIAL_QUESTION_COUNT;
 }
 export function emptyReport(snapshot: Snapshot, state: Report['state'], detail: string): Report {
   return { schemaVersion: '2', snapshot, state, mode: 'full', summary: detail, findings: [],

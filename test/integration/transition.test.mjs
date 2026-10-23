@@ -26,7 +26,7 @@ test('same-revision recovery survives an already-consumed delivery key without d
   const queued = (await f.pool.query("SELECT * FROM jobs WHERE state='queued'")).rows;
   assert.equal(queued.length, 1, 'a failed revision gets one new recovery attempt instead of permanent deduplication');
   assert.equal(queued[0].body.recoveryAttempt, 1);
-  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 4);
+  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 2);
   assert.equal((await f.store.health()).failed, 0);
   await f.controller.recover(); assert.equal((await f.store.health()).queued, 0);
 });
@@ -118,7 +118,7 @@ test('explicit retry regenerates a failed report instead of republishing the sav
   assert.equal(await f.store.retry(id), true);
   assert.equal((await f.store.getJob(id)).state, 'queued');
   assert.equal((await f.store.getJob(id)).result, null);
-  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 4);
+  await f.drain(); assert.equal(f.calls.length, 1); assert.equal((await f.store.getTarget(f.snap)).report.questions.length, 2);
 });
 
 async function fixture(t, name) {
@@ -209,13 +209,13 @@ for (const name of ['github', 'gitlab']) {
     assert.deepEqual(f.calls.map(c => c.phase), ['initial_questions']);
     assert.equal(f.preparations.length, 1);
     assert.equal(f.preparations[0].previous, null, 'A legacy SHA must not become an empty incremental diff');
-    assert.equal(current.questions.length, 4);
+    assert.equal(current.questions.length, 2);
     assert.deepEqual(current.findings.map(item => [item.id, item.status]), [['CRB-0001', 'unverified'], ['CRB-0002', 'dismissed']]);
     assert.ok((await f.store.questionHistory(f.snap)).some(q => questionId(f.snap, q) === oldId));
     assert.equal((await f.store.answerResults(f.snap)).get(oldId), 'correct');
     assert.equal(current.requireAnswers, true);
     assert.equal(f.statuses.at(-1).state, 'pending');
-    assert.match(f.statuses.at(-1).description, /0\/4/);
+    assert.match(f.statuses.at(-1).description, /0\/2/);
     assert.equal(f.checks(), 0);
     assert.ok(f.writes.some(value => value.kind === 'inline' && value.body.includes('codereviewbot:question:')));
     assert.ok(f.writes.every(value => !value.body.includes('codereviewbot:finding:') && !value.body.includes('CRB-0001')));
@@ -476,6 +476,6 @@ for (const name of ['github', 'gitlab']) {
     await f.store.enqueue({ kind: 'command', target: f.snap, deliveryId: 'answer-latest-push', comment: { id: 'answer-latest', body: `/hey answer Q1 ${first.key.answer}`, author: 'joe', surface: name === 'github' ? 'issue' : 'note', parentId: null, discussionId: null } });
     await f.drain();
     assert.equal(older.body, saved);
-    assert.match(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).at(-1).body, /답변 1\/4/);
+    assert.match(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).at(-1).body, /답변 1\/2/);
   });
 }

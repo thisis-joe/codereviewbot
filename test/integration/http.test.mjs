@@ -36,19 +36,19 @@ test('signed HTTP admission, database work, single-pass questions and replay-saf
   const tick = async () => { const response = await fetch(base+'/internal/tick', { method:'POST', headers:{ authorization:'Bearer internal-test-secret' } }); assert.equal(response.status,202); await controller.active; };
   await tick(); await tick(); await tick();
   assert.equal(comments.length,1); assert.equal(inline.length,0);
-  assert.match(comments[0].body,/hey! 이건 알고 머지하는거지\? 😏/); assert.doesNotMatch(comments[0].body,/CRB-|수정 필요/); assert.deepEqual(calls,['initial_questions']);
+  assert.match(comments[0].body,/핵심 CS 질문 2개/); assert.doesNotMatch(comments[0].body,/CRB-|수정 필요/); assert.deepEqual(calls,['initial_questions']);
   assert.equal((await store.health()).queued,0);
-  assert.equal((await store.getTarget(snapshot())).report.questions.length, 4);
-  assert.match(comments[0].body, /^#### hey! 이건 알고 머지하는거지\? 😏$/m);
+  assert.equal((await store.getTarget(snapshot())).report.questions.length, 2);
+  assert.match(comments[0].body, /^### 핵심 CS 질문 2개$/m);
   // The base-branch policy reaches the published merge gate.
   assert.equal((await store.getTarget(snapshot())).report.requireAnswers, true);
-  assert.deepEqual(statuses.map(s => s.state), ['pending']); assert.match(statuses[0].description, /0\/4/);
+  assert.deepEqual(statuses.map(s => s.state), ['pending']); assert.match(statuses[0].description, /0\/2/);
   platform.openNumbers = async () => [1];
   // Ordinary CI refreshes keep questions without inference; failed full runs clear old questions.
   model.run = async () => { throw new Error('inference unavailable'); };
   await store.enqueue({ kind: 'ci', target: snapshot(), deliveryId: 'ci-only', headSha: snapshot().headSha });
   await tick(); await tick();
-  assert.equal((await store.getTarget(snapshot())).report.questions.length, 4);
+  assert.equal((await store.getTarget(snapshot())).report.questions.length, 2);
   const prepare = workspaces.prepare;
   workspaces.prepare = async (...args) => { const prepared = await prepare(...args); return { ...prepared, context: { ...prepared.context, files: {}, diff: {} } }; };
   await store.enqueue({ kind: 'review', target: snapshot(), deliveryId: 'no-source', headSha: snapshot().headSha }, true);

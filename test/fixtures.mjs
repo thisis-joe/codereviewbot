@@ -7,8 +7,8 @@ export const changeQuestions = () => [
   { question: 'charge 호출이 성공하고 주문 저장이 실패하면 재시도 결과는 어떻게 달라지나요?', path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() },
   { question: '이 결제 흐름에서 멱등 키와 트랜잭션은 각각 어떤 실패를 다루나요?', path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'advanced', options: choices(), key: answerKey() },
 ];
-// Initial generation output: three basic questions, then the fixture's advanced one.
-export const initialQuestions = () => [...changeQuestions().slice(0, 2), { question: 'pay 재시도 중 save가 실패한 주문은 어떤 상태로 남나요?', path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'basic', options: choices(), key: answerKey() }, changeQuestions()[2]];
+// Initial generation focuses on two distinct CS principles: idempotency and transaction boundaries.
+export const initialQuestions = () => [changeQuestions()[0], changeQuestions()[2]];
 export const verification = (o = {}) => ({ decisions: [], resolutions: [], questions: changeQuestions(), ...o });
 export const analysis = (o = {}) => {
   const value = { summary: '결제 재시도 처리 변경', findings: [], checks: [], recommendedTests: ['재시도 검사'], limitations: [], resolutions: [], questions: changeQuestions(), ...o };

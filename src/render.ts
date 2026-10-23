@@ -1,4 +1,4 @@
-import { INITIAL_QUESTION_COUNT, isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
+import { isQuestionReport, hasChangeQuestions, type Report, type Finding, type Snapshot, type ChangeQuestion, type Grade, type Verdict } from './contracts.js';
 import { createHash } from 'node:crypto';
 import { questionId } from './learning.js';
 import { failureMessage } from './model-failure.js';
@@ -38,7 +38,7 @@ function lines(values: string[]): string[] { return values.map((v, i) => i < val
 // Four literal spaces would start a Markdown code block, so options are indented with non-breaking spaces.
 const indent = '&nbsp;'.repeat(4);
 export const COMMAND_HELP_HINT = '명령어 안내: `/hey help`';
-const answerHelp = ['답변 달기: `/hey answer Q1 B` — 여러 개는 `/hey answer Q1 B Q2 C`', '정답·해설 한 번에 보기: `/hey showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인'];
+const answerHelp = ['답변 달기: `/hey answer Q1 B Q2 C`', '정답·해설 보기: `/hey showanswer`', '더 풀어보기: `/hey morequestion`'];
 const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '🟡 부분 정답', incorrect: '❌ 오답', unverifiable: '⏸ 판정 보류' };
 /** Latest grade per question ID; null marks an answer graded before verdicts were recorded. */
 export type AnswerResults = Map<string, Verdict | null>;
@@ -58,8 +58,8 @@ export function renderCommandHelp(commentId: string): string { return [replyMark
 function list(values: string[]): string { return values.length ? values.map(x => `- ${plain(x)}`).join('\n') : '없음'; }
 export function renderReport(r: Report, results: AnswerResults = new Map()): string {
   const full = renderReportBody(r, results); if (full.length <= 60000) return full;
-  // Preserve complete questions, including the trailing advanced one; the gate uses exactly the visible IDs.
-  const compact: Report = { ...r, questions: r.questions.slice(0, INITIAL_QUESTION_COUNT), limitations: [`댓글 길이 제한으로 질문 ${INITIAL_QUESTION_COUNT}개만 표시합니다.`] };
+  // Preserve the historical four-question compaction limit for oversized legacy reports.
+  const compact: Report = { ...r, questions: r.questions.slice(0, 4), limitations: ['댓글 길이 제한으로 질문 4개만 표시합니다.'] };
   const body = renderReportBody(compact, results);
   if (body.length > 60000) throw new Error('Question report exceeds comment budget');
   return body;
@@ -71,8 +71,8 @@ function renderReportBody(r: Report, results: AnswerResults): string {
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
   const meta = [...(r.state === 'completed' ? [] : [status[r.state]]), `기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`,
     ...(available ? [`답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`] : [])].join(' · ');
-  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v5 -->', '#### hey! 이건 알고 머지하는거지? 😏', '', ...(available ? [...lines(answerHelp), ''] : []),
-    ...questions, ...(r.limitations.length && available ? ['', ...r.limitations.slice(0, 3).map(l => `- ${plain(clip(l, 200))}`)] : []), '', ...lines([meta, COMMAND_HELP_HINT])].join('\n');
+  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v6 -->', available ? `### 핵심 CS 질문 ${r.questions.length}개` : '#### hey! 이건 알고 머지하는거지? 😏', '',
+    ...questions, ...(available ? ['', '---', '', ...lines(answerHelp)] : []), ...(r.limitations.length && available ? ['', ...r.limitations.slice(0, 3).map(l => `- ${plain(clip(l, 200))}`)] : []), '', ...lines([meta, COMMAND_HELP_HINT])].join('\n');
 }
 export interface ReviewEstimate { minutes: number; measured: boolean }
 /** Posted in place of the summary as soon as a review starts; the finished report overwrites it. */
@@ -127,7 +127,7 @@ function questionLines(q: ChangeQuestion, s: Snapshot, label: string, mark = '')
 function renderQuestions(questions: ChangeQuestion[], s: Snapshot, start = 1, results: AnswerResults = new Map(), prefix = 'Q'): string[] {
   return questions.flatMap((q, i) => {
     const id = questionId(s, q), verdict = results.get(id);
-    return [...(i ? [''] : []), ...questionLines(q, s, `${prefix}${start + i}`, results.has(id) ? ` · ${verdict ? verdictMark[verdict] : '답변함'}` : '')];
+    return [...(i ? ['', '---', ''] : []), ...questionLines(q, s, `${prefix}${start + i}`, results.has(id) ? ` · ${verdict ? verdictMark[verdict] : '답변함'}` : '')];
   });
 }
 /** One inline thread per question, so a bare option letter replied in the thread is graded. */
