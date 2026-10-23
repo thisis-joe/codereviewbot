@@ -8,7 +8,7 @@ export const changeQuestions = () => [
   { question: '이 결제 흐름에서 멱등 키와 트랜잭션은 각각 어떤 실패를 다루나요?', path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'advanced', options: choices(), key: answerKey() },
 ];
 // Initial generation focuses on two distinct CS principles: idempotency and transaction boundaries.
-export const initialQuestions = () => [changeQuestions()[0], changeQuestions()[2]];
+export const initialQuestions = () => [changeQuestions()[0], changeQuestions()[2]].map(q => ({ ...q, level: 'basic' }));
 export const verification = (o = {}) => ({ decisions: [], resolutions: [], questions: changeQuestions(), ...o });
 export const analysis = (o = {}) => {
   const value = { summary: '결제 재시도 처리 변경', findings: [], checks: [], recommendedTests: ['재시도 검사'], limitations: [], resolutions: [], questions: changeQuestions(), ...o };

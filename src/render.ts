@@ -117,13 +117,9 @@ export function renderAnswer(a: { answer: string; evidence: string[]; next: stri
     ...(followUp ? ['', '#### 참고', '', plain(next)] : []), '', COMMAND_HELP_HINT].join('\n');
 }
 // Q-IDs stay in hidden markers for threading and the merge gate; readers see revision-wide numbers.
-// Basic is the default, so only advanced review questions carry a tag; 심화N labels already say so.
-function levelTag(q: ChangeQuestion, label: string): string {
-  return q.level === 'advanced' && !label.startsWith('심화') ? '[심화] ' : '';
-}
 // Questions are H4 headings with a blank line before native Markdown list choices.
 function questionLines(q: ChangeQuestion, s: Snapshot, label: string, mark = ''): string[] {
-  return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `#### ${label}. ${levelTag(q, label)}${plain(q.question)}${mark}`, '', ...(q.options ?? []).map(o => `- **${o.id}.** ${plain(o.text)}`)];
+  return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `#### ${label}. ${plain(q.question)}${mark}`, '', ...(q.options ?? []).map(o => `- **${o.id}.** ${plain(o.text)}`)];
 }
 function renderQuestions(questions: ChangeQuestion[], s: Snapshot, start = 1, results: AnswerResults = new Map(), prefix = 'Q'): string[] {
   return questions.flatMap((q, i) => {
@@ -169,14 +165,12 @@ export function renderGrades(items: GradeItem[], s: Snapshot, commentId: string)
   }
   throw new Error('Grading response exceeds comment budget');
 }
-function renderGradeSection({ q, grade, label, picked }: GradeItem, s: Snapshot): string {
-  const answer = q.key?.answer, level = levelTag(q, label);
-  const choice = [...(picked ? [`내 답: **${picked}**`] : []), ...(answer ? [`정답: **${answer}**`] : [])].join(' · ');
-  const tags = (id: string) => [...(id === picked ? ['내 답'] : []), ...(id === answer ? ['정답'] : [])];
+function renderGradeSection({ q, grade, label }: GradeItem, s: Snapshot): string {
+  const answer = q.options?.find(o => o.id === q.key?.answer)?.text;
   return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `### ${label} · ${verdictMark[grade.verdict]}`, '',
-    `#### ${label}. ${level}${plain(q.question)}`, ...(choice ? ['', choice] : []),
+    `#### ${label}. ${plain(q.question)}`, ...(answer ? ['', plain(answer)] : []),
     ...(grade.explanation ? ['', '##### 답변 평가', '', plain(grade.explanation)] : []), '', '##### 해설', '', plain(grade.expectedAnswer),
-    ...((q.options ?? []).length ? ['', '##### 보기별 해설', ...q.options.flatMap(o => ['', `**${o.id}.** ${plain(o.text)}${tags(o.id).length ? ` (${tags(o.id).join('·')})` : ''} — ${plain(grade.optionExplanations.find(e => e.id === o.id)?.explanation ?? '해설 없음')}`])] : []), '',
+    ...((q.options ?? []).length ? ['', '##### 보기별 해설', ...optionExplanationLines(q, id => grade.optionExplanations.find(e => e.id === id)?.explanation ?? '해설 없음')] : []), '',
     '##### 코드 근거', '', ...(grade.evidence.length ? grade.evidence.map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, 700))}`) : ['확인 가능한 코드 근거가 부족해 정답·오답을 확정하지 않았습니다.'])].join('\n');
 }
 export interface RevealItem { q: ChangeQuestion; label: string }
@@ -190,9 +184,13 @@ export function renderReveal(items: RevealItem[], s: Snapshot, commentId: string
   }
   throw new Error('Answer sheet exceeds comment budget');
 }
+function optionExplanationLines(q: ChangeQuestion, explain: (id: string) => string): string[] {
+  return (q.options ?? []).flatMap(o => ['', `- **${o.id}.** ${plain(o.text)}`, '', `  > ${plain(explain(o.id))}`]);
+}
 function renderRevealSection({ q, label }: RevealItem, s: Snapshot, text: number, option: number): string {
-  const key = q.key, head = `#### ${label}. ${levelTag(q, label)}${plain(q.question)}`;
+  const key = q.key, head = `#### ${label}. ${plain(q.question)}`;
   if (!key) return [head, '', '저장된 정답이 없는 이전 질문입니다. `/hey answer`로 답하면 채점과 해설을 받을 수 있습니다.'].join('\n');
-  return [head, '', `정답: **${key.answer}** · 코드 위치: ${ref(s, q.path, q.line, q.side, 80)}`, '', '##### 해설', '', plain(clip(key.explanation, text)),
-    ...((q.options ?? []).length ? ['', '##### 보기별 해설', ...q.options.flatMap(o => ['', `**${o.id}.** ${plain(o.text)}${o.id === key.answer ? ' (정답)' : ''} — ${plain(clip(key.options.find(e => e.id === o.id)?.explanation ?? '해설 없음', option))}`])] : [])].join('\n');
+  const answer = q.options?.find(o => o.id === key.answer)?.text;
+  return [head, ...(answer ? ['', plain(answer)] : []), '', '##### 해설', '', plain(clip(key.explanation, text)),
+    ...((q.options ?? []).length ? ['', '##### 보기별 해설', ...optionExplanationLines(q, id => clip(key.options.find(e => e.id === id)?.explanation ?? '해설 없음', option))] : []), '', '##### 코드 근거', '', `- ${ref(s, q.path, q.line, q.side, 80)}`].join('\n');
 }

@@ -19,11 +19,15 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   the core CS principles behind the actual change, in priority order, in one
   `initial_questions` model call with a 120,000 ms budget per attempt. Each question
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
-  anchor. Each question retains a basic/advanced level, without a difficulty quota.
+  anchor. Both initial questions must be basic; advanced learning is opt-in.
+  Difficulty tags are never displayed.
   Questions and choices come before concise answer/reveal/optional-morequestion hints.
   `/hey morequestion` generates additional questions only on explicit request,
   using the same question-first layout. Newly generated answer keys and grading
-  explanations teach a relevant CS concept and connect it to the actual code.
+  explanations teach a relevant CS concept and connect it to the actual code,
+  using one to three sentences per explanation. Feedback shows the correct choice
+  as a sentence; option explanations appear on a new, indented line, without
+  picked/correct letter comparisons or per-option verdict tags.
   The initial comment starts with `hey! 이건 알고 머지하는거지? 😏`;
   additional batches start directly with their first question, without a batch title.
   Questions use H4 headings; explanation sections use H5 and blank lines.

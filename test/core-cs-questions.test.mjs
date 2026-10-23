@@ -8,9 +8,9 @@ import { questionId } from '../dist/learning.js';
 import { readPolicy } from '../dist/policy.js';
 import { snapshot, report, changeQuestions } from './fixtures.mjs';
 
-const questions = () => [changeQuestions()[0], changeQuestions()[2]];
-test('initial CS questions accept exactly two without a forced difficulty mix', () => {
- for (const level of ['basic', 'advanced']) assert.equal(InitialQuestionsSchema.safeParse({questions:questions().map(q=>({...q,level}))}).success,true);
+const questions = () => [changeQuestions()[0], changeQuestions()[2]].map(q=>({...q,level:'basic'}));
+test('initial CS questions accept exactly two basic questions', () => {
+ for (const level of ['basic', 'advanced']) assert.equal(InitialQuestionsSchema.safeParse({questions:questions().map(q=>({...q,level}))}).success,level === 'basic');
  for (const count of [0,1,3,4,5]) assert.equal(InitialQuestionsSchema.safeParse({questions:Array.from({length:count},()=>questions()[0])}).success,false);
 });
 test('generation asks for two distinct change-grounded CS principles in a single call', async()=>{

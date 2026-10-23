@@ -50,7 +50,7 @@ test('published questions expose revision-bound answer IDs and visible choices w
   // Readers see Q1..Q3 as level-4 headings with bold A–D labels on their own lines; hash IDs and code links stay out of the question list.
   assert.doesNotMatch(first, /기본/);
   assert.match(first, /^#### Q1\. 이번 pay [^\n]*\?\n\n- \*\*A\.\*\* 새 키\n- \*\*B\.\*\* 같은 키\n- \*\*C\.\*\* 보기 C\n- \*\*D\.\*\* 보기 D$/m);
-  assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. \[심화\] 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
+  assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
   assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏$/m);
   assert.match(first, /답변 0\/3/);
@@ -94,8 +94,8 @@ test('grading preserves question, verdict, all option explanations and valid lin
   const grade = { verdict: 'partial', explanation: '&'.repeat(2000), expectedAnswer: '&'.repeat(2000), optionExplanations: q.options.map(o => ({ id: o.id, explanation: '&'.repeat(799) + o.id })), evidence: Array(6).fill({ path: q.path, line: 1, side: 'RIGHT', reason: '&'.repeat(6000) }) };
   assert.equal(contracts.ChangeQuestionSchema.safeParse(q).success, true); assert.equal(contracts.GradeSchema.safeParse(grade).success, true);
   const body = renderGrade(q, report().snapshot, grade, 'human1', 'Q2', 'C');
-  assert.match(body, /^\*\*C\.\*\* &amp;.*C \(내 답\) — /m); assert.match(body, /^\*\*D\.\*\* &amp;.*D \(정답\) — /m); assert.doesNotMatch(body, /^\*\*A\.\*\* .*\(내 답\)/m);
-  assert.ok(body.length <= 60000, `got ${body.length}`); assert.match(body, /^### Q2 · 🟡 부분 정답$/m); assert.match(body, /^#### Q2\. \[심화\] /m); assert.match(body, /^내 답: \*\*C\*\* · 정답: \*\*D\*\*$/m);
-  for (const id of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`^\\*\\*${id}\\.\\*\\* `, 'm'));
+  assert.match(body, /^- \*\*C\.\*\* &amp;.*C\n\n  > &amp;/m); assert.match(body, /^- \*\*D\.\*\* &amp;.*D\n\n  > &amp;/m); assert.doesNotMatch(body, /내 답:|정답:|\(내 답\)|\(정답\)|\[심화\]/);
+  assert.ok(body.length <= 60000, `got ${body.length}`); assert.match(body, /^### Q2 · 🟡 부분 정답$/m); assert.match(body, /^#### Q2\. /m); assert.match(body, /^&amp;.*D$/m);
+  for (const id of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`^- \\*\\*${id}\\.\\*\\* `, 'm'));
   assert.ok(body.includes('%E6%BC%A2'.repeat(99))); assert.ok(body.includes('&amp;'.repeat(500)));
 });

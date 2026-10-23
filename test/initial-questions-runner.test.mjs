@@ -15,7 +15,7 @@ const questions = count => Array.from({ length: count }, (_, i) => ({
   ...changeQuestions()[i % 3], question: `변경된 처리 조건 ${i + 1}은 무엇인가요?`,
 }));
 
-test('initial question contract accepts exactly two questions with either difficulty and rejects review output', () => {
+test('initial question contract accepts exactly two basic questions and rejects review output', () => {
   assert.ok(contracts.InitialQuestionsSchema, 'initial question contract must be exported');
   assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(2) }).success, true);
   assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(2).reverse() }).success, true, 'both priority orders are accepted');
@@ -23,7 +23,7 @@ test('initial question contract accepts exactly two questions with either diffic
     assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(count) }).success, false);
   }
   for (const levels of [['basic', 'basic'], ['advanced', 'advanced']]) {
-    assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(2).map((q, i) => ({ ...q, level: levels[i] })) }).success, true, levels.join());
+    assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(2).map((q, i) => ({ ...q, level: levels[i] })) }).success, levels.every(level => level === 'basic'), levels.join());
   }
   for (const field of ['summary', 'findings', 'checks', 'recommendedTests', 'limitations', 'resolutions']) {
     assert.equal(contracts.InitialQuestionsSchema.safeParse({ questions: questions(2), [field]: [] }).success, false, field);
@@ -46,6 +46,7 @@ const args = process.argv.slice(2), at = flag => args[args.indexOf(flag) + 1];
 const codex = args.includes('--output-schema');
 const schema = codex ? JSON.parse(fs.readFileSync(at('--output-schema'), 'utf8')) : JSON.parse(at('--json-schema'));
 if (schema.additionalProperties !== false || Object.keys(schema.properties).join() !== 'questions' || schema.required.join() !== 'questions' || schema.properties.questions.minItems !== 2 || schema.properties.questions.maxItems !== 2) process.exit(42);
+if (schema.properties.questions.items.properties.level.const !== 'basic') process.exit(44);
 if (!codex && !/question and learning assistant/i.test(at('--system-prompt'))) process.exit(43);
 const value = ${JSON.stringify(value)};
 if (codex) fs.writeFileSync(at('-o'), JSON.stringify(value));

@@ -83,8 +83,8 @@ test('a bare option letter is graded from the stored key without a model call an
   for (const [answer, verdict] of [['B', /✅ 정답/], ['b입니다.', /✅ 정답/], ['A', /❌ 오답/]]) {
     const h = learningHarness(`/hey answer ${id} ${answer}`, { report: r, comment: { parentId: 'root1' } }); await h.run();
     assert.equal(h.data.calls.length, 0); assert.equal(h.data.replies[0][2], 'root1');
-    const body = h.data.replies[0][1]; assert.match(body, verdict); assert.match(body, /정답: \*\*B\*\*/); assert.match(body, /정답은 B입니다/);
-    for (const option of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`^\\*\\*${option}\\.\\*\\* .* — ${option} 보기 해설$`, 'm'));
+    const body = h.data.replies[0][1]; assert.match(body, verdict); assert.match(body, /^같은 키$/m); assert.doesNotMatch(body, /내 답:|정답:/); assert.match(body, /정답은 B입니다/);
+    for (const option of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`^- \\*\\*${option}\\.\\*\\* [^\\n]*\\n\\n  > ${option} 보기 해설$`, 'm'));
     assert.deepEqual(h.data.saved.grades, [{ id, verdict: answer === 'A' ? 'incorrect' : 'correct' }]);
   }
 });
@@ -161,7 +161,7 @@ test('display numbers resolve to review questions first and then continue throug
   const r = report(), extra = extraQuestions();
   const second = learningHarness('/hey answer Q2 B', { report: r, output: grade }); await second.run();
   assert.deepEqual(second.data.saved.grades, [{ id: questionId(r.snapshot, r.questions[1]), verdict: 'correct' }]); assert.match(second.data.replies[0][1], /^### Q2 · ✅ 정답$/m);
-  assert.match(second.data.replies[0][1], /^내 답: \*\*B\*\* · 정답: \*\*B\*\*$/m);
+  assert.match(second.data.replies[0][1], /^보기 B$/m);
   const batch = learningHarness('/hey answer 심화2 C', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }], output: grade }); await batch.run();
   assert.deepEqual(batch.data.saved.grades, [{ id: questionId(r.snapshot, extra[1]), verdict: 'incorrect' }]); assert.match(batch.data.replies[0][1], /^### 심화2 · ❌ 오답$/m); assert.doesNotMatch(batch.data.replies[0][1], /\[심화\]/);
   const clash = learningHarness('/hey answer Q5 C', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await clash.run();
@@ -258,8 +258,8 @@ test('showanswer reveals stored keys without grading, a model call or answer cre
   const body = all.data.replies[0][1];
   assert.equal(all.data.calls.length, 0); assert.equal(all.data.saved.grades, undefined);
   assert.match(body, /^### 정답·해설$/m); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3); assert.doesNotMatch(body, /심화1|codereviewbot:question:/);
-  assert.match(body, /^정답: \*\*B\*\* · 코드 위치: \[src\/pay\\\.ts:2\]\(.*\/blob\/.*#L2\)$/m);
-  assert.ok(body.includes('##### 해설\n\n') && body.includes('##### 보기별 해설\n\n')); assert.match(body, /^\*\*B\.\*\* 보기 B \(정답\) — /m);
+  assert.match(body, /^- \[src\/pay\\\.ts:2\]\(.*\/blob\/.*#L2\)$/m);
+  assert.ok(body.includes('##### 해설\n\n') && body.includes('##### 보기별 해설\n\n')); assert.match(body, /^- \*\*B\.\*\* 보기 B\n\n  > B 보기 해설/m);
   const picked = learningHarness('/hey showanswer 심화2 Q9', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await picked.run();
   assert.match(picked.data.replies[0][1], /Q9: .*찾을 수 없습니다/); assert.doesNotMatch(picked.data.replies[0][1], /정답:/);
   const follow = learningHarness('/hey showanswer 심화2', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await follow.run();
@@ -274,7 +274,7 @@ test('grading reserves comment room for the request link near the output boundar
   const output = { verdict: 'correct', explanation: '&'.repeat(2000), expectedAnswer: '&'.repeat(1426), optionExplanations: r.questions[0].options.map(o => ({ id: o.id, explanation: '&'.repeat(799) + o.id })), evidence: Array(6).fill({ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '&'.repeat(400) }) };
   const h = learningHarness(`/hey answer ${id} A`, { report: r, output, comment: { id: '123456789', surface: 'issue' }, remote: [{ id: '123456789', author: 'joe', surface: 'issue', body: 'answer', url: 'https://github.com/joe/demo/pull/1#issuecomment-123456789' }] });
   await h.run(); assert.equal(h.data.replies.length, 1); assert.ok(h.data.replies[0][1].length <= 60000); assert.match(h.data.replies[0][1], /요청 댓글/);
-  for (const id of ['A', 'B', 'C', 'D', 'E']) assert.match(h.data.replies[0][1], new RegExp(`^\\*\\*${id}\\.\\*\\*`, 'm'));
+  for (const id of ['A', 'B', 'C', 'D', 'E']) assert.match(h.data.replies[0][1], new RegExp(`^- \\*\\*${id}\\.\\*\\*`, 'm'));
 });
 
 test('oversized follow-up batches keep all five questions and their choices within the comment budget', async () => {
