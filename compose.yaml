@@ -41,7 +41,10 @@ services:
     environment:
       TZ: ${TZ:-Asia/Seoul}
       RUNNER_TOKEN: ${RUNNER_TOKEN:?Run setup}
-      MODEL_PROVIDER: ${MODEL_PROVIDER:-codex}
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-gms}
+      GMS_KEY: ${GMS_KEY:-}
+      GMS_MODEL: ${GMS_MODEL:-gpt-6.1-sol}
+      GMS_RESPONSES_URL: ${GMS_RESPONSES_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses}
       CODEX_HOME: /codex
       CODEX_MODEL: ${CODEX_MODEL:-}
       CODEX_API_KEY: ${CODEX_API_KEY:-}

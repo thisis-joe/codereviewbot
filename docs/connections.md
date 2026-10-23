@@ -5,7 +5,7 @@
 
 ## 1. 질문 생성 엔진 선택과 로그인
 
-`.env`의 `MODEL_PROVIDER`로 엔진을 고른다. `codex`(기본값) 또는 `claude`.
+`.env`의 `MODEL_PROVIDER`로 엔진을 고른다. `gms`(기본값), `codex` 또는 `claude`.
 엔진마다 계정 로그인과 API 키 중 하나를 쓴다. API 키는 `*_BASE_URL`로 호환 프록시(예: GMS)를 지정할 수 있다.
 값을 바꾼 뒤 `docker compose up -d --force-recreate runner`로 다시 읽는다. 실행기 로그의 `provider`로 적용 여부를 확인한다.
 
@@ -44,18 +44,25 @@ docker compose exec runner claude auth login
 docker compose exec runner claude auth status
 ```
 
-### API 게이트웨이로 전환 (예: SSAFY GMS)
+### GMS Responses API 직접 호출 (기본 엔진)
 
-계정 로그인에서 기관이 발급한 API 키로 바꿀 때는 `.env`만 고친다. 주소와 모델 이름은 게이트웨이 문서의 값을 그대로 쓴다.
+Claude CLI 없이 GMS의 OpenAI Responses API를 직접 호출한다. `.env`에 다음 값을 설정한다.
 
-1. 계정 인증을 지운다. `CLAUDE_CODE_OAUTH_TOKEN`을 비우고, 실행기 안에서 로그인했다면 `docker compose exec runner claude auth logout`을 실행한다. 남아 있으면 어느 인증이 쓰였는지 헷갈린다.
-2. 게이트웨이가 제공하는 API 형식에 맞춰 설정한다.
-   - Anthropic Messages 형식: `MODEL_PROVIDER=claude`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`. 게이트웨이가 `Authorization: Bearer`를 요구하면 `ANTHROPIC_AUTH_TOKEN`에 넣는다.
-   - OpenAI Responses 형식: `MODEL_PROVIDER=codex`, `CODEX_BASE_URL`(`/v1` 포함), `CODEX_API_KEY`.
-3. `CLAUDE_MODEL` 또는 `CODEX_MODEL`에 게이트웨이가 허용하는 모델 이름을 넣는다.
-4. `docker compose up -d --force-recreate runner` 후 테스트 MR로 확인한다.
+```dotenv
+MODEL_PROVIDER=gms
+GMS_KEY=<기관에서 발급한 키>
+GMS_MODEL=gpt-6.1-sol
+GMS_RESPONSES_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses
+```
 
-Chat Completions 형식만 제공하는 게이트웨이는 두 CLI 모두 직접 호출할 수 없다. 이 경우 별도 어댑터가 필요하다.
+키는 `.env`에만 보관한다. `GMS_KEY`가 없으면 실행기가 시작하지 않는다.
+기존 Claude/Codex 인증은 GMS 요청에 사용하지 않는다.
+`docker compose up -d --build --force-recreate runner`로 적용하고 실행기 로그의 `provider: gms`를 확인한다.
+
+요청은 Bearer 인증과 `store: false`를 사용한다. 모델은 스냅샷의 파일 목록·읽기·검색·기준 커밋 읽기 도구만 호출할 수 있다.
+소스는 기존 비밀정보 제거 및 경로 제한을 거치며, 최종 JSON은 단계별 스키마로 검증한다.
+호출 전체의 제한 시간, 최대 64회 요청, 회당 16개 도구 호출, 응답·대화 크기 제한을 적용한다.
+인증 실패·사용량 제한·시간 초과는 GMS 실패로 보고하며 다른 엔진으로 자동 전환하지 않는다.
 
 ### Claude 실행 제한
 

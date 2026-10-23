@@ -4,7 +4,7 @@ import type { Event } from './webhooks.js';
 
 export const FailureSchema = z.strictObject({
   code: z.enum(['rate_limit', 'authentication', 'timeout', 'unavailable', 'invalid_output', 'unknown']),
-  provider: z.enum(['claude', 'codex']).optional(),
+  provider: z.enum(['claude', 'codex', 'gms']).optional(),
   apiStatus: z.int().min(400).max(599).optional(),
   retryAt: z.iso.datetime().optional(),
 });
@@ -13,7 +13,7 @@ export const RunnerFailureSchema = z.strictObject({ error: z.literal('model_fail
 export class ModelFailure extends Error {
   constructor(readonly failure: FailureInfo) { super(`${failure.provider ?? 'model'} ${failure.code}${failure.code === 'invalid_output' ? ': no structured output' : ''}${failure.apiStatus ? ` (API ${failure.apiStatus})` : ''}`); }
 }
-export function failureInfo(error: unknown, provider?: 'claude' | 'codex'): FailureInfo {
+export function failureInfo(error: unknown, provider?: 'claude' | 'codex' | 'gms'): FailureInfo {
   if (error instanceof ModelFailure) return error.failure;
   const code = error instanceof z.ZodError || error instanceof SyntaxError ? 'invalid_output'
     : error instanceof Error && (/time budget/i.test(error.message) || error.name === 'TimeoutError') ? 'timeout' : 'unknown';
@@ -31,7 +31,7 @@ export function scheduleFailure(failure: FailureInfo, now = Date.now()): Failure
   return retryableFailure(failure) ? { ...failure, retryAt: new Date(now + (failure.code === 'rate_limit' ? 15 : 5) * 60000).toISOString() } : failure;
 }
 export function failureMessage(failure: FailureInfo): string {
-  const provider = failure.provider === 'claude' ? 'Claude' : failure.provider === 'codex' ? 'Codex' : '질문 생성 서비스';
+  const provider = failure.provider === 'gms' ? 'GMS' : failure.provider === 'claude' ? 'Claude' : failure.provider === 'codex' ? 'Codex' : '질문 생성 서비스';
   const messages: Record<FailureInfo['code'], string> = {
     rate_limit: `${provider} 사용량 제한${failure.apiStatus ? `(${failure.apiStatus})` : ''}으로 질문 생성을 잠시 멈췄습니다.`,
     authentication: `${provider} 인증을 확인할 수 없습니다. 봇 운영자가 로그인·키 설정을 확인해야 합니다.`,
