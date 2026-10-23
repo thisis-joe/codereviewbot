@@ -49,7 +49,7 @@
 
 답변 달기: `/hey answer 심화1 B 심화2 C`
 
-정답·해설 보기: `/hey showanswer 심화1 심화2 심화3 심화4 심화5`
+정답·해설 보기: 이 질문 스레드에 답글로 `/hey showanswer`
 
 더 풀어보기: `/hey morequestion`
 

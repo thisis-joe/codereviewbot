@@ -115,3 +115,24 @@ test('CI-only provider webhooks do not enqueue question work', () => {
   }
   assert.deepEqual(normalize({ repo: { ...repo, platform: 'gitlab' }, deliveryId: 'pipeline', event: 'Pipeline Hook', body: { object_kind: 'pipeline', merge_request: { iid: 1 }, object_attributes: { status: 'success', sha: 'b'.repeat(40) } } }), []);
 });
+
+test('follow-up question batches open new replyable GitLab discussions and GitHub code threads', async t => {
+  const requests = [];
+  const server = createServer(async (req, res) => { let raw = ''; for await (const chunk of req) raw += chunk; requests.push({ url: req.url, body: JSON.parse(raw) }); res.setHeader('content-type', 'application/json'); res.end('{}'); });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
+  const { snapshot } = await import('./fixtures.mjs'); const snap = snapshot();
+  const anchor = { snapshot: snap, path: 'src/pay.ts', oldPath: 'src/pay.ts', line: 2, side: 'RIGHT', coordinates: { newLine: 2 }, suggestion: null };
+  for (const name of ['gitlab', 'github']) {
+    const platform = new Platform({ ...repo, platform: name, instance: `http://127.0.0.1:${server.address().port}` }, async () => 'test');
+    await platform.reply(1, 'five questions', 'old-root', 'old-discussion', anchor);
+    const request = requests.at(-1);
+    assert.doesNotMatch(request.url, /old-root|old-discussion|\/replies/);
+    assert.equal(request.body.body, 'five questions');
+    if (name === 'gitlab') { assert.match(request.url, /merge_requests\/1\/discussions$/); assert.equal(request.body.position, undefined); }
+    else {
+      assert.match(request.url, /pulls\/1\/comments$/); assert.equal(request.body.line, 2); assert.equal(request.body.commit_id, snap.headSha);
+      await platform.reply(1, 'rename questions', 'old-root', null, { ...anchor, path: 'src/renamed.ts', coordinates: undefined });
+      const file = requests.at(-1); assert.equal(file.body.subject_type, 'file'); assert.equal(file.body.path, 'src/renamed.ts'); assert.equal(file.body.line, undefined); assert.equal(file.body.side, undefined);
+    }
+  }
+});

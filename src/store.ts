@@ -3,12 +3,12 @@ import { readFile } from 'node:fs/promises';
 import type { Pool, PoolClient } from 'pg';
 import type { Report, Target, Snapshot, ChangeQuestion, Verdict } from './contracts.js';
 import { commentKey, type Event } from './webhooks.js';
-import type { RemoteComment } from './platform.js';
+import type { RemoteComment, InlineInput } from './platform.js';
 import type { DiffMetadata } from './review.js';
 import { retryableFailure, recoveryAttempts } from './model-failure.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
-export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; start?: number; answered?: string; grades?: { id: string; verdict: Verdict }[] }
+export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; questionThread?: Omit<InlineInput, 'body'>; revealThreadVersion?: 1; start?: number; answered?: string; grades?: { id: string; verdict: Verdict }[] }
 export interface Job { id: string; target_key: string; kind: 'review' | 'ci' | 'command'; body: Event & { force?: boolean }; state: string; owner: string; attempts: number; result: Report | null; diff: Record<string, DiffMetadata> | null; max_inline: number; command_result?: CommandResult | null }
 export class Store {
   constructor(readonly pool: Pool) {}

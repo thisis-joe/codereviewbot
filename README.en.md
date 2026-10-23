@@ -33,7 +33,7 @@ This is **one illustrative question**, assuming payment retries reuse the first 
 > ---
 >
 > 답변 달기: `/hey answer Q1 B`<br>
-> 정답·해설 보기: `/hey showanswer`<br>
+> 정답·해설 보기: 이 질문 스레드에 답글로 `/hey showanswer`<br>
 > 더 풀어보기: `/hey morequestion`
 
 Questions use H4 headings and blank lines. Reference commits appear as a list of **linked commit titles** rather than hashes. Follow-ups start with the first question, without a batch heading or `[심화]` difficulty tag.
@@ -51,8 +51,7 @@ Comment on a connected PR/MR. Commands require GitHub Write or GitLab Developer 
 | Get help | `/hey help` |
 | Answer one question | `/hey answer Q1 B` |
 | Answer several questions | `/hey answer Q1 B Q2 A` |
-| Reveal the 2 initial answers and explanations | `/hey showanswer` |
-| Reveal specific questions | `/hey showanswer Q1 심화2` |
+| Reveal the questions in the comment you reply to | `/hey showanswer` |
 | Get 5 follow-up questions | `/hey morequestion` |
 | Regenerate questions | `/hey tryagain` |
 | Ask about the code | `@hey 이 변경에서 멱등성이 필요한 이유가 뭔가요?` |
@@ -63,7 +62,9 @@ Comment on a connected PR/MR. Commands require GitHub Write or GitLab Developer 
 - In an inline thread containing one question, a reply such as `B` is enough for grading. Use question numbers in summary comments.
 - A choice alone is graded from the stored answer key. If you add reasoning, the model also assesses it.
 - `/hey showanswer` reads stored explanations without a model call or marking questions as answered.
-- **A bare `/hey showanswer` still reveals only the initial questions after follow-ups have been generated.** Name the follow-ups explicitly: `/hey showanswer 심화1 심화2 심화3 심화4 심화5`. Each follow-up comment includes its own reveal command.
+- **The question comment you reply to determines the scope.** Reply beneath the initial questions to reveal only those, or beneath a follow-up batch to reveal only that batch. Individual question selectors are not supported.
+- Each follow-up batch opens a separate thread. Outside a question thread, the bot asks you to reply to the relevant question comment. It does not guess a scope for older revisions or legacy threads mixing several batches.
+- On GitLab, use the question comment's reply field. Ordinary GitHub PR comments have no child replies, so use a **question thread attached to code**. The 5 follow-ups share a separate code thread; an initial inline thread reveals only the one question shown there.
 
 Follow-up numbers continue within the same code version: `심화1–5`, then `심화6–10`. Each PR/MR allows up to 5 follow-up requests per code version. Earlier question and answer history is preserved.
 
