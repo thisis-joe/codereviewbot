@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Controller } from '../dist/controller.js';
-import { snapshot, report, choices, answerKey } from './fixtures.mjs';
+import { snapshot, report, choices, answerKey, initialQuestions } from './fixtures.mjs';
 import { questionId } from '../dist/learning.js';
 import { parseCommand } from '../dist/commands.js';
 
@@ -72,7 +72,7 @@ test('more-learning generates a source-bound technical batch and persists it bef
   const h = learningHarness('/hey morequestion'); await h.run();
   assert.deepEqual(h.data.calls.map(c => c.phase), ['questions']);
   assert.equal(h.data.saved.questions.length, 5);
-  assert.match(h.data.replies[0][1], /심화 질문/);
+  assert.match(h.data.replies[0][1], /^#### 심화1\./m);
   assert.equal(new Set([...h.data.replies[0][1].matchAll(/codereviewbot:question:(Q-[a-f0-9]{12})/g)].map(m => m[1])).size, 5);
   assert.equal(h.data.saved.snapshot.headSha, 'b'.repeat(40));
 });
@@ -231,7 +231,7 @@ test('large but valid accumulated learning context fits the runner prompt bounda
   const options = ['A', 'B', 'C', 'D', 'E'].map(id => ({ id, text: id + 'x'.repeat(299) }));
   const questions = Array.from({ length: 50 }, (_, i) => ({ question: String(i).padStart(3, '0') + 'q'.repeat(497), path: 'src/pay.ts', line: 2, side: 'RIGHT', options }));
   const h = learningHarness('/hey morequestion', { report: report({ questions: questions.slice(0, 10) }), batches: [0, 1, 2, 3].map(i => ({ snapshot: snapshot(), questions: questions.slice((i + 1) * 10, (i + 2) * 10) })), policy: { pathInstructions: Array.from({ length: 25 }, (_, i) => ({ path: `src/${i}`, instructions: 'p'.repeat(4000) })) }, context: { ...context(), diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -0,0 +1 @@\n+' + '\t'.repeat(139000), lines: new Set([1, 2]) } } } });
-  await h.run(); assert.ok(h.data.calls[0].prompt.length <= 500000); assert.match(h.data.replies[0][1], /심화 질문/);
+  await h.run(); assert.ok(h.data.calls[0].prompt.length <= 500000); assert.match(h.data.replies[0][1], /^#### 심화41\./m);
   assert.ok(h.data.calls[0].prompt.includes(questions[49].question));
 });
 
@@ -335,7 +335,7 @@ test('follow-ups lead with questions and request CS explanations at generation t
   const h = learningHarness('/hey morequestion'); await h.run();
   const body = h.data.replies[0][1];
   assert.ok(body.indexOf('#### 심화5.') < body.indexOf('답변 달기:'));
-  assert.match(body, /### 심화 질문 5개/);
+  assert.match(body, /^#### 심화1\./m);
   assert.match(h.data.calls[0].prompt, /CS 개념.*정의/);
   assert.match(h.data.calls[0].prompt, /코드.*적용/);
   assert.doesNotMatch(body, /정답은 B입니다/);
@@ -357,4 +357,17 @@ test('answer and reveal retain stored commit titles when the live snapshot omits
     assert.match(h.data.replies[0][1], /- \[질문 생성 흐름 개선\]/);
     assert.deepEqual(h.data.saved.snapshot.commits, r.snapshot.commits);
   }
+});
+
+
+test('bare showanswer still covers only the initial two questions after requesting more', async () => {
+  const r = report({ questions: initialQuestions() }), extra = extraQuestions();
+  const before = learningHarness('/hey showanswer', { report: r }); await before.run();
+  const after = learningHarness('/hey showanswer', { report: r, batches: [{ snapshot: r.snapshot, questions: extra, start: 1 }] }); await after.run();
+  assert.equal(before.data.replies[0][1], after.data.replies[0][1]);
+  assert.equal([...after.data.replies[0][1].matchAll(/^#### Q\d+\./gm)].length, 2);
+  assert.doesNotMatch(after.data.replies[0][1], /^#### 심화/m);
+  const all = learningHarness('/hey showanswer Q1 Q2 심화1 심화2 심화3 심화4 심화5', { report: r, batches: [{ snapshot: r.snapshot, questions: extra, start: 1 }] }); await all.run();
+  assert.equal([...all.data.replies[0][1].matchAll(/^#### (?:Q|심화)\d+\./gm)].length, 7);
+  assert.equal(all.data.calls.length, 0); assert.equal(all.data.saved.grades, undefined);
 });

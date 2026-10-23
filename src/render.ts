@@ -45,7 +45,7 @@ const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '
 export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
   ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화 질문: 심화1 B', '/hey answer Q1 B'],
-  ['/hey showanswer', '정답 보기', '전체 정답·해설 보기. 번호를 붙이면 해당 질문만 표시<br>예: Q1 심화2 · 답변 수와 머지 조건에는 반영하지 않음', '/hey showanswer'],
+  ['/hey showanswer', '정답 보기', '최초 질문 전체의 정답·해설 보기. 추가 질문은 심화 번호 지정<br>예: Q1 심화2 · 답변 수와 머지 조건에는 반영하지 않음', '/hey showanswer'],
   ['/hey morequestion', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey morequestion'],
   ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],
   ['@hey', '코드 질문', '관련 코드를 확인해 질문에 답변', '@hey 키를 재사용하는 이유는?'],
@@ -72,7 +72,7 @@ function renderReportBody(r: Report, results: AnswerResults): string {
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
   const meta = [...(r.state === 'completed' ? [] : [status[r.state]]),
     ...(available ? [`답변 ${r.questions.filter(q => results.has(questionId(s, q))).length}/${r.questions.length}`] : [])].join(' · ');
-  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v7 -->', available ? `### 핵심 CS 질문 ${r.questions.length}개` : '#### hey! 이건 알고 머지하는거지? 😏', '',
+  return [SUMMARY_MARKER, summaryMarker(s), '<!-- codereviewbot:format:v7 -->', '#### hey! 이건 알고 머지하는거지? 😏', '',
     ...questions, ...(available ? ['', '---', '', ...lines(answerHelp)] : []), ...(r.limitations.length && available ? ['', ...r.limitations.slice(0, 3).map(l => `- ${plain(clip(l, 200))}`)] : []), '', ...(meta ? [meta, ''] : []), ...commitLines(s), '', COMMAND_HELP_HINT].join('\n');
 }
 export interface ReviewEstimate { minutes: number; measured: boolean }
@@ -150,7 +150,7 @@ export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, co
   const labels = questions.map((_, i) => `심화${start + i}`);
   const help = [`답변 달기: \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
     `정답·해설 보기: \`/hey showanswer ${labels.join(' ')}\``, '더 풀어보기: `/hey morequestion`'];
-  return [replyMarker(commentId), `### 심화 질문 ${questions.length}개`, '', ...renderQuestions(questions, s, start, new Map(), '심화'), '', '---', '',
+  return [replyMarker(commentId), ...renderQuestions(questions, s, start, new Map(), '심화'), '', '---', '',
     ...lines(help), '', ...commitLines(s), '', COMMAND_HELP_HINT].join('\n');
 }
 export interface GradeItem { q: ChangeQuestion; grade: Grade; label: string; picked?: string }

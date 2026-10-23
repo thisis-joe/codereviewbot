@@ -52,7 +52,7 @@ test('published questions expose revision-bound answer IDs and visible choices w
   assert.match(first, /^#### Q1\. 이번 pay [^\n]*\?\n\n- \*\*A\.\*\* 새 키\n- \*\*B\.\*\* 같은 키\n- \*\*C\.\*\* 보기 C\n- \*\*D\.\*\* 보기 D$/m);
   assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. \[심화\] 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
-  assert.match(first, /^### 핵심 CS 질문 3개$/m);
+  assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏$/m);
   assert.match(first, /답변 0\/3/);
   assert.ok(!first.includes(answerKey().explanation) && !first.includes('보기 해설'));
   assert.match(first, /^명령어 안내: `\/hey help`$/m);
@@ -80,7 +80,7 @@ test('question and grading comments keep one help entry point without repeating 
 
 test('follow-up batches and inline threads name their own labels for answering and revealing', () => {
   const r = report(), batch = renderQuestionBatch(r.questions, r.snapshot, 'batch', 6);
-  assert.match(batch, /^### 심화 질문 3개\n\n<!-- codereviewbot:question:/m);
+  assert.match(batch, /^<!-- codereviewbot:reply:batch -->\n<!-- codereviewbot:question:/m);
   assert.ok(batch.indexOf('#### 심화8.') < batch.indexOf('답변 달기:'));
   assert.match(batch, /답변 달기: `\/hey answer 심화6 B 심화7 C`/);
   assert.match(batch, /정답·해설 보기: `\/hey showanswer 심화6 심화7 심화8`/);
