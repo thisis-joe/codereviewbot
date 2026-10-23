@@ -4,8 +4,8 @@ import type { Target, Snapshot } from './contracts.js';
 
 export interface Comment { id: string; body: string; author: string; parentId: string | null; discussionId: string | null; surface: 'issue' | 'review' | 'note' }
 export function commentKey(comment: Pick<Comment, 'surface' | 'id'>): string { return `${comment.surface}-${comment.id}`; }
-// `requested` marks work a person asked for by command; only that work also runs on a closed or merged PR/MR.
-export interface Event { kind: 'review' | 'ci' | 'command' | 'closed'; target: Target; deliveryId: string; headSha?: string; regenerate?: boolean; requested?: boolean; recoveryAttempt?: number; recoverySnapshot?: Snapshot; comment?: Comment }
+// Explicit commands and completed-merge events may run after the PR/MR closes.
+export interface Event { kind: 'review' | 'ci' | 'command' | 'closed'; target: Target; deliveryId: string; headSha?: string; regenerate?: boolean; requested?: boolean; merged?: boolean; recoveryAttempt?: number; recoverySnapshot?: Snapshot; comment?: Comment }
 export interface Authenticated { repo: RepositoryConfig; deliveryId: string; event: string; body: any }
 export function equal(a: string, b: string): boolean {
   const left = Buffer.from(a), right = Buffer.from(b);
@@ -42,8 +42,9 @@ export function normalize(input: Authenticated): Event[] {
   const output = (kind: Event['kind'], number: unknown, extra: Partial<Event> = {}): Event[] => { const target = base(number); return target ? [{ kind, target, deliveryId, ...extra }] : []; };
   if (r.platform === 'github') {
     if (event === 'pull_request') {
-      if (b.action === 'closed') return output('closed', b.pull_request?.number);
-      if (['opened', 'reopened', 'synchronize', 'ready_for_review'].includes(b.action) || (b.action === 'edited' && b.changes?.base)) return output('review', b.pull_request?.number, { headSha: b.pull_request?.head?.sha });
+      if (b.action === 'closed') return b.pull_request?.merged === true
+        ? output('review', b.pull_request?.number, { headSha: b.pull_request?.head?.sha, merged: true, regenerate: true })
+        : output('closed', b.pull_request?.number);
     }
     if (['issue_comment', 'pull_request_review_comment'].includes(event) && b.action === 'created' && (b.issue?.pull_request || b.pull_request)) {
       const c = b.comment;
@@ -53,8 +54,8 @@ export function normalize(input: Authenticated): Event[] {
   } else {
     const a = b.object_attributes;
     if (b.object_kind === 'merge_request') {
-      if (['close', 'merge'].includes(a?.action)) return output('closed', a.iid);
-      if (['open', 'reopen'].includes(a?.action) || (a?.action === 'update' && (a.oldrev || b.changes?.target_branch))) return output('review', a.iid, { headSha: a.last_commit?.id });
+      if (a?.action === 'close') return output('closed', a.iid);
+      if (a?.action === 'merge') return output('review', a.iid, { headSha: a.last_commit?.id, merged: true, regenerate: true });
     }
     if (b.object_kind === 'note' && a?.noteable_type === 'MergeRequest' && (!a.action || a.action === 'create') && !isBotLogin(r, b.user?.username ?? '') && a.note?.length <= 8000) {
       return output('command', b.merge_request?.iid, { comment: { id: String(a.id), body: a.note ?? '', author: b.user?.username ?? '', parentId: null, discussionId: a.discussion_id ?? null, surface: 'note' } });

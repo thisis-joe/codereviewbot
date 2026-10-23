@@ -25,7 +25,7 @@ test('grading and reveal use a simple explanation heading and space before its c
 
 test('initial questions keep the hey greeting and follow-ups start directly with the first question', () => {
   const initial = renderReport(report({ questions: initialQuestions() })).split('\n').filter(l => !l.startsWith('<!--')).join('\n');
-  assert.match(initial, /^#### hey! 이건 알고 머지하는거지\? 😏\n/);
+  assert.match(initial, /^#### hey! 이건 알고 머지한거지\? 😏\n/);
   assert.doesNotMatch(initial, /핵심 CS 질문 \d+개/);
   const more = renderQuestionBatch(initialQuestions(), s, 'extra').split('\n').filter(l => !l.startsWith('<!--')).join('\n');
   assert.match(more, /^#### 심화1\./);

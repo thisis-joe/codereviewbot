@@ -52,7 +52,7 @@ test('published questions expose revision-bound answer IDs and visible choices w
   assert.match(first, /^#### Q1\. 이번 pay [^\n]*\?\n\n- \*\*A\.\*\* 새 키\n- \*\*B\.\*\* 같은 키\n- \*\*C\.\*\* 보기 C\n- \*\*D\.\*\* 보기 D$/m);
   assert.match(first, /^#### Q3\. /m); assert.match(renderReport(report({ questions: questions.map((q, i) => i === 2 ? { ...q, level: 'advanced' } : q) })), /^#### Q3\. 이 결제/m); assert.doesNotMatch(first, /\/blob\//);
   assert.ok(first.split('\n').filter(l => !l.startsWith('<!--')).every(l => !/Q-[a-f0-9]{12}/.test(l)));
-  assert.match(first, /^#### hey! 이건 알고 머지하는거지\? 😏$/m);
+  assert.match(first, /^#### hey! 이건 알고 머지한거지\? 😏$/m);
   assert.match(first, /답변 0\/3/);
   assert.ok(!first.includes(answerKey().explanation) && !first.includes('보기 해설'));
   assert.match(first, /^명령어 안내: `\/hey help`$/m);

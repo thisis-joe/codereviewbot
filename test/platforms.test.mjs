@@ -6,7 +6,7 @@ import { authenticate, normalize } from '../dist/webhooks.js';
 import { Platform } from '../dist/platform.js';
 
 const repo = { platform: 'github', instance: 'https://api.github.com', repository: 'joe/demo', botLogin: 'reviewbot[bot]', webhookSecretEnv: 'HOOK_SECRET', tokenEnv: 'TOKEN', webhookAuth: 'hmac' };
-const raw = JSON.stringify({ action: 'synchronize', repository: { full_name: 'joe/demo' }, pull_request: { number: 7, head: { sha: 'b'.repeat(40) } } });
+const raw = JSON.stringify({ action: 'closed', repository: { full_name: 'joe/demo' }, pull_request: { number: 7, merged: true, head: { sha: 'b'.repeat(40) } } });
 test('GitHub authenticates original bytes before admitting an allowed repository', () => {
   const headers = { 'x-github-event': 'pull_request', 'x-github-delivery': 'delivery-1', 'x-hub-signature-256': 'sha256=' + createHmac('sha256', 'test-secret').update(raw).digest('hex') };
   const event = authenticate('github', headers, Buffer.from(raw), [repo], { HOOK_SECRET: 'test-secret' });
@@ -15,7 +15,7 @@ test('GitHub authenticates original bytes before admitting an allowed repository
   assert.throws(() => authenticate('github', headers, Buffer.from(raw), [{ ...repo, repository: 'other/demo' }], { HOOK_SECRET: 'test-secret' }));
 });
 test('GitLab signing validation checks timestamp and does not fall back to a secret header', () => {
-  const body = JSON.stringify({ object_kind: 'merge_request', project: { path_with_namespace: 'group/demo' }, object_attributes: { iid: 4, action: 'update', oldrev: 'a'.repeat(40), last_commit: { id: 'b'.repeat(40) } } });
+  const body = JSON.stringify({ object_kind: 'merge_request', project: { path_with_namespace: 'group/demo' }, object_attributes: { iid: 4, action: 'merge', oldrev: 'a'.repeat(40), last_commit: { id: 'b'.repeat(40) } } });
   const key = Buffer.alloc(32, 7), timestamp = '1700000000';
   const headers = { 'webhook-id': 'message-4', 'webhook-timestamp': timestamp, 'webhook-signature': 'v1,' + createHmac('sha256', key).update(`message-4.${timestamp}.${body}`).digest('base64'), 'x-gitlab-token': 'legacy', 'x-gitlab-event': 'Merge Request Hook' };
   const config = { ...repo, platform: 'gitlab', repository: 'group/demo', webhookAuth: 'signing' };

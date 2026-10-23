@@ -1,3 +1,10 @@
+Automatic question admission occurs only on completed PR/MR merges. Open, reopen,
+ready, edit and push events do not generate questions. Accepted merge work may
+publish after closure; periodic recovery retries only accepted merge/manual jobs
+and never backfills open or historical merged requests. Merge-triggered questions
+do not require answers before merging. Manual learning commands remain available.
+The greeting is `hey! 이건 알고 머지한거지? 😏`.
+
 # hey question-bot transition contract
 
 Naming update accepted 2026-10-22: the product, comments, package and image names use

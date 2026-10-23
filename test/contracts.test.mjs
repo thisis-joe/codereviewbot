@@ -16,7 +16,7 @@ test('legacy analysis contracts remain readable and initial questions reject rev
 test('all lifecycle outcomes have question-only comments and no review verdict', () => {
   for (const state of ['completed', 'partial', 'failed']) {
     const text = renderReport(report({ state }));
-    assert.match(text, /^#### hey! 이건 알고 머지하는거지\? 😏$/m);
+    assert.match(text, /^#### hey! 이건 알고 머지한거지\? 😏$/m);
     assert.doesNotMatch(text, /^### \d\.|수정 필요|지적 없음|판단 보류|검증·주의사항/m);
   }
 });

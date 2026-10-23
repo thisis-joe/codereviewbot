@@ -17,7 +17,7 @@ test('same-revision recovery survives an already-consumed delivery key without d
   const failure = report({ snapshot: f.snap, state: 'failed', questions: [], failure: { code: 'rate_limit', provider: 'claude', apiStatus: 429, retryAt: '2020-01-01T00:00:00.000Z' } });
   await f.seed(failure);
   const oldKey = `recover:questions-v2:${f.snap.headSha}:${f.snap.startSha}:${f.snap.baseSha}`;
-  const id = await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey });
+  const id = await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey, requested: true });
   const running = await f.store.claim(); await f.store.saveResult(id, running.owner, failure, {}, 0);
   const publishing = await f.store.claim(); await f.store.complete(id, publishing.owner);
   assert.equal(await f.store.enqueue({ kind: 'review', target: f.snap, headSha: f.snap.headSha, deliveryId: oldKey }), null);
@@ -177,7 +177,7 @@ async function fixture(t, name) {
     assert.fail('Question work did not finish within ten queue claims');
   };
   const seed = async (value, { ready = false, kind = 'review' } = {}) => {
-    const id = await store.enqueue({ kind, target: snap, deliveryId: `seed-${kind}`, headSha: snap.headSha });
+    const id = await store.enqueue({ kind, target: snap, deliveryId: `seed-${kind}`, requested: true, headSha: snap.headSha });
     const running = await store.claim();
     assert.equal(running.id, id);
     await store.saveResult(id, running.owner, { ...value, snapshot: { ...snap } }, diff, 5);
@@ -261,22 +261,10 @@ for (const name of ['github', 'gitlab']) {
     await f.controller.recover();
     await f.controller.recover();
     const queued = (await f.pool.query("SELECT * FROM jobs WHERE state='queued'")).rows;
-    assert.equal(queued.length, 1);
-    assert.equal(queued[0].kind, 'review');
-    assert.match(queued[0].body.deliveryId, /questions-v2/);
-    assert.equal(f.checks(), 0);
+    assert.equal(queued.length, 0, 'periodic recovery must not backfill questions for an open MR');
+    assert.equal(f.calls.length, 0);
+    assert.equal((await f.store.getTarget(f.snap)).report.schemaVersion, '1');
     assert.equal(f.cleanups(), 2);
-    await f.drain();
-    assert.equal((await f.store.getTarget(f.snap)).report.schemaVersion, '2');
-    assert.equal(f.calls.length, 1);
-    const writes = f.writes.length, statuses = f.statuses.length;
-
-    await f.controller.recover();
-    assert.equal((await f.store.health()).queued, 0);
-    assert.equal(f.calls.length, 1);
-    assert.equal(f.writes.length, writes);
-    assert.equal(f.statuses.length, statuses, 'Recovery keeps gate reconciliation idempotent');
-    assert.equal(f.checks(), 0);
   });
 
   test(`${name}: current same-SHA cache and queued CI do not generate questions or poll checks`, async t => {
@@ -488,3 +476,15 @@ for (const name of ['github', 'gitlab']) {
     assert.match(f.comments.filter(c => c.body.includes('codereviewbot:summary:')).at(-1).body, /답변 1\/2/);
   });
 }
+
+test('accepted merged work recovers after closure without rediscovering open pushes', async t => {
+  const f = await fixture(t,'gitlab');
+  const id = await f.seed(report({state:'failed',questions:[],failure:{code:'unavailable',retryAt:'2020-01-01T00:00:00Z'}}));
+  await f.pool.query("UPDATE jobs SET body=(body-'requested')||'{\"merged\":true}'::jsonb WHERE id=$1",[id]);
+  f.platform.openNumbers=async()=>[];
+  f.platform.snapshot=async(_n,allowClosed)=>{if(!allowClosed)throw new HttpError(410,'merged');return {...f.snap};};
+  await f.controller.recover();
+  const queued=(await f.pool.query("SELECT body FROM jobs WHERE state='queued'")).rows;
+  assert.equal(queued.length,1);assert.equal(queued[0].body.merged,true);
+  await f.drain();assert.equal(f.calls.length,1);assert.equal((await f.store.getTarget(f.snap)).report.requireAnswers,false);
+});

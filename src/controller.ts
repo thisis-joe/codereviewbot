@@ -42,12 +42,12 @@ export class Controller {
       if (job.state === 'publishing') {
         if (!job.result) throw new Error('Missing review result');
         if (!isQuestionReport(job.result)) {
-          const live = await platform.snapshot(job.body.target.number, job.body.requested);
-          await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: live.headSha, deliveryId: `questions-v2:${job.id}`, ...(job.body.requested ? { requested: true } : {}) }, true);
+          const live = await platform.snapshot(job.body.target.number, job.body.requested || job.body.merged);
+          await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: live.headSha, deliveryId: `questions-v2:${job.id}`, ...(job.body.requested ? { requested: true } : {}), ...(job.body.merged ? { merged: true } : {}) }, true);
           return;
         }
         const publishStarted = Date.now();
-        await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease, await this.store.answerResults(job.result.snapshot), job.body.requested, await this.historicalComments(platform, job.result.snapshot));
+        await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease, await this.store.answerResults(job.result.snapshot), job.body.requested || job.body.merged, await this.historicalComments(platform, job.result.snapshot));
         console.info(JSON.stringify({ jobId: job.id, event: 'questions_published', publishMs: Date.now() - publishStarted }));
         await this.syncGate(platform, job.result);
         await this.notifications?.questionsPublished(platform, job.result);
@@ -65,13 +65,13 @@ export class Controller {
       }
       // Drain legacy CI jobs without fetching checks, preparing source or invoking the model.
       if (job.kind === 'ci') { await this.store.complete(job.id, job.owner); return; }
-      snap = await platform.snapshot(job.body.target.number, job.body.requested);
+      snap = await platform.snapshot(job.body.target.number, job.body.requested || job.body.merged);
       snap.title = redact(snap.title); snap.description = redact(snap.description);
       previous = (await this.store.getTarget(snap))?.report ?? null;
       const prepareStarted = Date.now();
       const priorSnapshot = !job.body.force && isQuestionReport(previous) && previous.state === 'completed' && !(job.body.regenerate && sameRevision(previous.snapshot, snap)) ? previous.snapshot : null;
       const prepared = await this.workspaces.prepare(platform, snap, job.id, priorSnapshot);
-      requireAnswers = prepared.policy.requireAnswers === true;
+      requireAnswers = !job.body.merged && prepared.policy.requireAnswers === true;
       const prepareMs = Date.now() - prepareStarted;
       await lease();
       if (!job.body.force && !job.body.regenerate && isQuestionReport(previous) && reviewed(previous) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha && previous.snapshot.policyVersion === snap.policyVersion) {
@@ -83,9 +83,9 @@ export class Controller {
       const started = Date.now();
       const result = await generateQuestions(this.model, job.id, snap, prepared.policy, prepared.context, previous, prepared.guidelines, issues, prepared.mode);
       console.info(JSON.stringify({ jobId: job.id, event: 'questions_generated', prepareMs, generateMs: Date.now() - started, modelCalls: hasQuestionSource(prepared.context) ? 1 : 0 }));
-      await lease(); const live = await platform.snapshot(snap.number, job.body.requested);
+      await lease(); const live = await platform.snapshot(snap.number, job.body.requested || job.body.merged);
       if (live.headSha !== snap.headSha || live.baseSha !== snap.baseSha || live.startSha !== snap.startSha) throw new Superseded('Review snapshot changed');
-      await this.store.saveResult(job.id, job.owner, { ...result, requireAnswers: prepared.policy.requireAnswers === true }, Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), 0, Math.round((Date.now() - started) / 1000));
+      await this.store.saveResult(job.id, job.owner, { ...result, requireAnswers: !job.body.merged && prepared.policy.requireAnswers === true }, Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), 0, Math.round((Date.now() - started) / 1000));
     } catch (error) {
       const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
       if (superseded) await this.store.supersede(job.id, job.owner);
@@ -210,13 +210,12 @@ export class Controller {
           for (const number of await platform.openNumbers()) {
             const snap = await platform.snapshot(number); const state = await this.store.getTarget(snap);
             if (state?.report && sameRevision(state.report.snapshot, snap)) await this.syncGate(platform, state.report);
-            const prior = state?.report?.snapshot;
-            if (state?.report?.state === 'failed' && prior && sameRevision(prior, snap)) {
-              const retry = await this.store.recoveryEvent(snap);
-              if (retry) await this.store.enqueue(retry);
-              continue;
-            }
-            if (!isQuestionReport(state?.report) || !prior || !reviewed(state.report) || prior.headSha !== snap.headSha || prior.baseSha !== snap.baseSha || prior.startSha !== snap.startSha) await this.store.enqueue({ kind: 'review', target: platform.target(number), headSha: snap.headSha, deliveryId: `recover:questions-v2:${snap.headSha}:${snap.startSha}:${snap.baseSha}` });
+          }
+          // Retry only accepted merge/manual work; never discover new work from open MR pushes.
+          for (const target of await this.store.recoveryTargets(platform.config)) {
+            const snap = await platform.snapshot(target.number, true);
+            const retry = await this.store.recoveryEvent(snap);
+            if (retry) await this.store.enqueue(retry);
           }
         } catch { console.error(JSON.stringify({ repository: platform.config.repository, error: 'recovery_fetch_failed' })); }
       }

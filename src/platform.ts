@@ -21,6 +21,10 @@ export class Platform {
     let baseSha: string, headSha: string, startSha: string;
     if (gh) {
       headSha = Sha.parse(pr.head?.sha); startSha = Sha.parse(pr.base?.sha);
+      if (pr.merged) {
+        const commit = await this.api.request(`${this.root}/commits/${Sha.parse(pr.merge_commit_sha)}`);
+        startSha = Sha.parse(commit.parents?.[0]?.sha);
+      }
       const comparison = await this.api.request(`${this.root}/compare/${startSha}...${headSha}`);
       baseSha = Sha.parse(comparison.merge_base_commit?.sha);
     } else {
