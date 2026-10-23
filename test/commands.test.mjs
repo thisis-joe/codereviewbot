@@ -95,6 +95,7 @@ test('reasoning goes to the model with the key, but the key alone decides right 
   for (const [answer, model, expected] of [['B 같은 키를 재사용합니다', 'incorrect', 'partial'], ['B 같은 키', 'unverifiable', 'correct'], ['A 새 키가 안전합니다', 'correct', 'incorrect'], ['B 같은 키', 'partial', 'partial']]) {
     const h = learningHarness(`/hey answer ${id} ${answer}`, { report: r, output: output(model) }); await h.run();
     assert.equal(h.data.calls[0].phase, 'grade'); assert.match(h.data.calls[0].prompt, /정답은 B입니다/);
+    assert.match(h.data.calls[0].prompt, /CS 개념.*정의/); assert.match(h.data.calls[0].prompt, /코드에 적용/);
     assert.deepEqual(h.data.saved.grades, [{ id, verdict: expected }]); assert.match(h.data.replies[0][1], /\*\*답변 평가\*\*\n이유 평가/);
   }
 });
@@ -258,7 +259,7 @@ test('showanswer reveals stored keys without grading, a model call or answer cre
   assert.equal(all.data.calls.length, 0); assert.equal(all.data.saved.grades, undefined);
   assert.match(body, /^### 정답·해설$/m); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3); assert.doesNotMatch(body, /심화1|codereviewbot:question:/);
   assert.match(body, /^정답: \*\*B\*\* · 코드 위치: \[src\/pay\\\.ts:2\]\(.*\/blob\/.*#L2\)$/m);
-  assert.ok(body.includes('**문제 해설**') && body.includes('**보기별 해설**')); assert.match(body, /^\*\*B\.\*\* 보기 B \(정답\) — /m);
+  assert.ok(body.includes('**CS 지식과 코드 적용**') && body.includes('**보기별 해설**')); assert.match(body, /^\*\*B\.\*\* 보기 B \(정답\) — /m);
   const picked = learningHarness('/hey showanswer 심화2 Q9', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await picked.run();
   assert.match(picked.data.replies[0][1], /Q9: .*찾을 수 없습니다/); assert.doesNotMatch(picked.data.replies[0][1], /정답:/);
   const follow = learningHarness('/hey showanswer 심화2', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await follow.run();
@@ -316,4 +317,35 @@ test('removed commands return help without code, model, queue or legacy finding 
     assert.match(h.data.replies[0][1], /명령.*확인/);
     assert.match(h.data.replies[0][1], /명령어 안내: `\/hey help`/);
   }
+});
+
+test('stored CS explanations accompany both bare-option grading and answer reveal without extra inference', async () => {
+  const r = report();
+  r.questions[0].key.explanation = '멱등성은 같은 요청을 반복해도 최종 효과가 같다는 성질입니다. pay는 같은 키로 기존 승인을 식별해 재시도 중 중복 결제를 막습니다.';
+  for (const command of ['/hey answer Q1 B', '/hey showanswer Q1']) {
+    const h = learningHarness(command, { report: r }); await h.run();
+    assert.equal(h.data.calls.length, 0);
+    const body = h.data.replies[0][1];
+    assert.match(body, /\*\*CS 지식과 코드 적용\*\*/);
+    assert.match(body, /멱등성은 같은 요청/); assert.match(body, /pay는 같은 키/);
+  }
+});
+
+test('follow-ups lead with questions and request CS explanations at generation time', async () => {
+  const h = learningHarness('/hey morequestion'); await h.run();
+  const body = h.data.replies[0][1];
+  assert.ok(body.indexOf('#### 심화5.') < body.indexOf('답변 달기:'));
+  assert.match(body, /### 심화 질문 5개/);
+  assert.match(h.data.calls[0].prompt, /CS 개념.*정의/);
+  assert.match(h.data.calls[0].prompt, /코드.*적용/);
+  assert.doesNotMatch(body, /정답은 B입니다/);
+});
+
+test('code questions request relevant CS knowledge before applying it to the repository', async () => {
+  const h = learningHarness('@hey 같은 키를 재사용하는 이유는?', { output: { answer: '멱등성은 같은 요청의 반복이 같은 효과를 내는 성질입니다. pay는 같은 키를 재사용합니다.', evidence: ['src/pay.ts:2'], next: '없음' } });
+  await h.run();
+  assert.equal(h.data.calls[0].phase, 'answer');
+  assert.match(h.data.calls[0].prompt, /CS 개념.*정의/);
+  assert.match(h.data.calls[0].prompt, /코드에 어떻게 적용/);
+  assert.match(h.data.replies[0][1], /멱등성은 같은 요청/);
 });

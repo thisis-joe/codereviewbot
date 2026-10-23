@@ -18,6 +18,7 @@ test('generation asks for two distinct change-grounded CS principles in a single
  const context={files:{'src/pay.ts':'function pay() {\ncharge();\n}'},diff:{'src/pay.ts':{oldPath:'src/pay.ts',patch:'@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }',lines:new Set([1,2,3])}},excluded:[],limited:false,sourceDir:'/snapshot/source'};
  const result=await generateQuestions({run:async(...args)=>{calls.push(args);return {questions:questions()};}},'workspace',snapshot(),readPolicy(),context,null,[],[],'full');
  assert.equal(result.questions.length,2);assert.equal(calls.length,1);
+ assert.match(calls[0][1],/key.explanation.*CS 개념.*정의/);
  assert.match(calls[0][1],/핵심 CS/);assert.match(calls[0][1],/정확히 2개/);assert.doesNotMatch(calls[0][1],/정확히 4개|basic 3개/);
 });
 test('two questions are visible before short action hints and both count toward the answer gate', ()=>{

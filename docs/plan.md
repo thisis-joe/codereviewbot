@@ -21,7 +21,9 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
   anchor. Each question retains a basic/advanced level, without a difficulty quota.
   Questions and choices come before concise answer/reveal/optional-morequestion hints.
-  `/hey morequestion` generates additional questions only on explicit request.
+  `/hey morequestion` generates additional questions only on explicit request,
+  using the same question-first layout. Newly generated answer keys and grading
+  explanations teach a relevant CS concept and connect it to the actual code.
 - Schema version 2 results display only a commit, generation state, answer progress,
   code-linked questions and one `/hey help` entry point. Old sections 1–3, review
   verdicts, repeated command examples and automatic finding comments disappear.

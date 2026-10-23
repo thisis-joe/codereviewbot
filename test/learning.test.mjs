@@ -80,7 +80,10 @@ test('question and grading comments keep one help entry point without repeating 
 
 test('follow-up batches and inline threads name their own labels for answering and revealing', () => {
   const r = report(), batch = renderQuestionBatch(r.questions, r.snapshot, 'batch', 6);
-  assert.match(batch, /^### 심화 질문\n\n답변 달기: `\/hey answer 심화6 B` — 여러 개는 `\/hey answer 심화6 B 심화7 C`\\\n정답·해설 한 번에 보기: `\/hey showanswer 심화6 심화7 심화8`\n\n<!-- codereviewbot:question:/m);
+  assert.match(batch, /^### 심화 질문 3개\n\n<!-- codereviewbot:question:/m);
+  assert.ok(batch.indexOf('#### 심화8.') < batch.indexOf('답변 달기:'));
+  assert.match(batch, /답변 달기: `\/hey answer 심화6 B 심화7 C`/);
+  assert.match(batch, /정답·해설 보기: `\/hey showanswer 심화6 심화7 심화8`/);
   assert.match(batch, /\n\n기준 커밋 \[bbbbbbbb\]\(.*\/commit\/b{40}\)\\\n명령어 안내: `\/hey help`$/);
   for (const label of ['심화6', '심화7', '심화8']) assert.ok(parseCommand(`/hey showanswer 심화6 심화7 심화8`).ids.includes(label));
   assert.match(renderQuestionThread(r.questions[1], r.snapshot, 2), /보기 문자\(A~D\)만 답글로 .*\\\n정답·해설 보기: `\/hey showanswer Q2`$/);

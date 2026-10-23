@@ -147,10 +147,10 @@ export function renderAck(id: string, state: AckState = 'received'): string { re
 // Follow-ups are never revealed by a bare showanswer, so the batch names its own labels for one-step reveal.
 export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
   const labels = questions.map((_, i) => `심화${start + i}`);
-  const help = [`답변 달기: \`/hey answer ${labels[0]} B\` — 여러 개는 \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
-    `정답·해설 한 번에 보기: \`/hey showanswer ${labels.join(' ')}\``];
-  return [replyMarker(commentId), '### 심화 질문', '', ...lines(help), '', ...renderQuestions(questions, s, start, new Map(), '심화'), '',
-    ...lines([`기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, COMMAND_HELP_HINT])].join('\n');
+  const help = [`답변 달기: \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
+    `정답·해설 보기: \`/hey showanswer ${labels.join(' ')}\``, '더 풀어보기: `/hey morequestion`'];
+  return [replyMarker(commentId), `### 심화 질문 ${questions.length}개`, '', ...renderQuestions(questions, s, start, new Map(), '심화'), '', '---', '',
+    ...lines(help), '', ...lines([`기준 커밋 [${s.headSha.slice(0, 8)}](${commitLink(s)})`, COMMAND_HELP_HINT])].join('\n');
 }
 export interface GradeItem { q: ChangeQuestion; grade: Grade; label: string; picked?: string }
 export function renderGrade(q: ChangeQuestion, s: Snapshot, grade: Grade, commentId: string, label = questionId(s, q), picked?: string): string {
@@ -174,7 +174,7 @@ function renderGradeSection({ q, grade, label, picked }: GradeItem, s: Snapshot)
   const tags = (id: string) => [...(id === picked ? ['내 답'] : []), ...(id === answer ? ['정답'] : [])];
   return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `### ${label} · ${verdictMark[grade.verdict]}`, '',
     `**${label}. ${level}${plain(q.question)}**`, ...(choice ? ['', choice] : []),
-    ...(grade.explanation ? ['', '**답변 평가**', plain(grade.explanation)] : []), '', '**문제 해설**', plain(grade.expectedAnswer),
+    ...(grade.explanation ? ['', '**답변 평가**', plain(grade.explanation)] : []), '', '**CS 지식과 코드 적용**', plain(grade.expectedAnswer),
     ...((q.options ?? []).length ? ['', '**보기별 해설**', ...q.options.flatMap(o => ['', `**${o.id}.** ${plain(o.text)}${tags(o.id).length ? ` (${tags(o.id).join('·')})` : ''} — ${plain(grade.optionExplanations.find(e => e.id === o.id)?.explanation ?? '해설 없음')}`])] : []), '',
     '**코드 근거**', ...(grade.evidence.length ? grade.evidence.map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, 700))}`) : ['확인 가능한 코드 근거가 부족해 정답·오답을 확정하지 않았습니다.'])].join('\n');
 }
@@ -192,6 +192,6 @@ export function renderReveal(items: RevealItem[], s: Snapshot, commentId: string
 function renderRevealSection({ q, label }: RevealItem, s: Snapshot, text: number, option: number): string {
   const key = q.key, head = `#### ${label}. ${levelTag(q, label)}${plain(q.question)}`;
   if (!key) return [head, '', '저장된 정답이 없는 이전 질문입니다. `/hey answer`로 답하면 채점과 해설을 받을 수 있습니다.'].join('\n');
-  return [head, '', `정답: **${key.answer}** · 코드 위치: ${ref(s, q.path, q.line, q.side, 80)}`, '', '**문제 해설**', plain(clip(key.explanation, text)),
+  return [head, '', `정답: **${key.answer}** · 코드 위치: ${ref(s, q.path, q.line, q.side, 80)}`, '', '**CS 지식과 코드 적용**', plain(clip(key.explanation, text)),
     ...((q.options ?? []).length ? ['', '**보기별 해설**', ...q.options.flatMap(o => ['', `**${o.id}.** ${plain(o.text)}${o.id === key.answer ? ' (정답)' : ''} — ${plain(clip(key.options.find(e => e.id === o.id)?.explanation ?? '해설 없음', option))}`])] : [])].join('\n');
 }

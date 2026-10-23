@@ -97,7 +97,7 @@ export function buildQuestionPrompt(s: Snapshot, policy: Policy, context: Review
   const data = JSON.stringify({ snapshot: s, policy, guidelines, linkedIssues: issues,
     changesSincePrevious: context.changesSincePrevious ?? null, previousQuestions: previous?.questions.map(q => q.question) ?? [],
     diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), excluded: context.excluded });
-  const explanations = `정답 핵심 해설은 2~3문장, 보기별 해설은 1~2문장으로 간결하게 쓰세요. 오답 해설은 그 보기가 틀리는 소스상의 조건만 설명하고 불필요한 일반 법칙을 추가하지 마세요. 내부에서 새로 생성하는 예외와 외부 콜백·API에서 전파되는 예외를 구분하세요. 외부 구현으로 확인하지 않은 오류 타입이나 발생 원인을 '오직 이 조건에서만 발생한다'고 단정하지 마세요.\n`;
+  const explanations = `key.explanation에는 관련 CS 개념의 이름과 정의·핵심 원리를 먼저 1~2문장으로 설명하고, 이번 코드에 어떻게 적용되며 왜 정답이 되는지 1~2문장으로 연결하세요. 정답 보기를 반복하는 데 그치지 말고 재사용할 수 있는 CS 지식을 가르치세요. 보기별 해설은 1~2문장으로 간결하게 쓰세요. 오답 해설은 그 보기가 틀리는 소스상의 조건만 설명하고 불필요한 일반 법칙을 추가하지 마세요. 내부에서 새로 생성하는 예외와 외부 콜백·API에서 전파되는 예외를 구분하세요. 외부 구현으로 확인하지 않은 오류 타입이나 발생 원인을 '오직 이 조건에서만 발생한다'고 단정하지 마세요.\n`;
   return `${instructions}\n${learning}\n${intent}${scope}${explanations}\n출제 자료(JSON 데이터):\n${data}`;
 }
 /** Keep historical reports readable without re-evaluating their findings. */
