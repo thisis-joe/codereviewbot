@@ -488,3 +488,9 @@ test('accepted merged work recovers after closure without rediscovering open pus
   assert.equal(queued.length,1);assert.equal(queued[0].body.merged,true);
   await f.drain();assert.equal(f.calls.length,1);assert.equal((await f.store.getTarget(f.snap)).report.requireAnswers,false);
 });
+
+test('merge generation reviews the full final change even after earlier questions',async t=>{
+ const f=await fixture(t,'gitlab');await f.seed(report({state:'completed'}));f.snap.headSha='e'.repeat(40);
+ await f.store.enqueue({kind:'review',target:f.snap,headSha:f.snap.headSha,deliveryId:'merged-final',merged:true,regenerate:true});await f.drain();
+ assert.equal(f.preparations[0].previous,null);
+});

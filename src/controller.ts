@@ -69,7 +69,7 @@ export class Controller {
       snap.title = redact(snap.title); snap.description = redact(snap.description);
       previous = (await this.store.getTarget(snap))?.report ?? null;
       const prepareStarted = Date.now();
-      const priorSnapshot = !job.body.force && isQuestionReport(previous) && previous.state === 'completed' && !(job.body.regenerate && sameRevision(previous.snapshot, snap)) ? previous.snapshot : null;
+      const priorSnapshot = !job.body.merged && !job.body.force && isQuestionReport(previous) && previous.state === 'completed' && !(job.body.regenerate && sameRevision(previous.snapshot, snap)) ? previous.snapshot : null;
       const prepared = await this.workspaces.prepare(platform, snap, job.id, priorSnapshot);
       requireAnswers = !job.body.merged && prepared.policy.requireAnswers === true;
       const prepareMs = Date.now() - prepareStarted;
