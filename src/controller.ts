@@ -219,7 +219,7 @@ export class Controller {
           }
         } catch { console.error(JSON.stringify({ repository: platform.config.repository, error: 'recovery_fetch_failed' })); }
       }
-      await this.workspaces.cleanup();
+      await this.store.cleanupWorkspaces(protectedJobs => this.workspaces.cleanup(undefined, protectedJobs));
     } finally { this.reconciling = false; }
   }
 }

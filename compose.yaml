@@ -1,9 +1,16 @@
 # Keep the deployed project identity so existing volumes and networks are reused.
 name: codereviewbot
+x-storage-logging: &storage-logging
+  driver: local
+  options:
+    max-size: "5m"
+    max-file: "2"
+    compress: "true"
 services:
   postgres:
     image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     restart: unless-stopped
+    logging: *storage-logging
     environment:
       TZ: ${TZ:-Asia/Seoul}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/setup.mjs}
@@ -26,6 +33,7 @@ services:
     build: { context: ., target: runner }
     image: hey-runner:0.1.0
     restart: unless-stopped
+    logging: *storage-logging
     init: true
     read_only: true
     cap_drop: [ALL]
@@ -64,6 +72,7 @@ services:
     build: { context: ., target: controller }
     image: hey-controller:0.1.0
     restart: unless-stopped
+    logging: *storage-logging
     init: true
     read_only: true
     cap_drop: [ALL]
@@ -106,6 +115,7 @@ services:
   n8n:
     image: docker.n8n.io/n8nio/n8n:2.43.8
     restart: unless-stopped
+    logging: *storage-logging
     environment:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
@@ -125,7 +135,12 @@ services:
       N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
       N8N_UNVERIFIED_PACKAGES_ENABLED: "false"
       EXECUTIONS_DATA_PRUNE: "true"
-      EXECUTIONS_DATA_MAX_AGE: 168
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: "none"
+      EXECUTIONS_DATA_SAVE_ON_ERROR: "all"
+      EXECUTIONS_DATA_SAVE_ON_PROGRESS: "false"
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "false"
+      EXECUTIONS_DATA_MAX_AGE: 48
+      EXECUTIONS_DATA_PRUNE_MAX_COUNT: 500
     volumes: [n8n-state:/home/node/.n8n]
     ports: ["127.0.0.1:${N8N_PORT:-5688}:5678"]
     networks: [control, n8n-ui]
@@ -138,6 +153,7 @@ services:
     image: cloudflare/cloudflared:2026.5.0
     profiles: [tunnel]
     restart: unless-stopped
+    logging: *storage-logging
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]

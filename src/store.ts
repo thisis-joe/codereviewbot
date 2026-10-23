@@ -20,6 +20,14 @@ export class Store {
     const c = await this.pool.connect(); try { await c.query('BEGIN'); const result = await fn(c); await c.query('COMMIT'); return result; }
     catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
   }
+  /** Exclude pending work and hold the same lock as claim until source deletion ends. */
+  async cleanupWorkspaces(cleanup: (protectedJobs: ReadonlySet<string>) => Promise<void>): Promise<void> {
+    await this.transaction(async c => {
+      await c.query('SELECT pg_advisory_xact_lock(710632418)');
+      const rows = await c.query("SELECT id FROM jobs WHERE state IN ('queued','running','ready','publishing')");
+      await cleanup(new Set(rows.rows.map(row => String(row.id))));
+    });
+  }
   async enqueue(event: Event, force = false): Promise<string | null> {
     const key = targetKey(event.target);
     return this.transaction(async c => {
