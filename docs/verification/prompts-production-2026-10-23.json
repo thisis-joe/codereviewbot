@@ -1,0 +1,186 @@
+{
+  "verifiedAt": "2026-10-23T07:44:08.503026+00:00",
+  "source": "92dccf7d74567397f91cc77c1c9ccf12d03ceff1",
+  "implementationCommits": [
+    "bc147a1",
+    "89bbd89"
+  ],
+  "scope": "Deploy change-effect/principle-application prompts and reject internal-rule/exception-branch trivia",
+  "deployment": {
+    "status": "healthy",
+    "at": "2026-10-23T07:37:38.525Z",
+    "services": {
+      "controller": {
+        "id": "15ebe45aefd32f0baa61db004b3db04b9e7a4e650fb3e4297fa50dabdeab1d8f",
+        "image": "sha256:1db75ffcfc94b2369f89aa5d71e5f967602dccf60555e249951a6f3c58bd9081",
+        "source": "92dccf7d74567397f91cc77c1c9ccf12d03ceff1",
+        "health": "healthy"
+      },
+      "runner": {
+        "id": "c114a1d97bb9cb387cb9a23feb79361a34d5f5e07dafa2b58fbce35543f83581",
+        "image": "sha256:ed4cfe414cc3ce3da29b88fe099be8776145b5f605600ee1effae699dd21bd78",
+        "source": "92dccf7d74567397f91cc77c1c9ccf12d03ceff1",
+        "health": "healthy",
+        "provider": "gms"
+      }
+    },
+    "sourceOnlyAddedBytes": {
+      "controller": 111465,
+      "runner": 111466
+    },
+    "runtimeCodeDelta": {
+      "controller": [
+        "learning-command.js",
+        "review.js"
+      ],
+      "runner": [
+        "learning-command.js",
+        "review.js"
+      ]
+    },
+    "exactEnvironmentPreserved": true,
+    "mountsNetworksResourcesSecurityAndStartupPreserved": true,
+    "postgresN8nTunnelUnchanged": true,
+    "defaultImageAliasesUpdated": true
+  },
+  "verification": {
+    "unitTests": {
+      "passed": 144,
+      "failed": 0,
+      "reused": "Unchanged code from the completed pre-release run"
+    },
+    "isolatedPostgresHttpIntegration": {
+      "passed": 56,
+      "failed": 0,
+      "reused": "Unchanged code from the completed pre-release run"
+    },
+    "dependencyAudit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "independentReadOnlyReleaseReview": "passed before rollout and after live proof; generated choices and answer keys reviewed; no substantive blockers",
+    "deployedModuleHashes": {
+      "controller": {
+        "modules": 30,
+        "allMatch": true
+      },
+      "runner": {
+        "modules": 30,
+        "allMatch": true
+      }
+    },
+    "imageAndRollbackStartupChecks": "passed in network-disabled isolated containers; actual runner process health checked for both images",
+    "activationAndRollbackComposePlans": "validated; not a live rollback drill",
+    "liveControllerRunnerGms": {
+      "calls": [
+        {
+          "phase": "initial_questions",
+          "elapsedMs": 51390,
+          "status": "passed"
+        },
+        {
+          "phase": "questions",
+          "elapsedMs": 102448,
+          "status": "passed"
+        }
+      ],
+      "promptProof": [
+        {
+          "phase": "initial_questions",
+          "checks": {
+            "changeEffect": true,
+            "principleApplication": true,
+            "rejectBranchTrivia": true
+          },
+          "sha256": "15786f933e3ee805f609e5772648cf488f91472341235606ae1bf17e7879fa59"
+        },
+        {
+          "phase": "questions",
+          "checks": {
+            "depthGate": true,
+            "rejectInternalRuleTrivia": true,
+            "rejectDisguisedBranchQuestion": true,
+            "causalGoal": true
+          },
+          "sha256": "339e01d95217bed99b223fbef817512215527f34ae704df2f71680d7e2b26285"
+        }
+      ],
+      "checks": {
+        "initialBasic": 2,
+        "extraAdvanced": 5,
+        "revealInitialOnly": 2,
+        "revealExtraModelCalls": 0,
+        "externalCommentsPosted": 0,
+        "productionDataWrites": 0
+      }
+    },
+    "final": {
+      "at": "2026-10-23T07:42:43.418Z",
+      "health": {
+        "failed": 10,
+        "queued": 0,
+        "active": false
+      },
+      "baselineFailuresUnchanged": true,
+      "historyUnchanged": true,
+      "aliasesUpdated": true,
+      "counts": {
+        "targets": 34,
+        "jobs": 136,
+        "deliveries": 176
+      }
+    },
+    "startupAndErrors": {
+      "controller": {
+        "structuredEvents": 1,
+        "errors": [],
+        "ready": [
+          {
+            "service": "controller",
+            "ready": true
+          }
+        ]
+      },
+      "runner": {
+        "structuredEvents": 1,
+        "errors": [],
+        "ready": [
+          {
+            "service": "runner",
+            "ready": true,
+            "provider": "gms"
+          }
+        ]
+      }
+    }
+  },
+  "history": {
+    "preserved": true,
+    "counts": {
+      "targets": 34,
+      "jobs": 136,
+      "deliveries": 176
+    },
+    "comparison": "Read-only hashes of existing target/report, job/result/command-result and delivery data match before and after"
+  },
+  "rollback": {
+    "owner": "Current chat deployment operator",
+    "command": "node .local/prompts-production-20261023/deploy.mjs --rollback",
+    "retainsPreviousImages": true,
+    "retainsPreviousEnvironment": true,
+    "data": "No schema/data migration. Application rollback preserves stored questions and answer keys.",
+    "trigger": "Unhealthy services, runtime configuration/hash drift, new persistent generation errors or failed deployed prompt probe",
+    "targetRecoveryMinutes": 3
+  },
+  "limits": [
+    "Two actual GMS phases on one historical code-change case prove live application, not stable quality/latency across repositories.",
+    "Question publication was stubbed; no PR/MR test comments or production question records were created.",
+    "Existing stored questions and answer keys were preserved; new prompts apply to new generation.",
+    "Rollback images/startup and Compose plans were checked; no disruptive live rollback drill was performed."
+  ],
+  "privateEvidenceDirectory": ".local/prompts-production-20261023/"
+}
