@@ -21,7 +21,14 @@ async function fixture(t, responseStatus = 200) {
   const config = { platform: 'gitlab', instance: 'https://gitlab.example', repository: 'team/project', botLogin: 'project_123_bot_hash', enabled: true, webhookAuth: 'secret', webhookSecretEnv: 'HOOK_SECRET', tokenEnv: 'TOKEN', mattermostWebhookEnv: 'MM_URL', mattermostChannel: 'ci' };
   const snap = snapshot({ ...config, number: 15, webUrl: 'https://gitlab.example/team/project/-/merge_requests/15' });
   const platform = { config, root: '/projects/team%2Fproject',
-    api: { request: async path => { authorReads.push(path); return { author: { name: '박찬형[부울경_1반_E102]팀원', username: 'login_must_not_appear' } }; } },
+    api: { request: async path => {
+      authorReads.push(path);
+      if (path.includes('/repository/compare?')) return { commits: Array.from({ length: 24 }, (_, i) => ({
+        id: (i + 1).toString(16).padStart(40, '0'), message: `feat: 변경 ${i + 1}`,
+        created_at: new Date(Date.UTC(2026, 9, 23, 0, i)).toISOString(),
+      })).reverse() };
+      return { author: { name: '박찬형[부울경_1반_E102]팀원', username: 'login_must_not_appear' } };
+    } },
     snapshot: async () => snap, comments: async () => comments, inlineComments: async () => [], owned: c => c.author === config.botLogin,
     comment: async (number, body, id) => { const c = comments.find(c => c.id === id); if (c) c.body = body; else comments.push({ id: '321', body, author: config.botLogin, surface: 'note' }); },
   };
@@ -52,12 +59,12 @@ test('authenticated GitLab admission sends distinct MR events once, identifies t
     await Promise.all([f.flush(), f.flush()]);
   }
   assert.equal(f.received.length, 4);
-  for (const [i, label] of ['새 MR이 열렸어요. 📬', 'MR이 다시 열렸어요. 🔄', 'MR 머지가 완료됐어요! 🎉', 'MR이 닫혔어요. 🚪'].entries()) assert.ok(f.received[i].text.startsWith(`찬형님의 ${label}\n`));
-  assert.ok(f.received.every(p => p.username === 'hey' && p.channel === 'ci' && p.text.includes('[**MR !15 - docs\\(data\\): 대금 자료 조사**]')));
+  for (const [i, label] of ['**찬형**님이 **새 MR**을 열었어요. 📬', '**찬형**님이 **MR을 다시 열었어요.** 🔄', '**찬형**님의 **MR이 머지됐어요!** 🎉', '**찬형**님의 **MR이 닫혔어요.** 🗃️'].entries()) assert.ok(f.received[i].text.startsWith(`${label}\n`));
+  assert.ok(f.received.every(p => p.username === 'hey' && p.channel === 'ci' && p.text.includes('[**MR !15 · docs\\(data\\): 대금 자료 조사**]')));
   assert.doesNotMatch(JSON.stringify(f.received), /송가연|merger_login|login_must_not_appear|project_123_bot|<!--/);
-  const note = { repo: f.config, deliveryId: 'human-note', event: 'Note Hook', body: { object_kind: 'note', user: { username: 'human' }, object_attributes: { id: 9, noteable_type: 'MergeRequest', action: 'create', note: '의견' }, merge_request: { iid: 15, title: '대금 자료 조사' } } };
+  const note = { repo: f.config, deliveryId: 'human-note', event: 'Note Hook', body: { object_kind: 'note', user: { username: 'human', name: '우동균' }, object_attributes: { id: 9, noteable_type: 'MergeRequest', action: 'create', note: '의견' }, merge_request: { iid: 15, title: '대금 자료 조사' } } };
   assert.equal((await post(note)).status, 202); await f.flush();
-  assert.ok(f.received.at(-1).text.startsWith('찬형님의 MR에 새 댓글이 달렸어요. 💬\n')); assert.ok(f.received.at(-1).text.endsWith('**](https://gitlab.example/team/project/-/merge_requests/15#note_9)'));
+  assert.ok(f.received.at(-1).text.startsWith('**동균**님이 MR에 **댓글을 남겼어요.** 💬\n')); assert.ok(f.received.at(-1).text.includes('**](https://gitlab.example/team/project/-/merge_requests/15#note_9)')); assert.ok(f.received.at(-1).text.endsWith('\n\n*“의견”*'));
   assert.equal(await f.notifications.capture({ ...note, deliveryId: 'bot-note', body: { ...note.body, user: { username: f.config.botLogin } } }), false);
   assert.equal(await f.notifications.capture(f.event('update')), false);
   assert.equal(await f.notifications.capture(f.event('toString')), false);
@@ -75,7 +82,7 @@ test('successful question publication queues one exact-comment notification per 
   await controller.tick(); await controller.active; await f.notifications.active;
   assert.equal((await f.store.getJob(running.id)).state, 'completed');
   assert.equal(f.comments.length, 1); await f.flush();
-  assert.equal(f.received.length, 1); assert.ok(f.received[0].text.startsWith('찬형님의 새 질문이 준비됐어요. 😏\n[**MR !15 - '));
+  assert.equal(f.received.length, 1); assert.ok(f.received[0].text.startsWith('**찬형**님의 MR에 **질문이 준비됐어요.** 🧩\n[**MR !15 · '));
   assert.ok(f.received[0].text.endsWith('**](https://gitlab.example/team/project/-/merge_requests/15#note_321)'));
   assert.doesNotMatch(f.received[0].text, /질문 4개|일부 변경 제외/);
   for (const r of [result, { ...result, state: 'partial' }, { ...result, state: 'failed' }]) await f.notifications.questionsPublished(f.platform, r);
@@ -90,7 +97,7 @@ test('partial publication keeps count and limitations on GitLab while sending th
   await f.store.saveResult(running.id, running.owner, result, {}, 0);
   await controller.tick(); await controller.active; await f.flush();
   assert.equal(f.received.length, 1);
-  assert.ok(f.received[0].text.startsWith('찬형님의 새 질문이 준비됐어요. 😏\n[**MR !15 - '));
+  assert.ok(f.received[0].text.startsWith('**찬형**님의 MR에 **질문이 준비됐어요.** 🧩\n[**MR !15 · '));
   assert.ok(f.received[0].text.endsWith('**](https://gitlab.example/team/project/-/merge_requests/15#note_321)'));
   assert.doesNotMatch(f.received[0].text, /질문 4개|일부 변경 제외|source size limit/);
   assert.match(f.comments[0].body, /부분 완료/);
@@ -129,13 +136,24 @@ test('push events preserve the total count, deduplicate replay and ignore branch
   }
   assert.equal((await f.pool.query('SELECT count(*) FROM mattermost_notifications')).rows[0].count, '1');
   await f.flush(); assert.equal(f.received.length, 1);
-  assert.ok(f.received[0].text.startsWith('찬형님의 커밋 24개가 올라왔어요. 📦\n[**feature/data**](https://gitlab.example/team/project/-/compare/'));
-  assert.equal(f.received[0].text.split('\n').length, 2);
+  assert.ok(f.received[0].text.startsWith('**찬형**님의 **커밋 24개**가 올라왔어요. 🚀\n[**feature/data**](https://gitlab.example/team/project/-/compare/'));
+  assert.equal(f.received[0].text.split('\n').filter(line => line.startsWith('- ')).length, 24);
+  assert.ok(f.received[0].text.indexOf('변경 1**') < f.received[0].text.indexOf('변경 24**'));
   assert.doesNotMatch(f.received[0].text, /must_not_appear|박찬형/);
-  assert.equal(f.authorReads.length, 0, 'a push must not look up an MR author');
+  assert.equal(f.authorReads.length, 1);
+  assert.equal(f.authorReads[0], `/projects/team%2Fproject/repository/compare?from=${push.body.before}&to=${push.body.after}&straight=true`);
   assert.equal(await f.notifications.capture({ ...push, deliveryId: 'branch-created', body: { ...push.body, before: '0'.repeat(40) } }), true);
   await f.flush(); assert.equal(f.received.length, 2);
-  assert.equal(f.received[1].text, '찬형님의 새 브랜치가 생겼어요. 🌱\n[**feature/data**](https://gitlab.example/team/project/-/commits/feature%2Fdata)');
+  assert.equal(f.received[1].text, '**찬형**님의 **새 브랜치가 생겼어요.** 🌱\n[**feature/data**](https://gitlab.example/team/project/-/commits/feature%2Fdata)');
   for (const body of [{ ...push.body, after: '0'.repeat(40) }, { ...push.body, ref: 'refs/tags/v1' }, { ...push.body, after: 'https://evil.example' }])
     assert.equal(await f.notifications.capture({ ...push, deliveryId: 'ignored', body }), false);
+});
+
+test('commit lookup failures retry before any MM write', async t => {
+  const f = await fixture(t);
+  f.platform.api.request = async () => { throw new Error('GitLab unavailable'); };
+  await f.notifications.capture({ repo: f.config, deliveryId: 'missing-commits', body: { object_kind: 'push', user_name: '박찬형', ref: 'refs/heads/feature/data', before: 'a'.repeat(40), after: 'b'.repeat(40), total_commits_count: 24, commits: [] } });
+  await f.flush();
+  assert.equal(f.received.length, 0);
+  assert.equal((await f.pool.query('SELECT state FROM mattermost_notifications')).rows[0].state, 'queued');
 });
