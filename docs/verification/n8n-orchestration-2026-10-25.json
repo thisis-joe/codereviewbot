@@ -52,5 +52,6 @@
   },
   "baseline": "0a7a84aaf76dc56344e953e67b5cec97ad893e09",
   "backend_commit": "2d79d86",
-  "deployment": "not yet activated"
+  "deployment": "Not activated: automatic approval review denied private code/workflow transfer to edo1 pending explicit user authorization. Only an empty restricted release directory was created; production is unchanged.",
+  "workflow_commit": "0c11c26"
 }
