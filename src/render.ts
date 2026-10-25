@@ -10,6 +10,7 @@ export function summaryMarker(s: Snapshot): string {
   const revision = createHash('sha256').update(JSON.stringify([s.headSha, s.baseSha, s.startSha])).digest('hex');
   return `<!-- codereviewbot:revision:${revision} -->`;
 }
+export function questionRevisionMarker(s: Snapshot): string { return summaryMarker(s).replace('codereviewbot:revision:', 'codereviewbot:question-revision:'); }
 const status = { completed: '완료', partial: '부분 완료', failed: '실패' };
 // Readers scan Korean words faster than P0~P3; the model and stored reports keep the P codes.
 export const severityLabel = { P0: '치명', P1: '높음', P2: '보통', P3: '낮음' } as const;
@@ -39,13 +40,13 @@ function commitLines(s: Snapshot): string[] {
   return ['##### 기준 커밋', '', ...(s.commits?.length ? s.commits.map(c => `- [${plain(c.title)}](${commitLink(s, c.sha)})`) : ['- 커밋 제목 정보가 아직 없습니다.'])];
 }
 export const COMMAND_HELP_HINT = '명령어 안내: `/hey help`';
-const answerHelp = ['답변 달기: `/hey answer Q1 B Q2 C`', '정답·해설 보기: `/hey showanswer`', '더 풀어보기: `/hey morequestion`'];
+const answerHelp = ['답변 달기: `/hey answer Q1 B Q2 C`', '정답·해설 보기: 질문 스레드에 답글로 `/hey showanswer`', '더 풀어보기: `/hey morequestion`'];
 const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '🟡 부분 정답', incorrect: '❌ 오답', unverifiable: '⏸ 판정 보류' };
 /** Latest grade per question ID; null marks an answer graded before verdicts were recorded. */
 export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
   ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화 질문: 심화1 B', '/hey answer Q1 B'],
-  ['/hey showanswer', '정답 보기', '최초 질문 전체의 정답·해설 보기. 추가 질문은 심화 번호 지정<br>예: Q1 심화2 · 답변 수와 머지 조건에는 반영하지 않음', '/hey showanswer'],
+  ['/hey showanswer', '정답 보기', '질문 댓글에 답글로 남기면 그 댓글의 질문만 정답·해설 공개<br>번호 지정 없이 사용 · 답변 완료로 처리하지 않음', '/hey showanswer'],
   ['/hey morequestion', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey morequestion'],
   ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],
   ['@hey', '코드 질문', '관련 코드를 확인해 질문에 답변', '@hey 키를 재사용하는 이유는?'],
@@ -129,7 +130,7 @@ function renderQuestions(questions: ChangeQuestion[], s: Snapshot, start = 1, re
 }
 /** One inline thread per question, so a bare option letter replied in the thread is graded. */
 export function renderQuestionThread(q: ChangeQuestion, s: Snapshot, number: number): string {
-  return [...questionLines(q, s, `Q${number}`), '', ...lines(['이 스레드에 보기 문자(A~D)만 답글로 달아도 채점합니다. 이유를 덧붙여도 됩니다.', `정답·해설 보기: \`/hey showanswer Q${number}\``])].join('\n');
+  return [questionRevisionMarker(s), ...questionLines(q, s, `Q${number}`), '', ...lines(['이 스레드에 보기 문자(A~D)만 답글로 달아도 채점합니다. 이유를 덧붙여도 됩니다.', '정답·해설 보기: 이 스레드에 답글로 `/hey showanswer`'])].join('\n');
 }
 export function replyMarker(id: string): string { return `<!-- codereviewbot:reply:${id.replace(/[^\w-]/g, '')} -->`; }
 export function ackMarker(id: string): string { return `<!-- codereviewbot:ack:${id.replace(/[^\w-]/g, '')} -->`; }
@@ -141,12 +142,12 @@ const ackText: Record<AckState, string> = {
 };
 /** Posted when a command arrives; deleted once the command finishes, or turned into a failure or closed notice. */
 export function renderAck(id: string, state: AckState = 'received'): string { return [ackMarker(id), ackText[state]].join('\n'); }
-// Follow-ups are never revealed by a bare showanswer, so the batch names its own labels for one-step reveal.
+// Each follow-up batch is published as a separate replyable question thread.
 export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
   const labels = questions.map((_, i) => `심화${start + i}`);
   const help = [`답변 달기: \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
-    `정답·해설 보기: \`/hey showanswer ${labels.join(' ')}\``, '더 풀어보기: `/hey morequestion`'];
-  return [replyMarker(commentId), ...renderQuestions(questions, s, start, new Map(), '심화'), '', '---', '',
+    '정답·해설 보기: 이 스레드에 답글로 `/hey showanswer`', '더 풀어보기: `/hey morequestion`'];
+  return [replyMarker(commentId), questionRevisionMarker(s), ...renderQuestions(questions, s, start, new Map(), '심화'), '', '---', '',
     ...lines(help), '', ...commitLines(s), '', COMMAND_HELP_HINT].join('\n');
 }
 export interface GradeItem { q: ChangeQuestion; grade: Grade; label: string; picked?: string }

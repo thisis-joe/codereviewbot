@@ -56,8 +56,10 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   `approve`, `reject` and the former `review` spelling) return the help hint and
   trigger no code/model/state effects. Pause state and feedback storage are retired;
   repository policy and guide files remain the source of instructions.
-- `showanswer` reveals stored answer keys and explanations without a model call; it
-  records no grade, so answer progress and the merge gate are unchanged.
+- `showanswer` takes no selectors and reveals only questions in the trusted question
+  comment of the originating thread, without inference or grade credit. Follow-up
+  batches open separate replyable threads (GitLab discussion / GitHub code thread).
+  Unscoped, mixed or stale threads receive guidance rather than unrelated answers.
 - Question IDs, same-ref history, supplementary numbering, durable grading replies,
   per-option explanations, inline letter replies and opt-in answer merge gates remain.
   The answer gate concerns questions visible in the current summary, not review quality.

@@ -78,15 +78,16 @@ test('question and grading comments keep one help entry point without repeating 
   }
 });
 
-test('follow-up batches and inline threads name their own labels for answering and revealing', () => {
+test('follow-up batches and inline threads use one thread-scoped reveal command', () => {
   const r = report(), batch = renderQuestionBatch(r.questions, r.snapshot, 'batch', 6);
-  assert.match(batch, /^<!-- codereviewbot:reply:batch -->\n<!-- codereviewbot:question:/m);
+  assert.match(batch, /^<!-- codereviewbot:reply:batch -->\n<!-- codereviewbot:question-revision:[a-f0-9]+ -->\n<!-- codereviewbot:question:/m);
   assert.ok(batch.indexOf('#### 심화8.') < batch.indexOf('답변 달기:'));
   assert.match(batch, /답변 달기: `\/hey answer 심화6 B 심화7 C`/);
-  assert.match(batch, /정답·해설 보기: `\/hey showanswer 심화6 심화7 심화8`/);
-  assert.match(batch, /##### 기준 커밋\n\n- \[결제 재시도 처리 개선\]\(.*\/commit\/b{40}\)\n\n명령어 안내: `\/hey help`$/);
-  for (const label of ['심화6', '심화7', '심화8']) assert.ok(parseCommand(`/hey showanswer 심화6 심화7 심화8`).ids.includes(label));
-  assert.match(renderQuestionThread(r.questions[1], r.snapshot, 2), /보기 문자\(A~D\)만 답글로 .*\n\n정답·해설 보기: `\/hey showanswer Q2`$/);
+  assert.match(batch, /정답·해설 보기: 이 스레드에 답글로 `\/hey showanswer`/);
+  assert.doesNotMatch(batch, /showanswer (?:Q|심화)\d/);
+  assert.deepEqual(parseCommand('/hey showanswer'), { action: 'reveal' });
+  assert.match(renderQuestionThread(r.questions[1], r.snapshot, 2), /정답·해설 보기: 이 스레드에 답글로 `\/hey showanswer`$/);
+
 });
 
 test('grading preserves question, verdict, all option explanations and valid links under the comment budget', () => {

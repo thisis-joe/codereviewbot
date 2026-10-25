@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Controller } from '../dist/controller.js';
 import { snapshot, report, choices, answerKey, initialQuestions } from './fixtures.mjs';
 import { questionId } from '../dist/learning.js';
+import { renderReport, renderQuestionBatch } from '../dist/render.js';
 import { parseCommand } from '../dist/commands.js';
 
 const context = () => ({ sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\n charge();\n save();\n}' }, baseFiles: {}, excluded: [], limited: false, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1 +1,4 @@\n+function pay() {\n+ charge();\n+ save();\n+}', lines: new Set([1, 2, 3, 4]), oldLines: new Set() } } });
@@ -249,23 +250,19 @@ test('GitHub comment surfaces prevent numeric ID collisions in replies and threa
   await unrelated.run(); assert.equal(unrelated.data.calls.length, 0); assert.equal(unrelated.data.replies.length, 0);
 });
 
-test('showanswer reveals stored keys without grading, a model call or answer credit', async () => {
-  assert.deepEqual(parseCommand('/hey showanswer'), { action: 'reveal', ids: [] });
-  assert.deepEqual(parseCommand('/hey SHOWANSWER q1 심화2 Q01'), { action: 'reveal', ids: ['Q1', '심화2'] });
-  for (const bad of ['/hey showanswer all', '/hey showanswer Q1 B', `/hey showanswer ${Array.from({ length: 11 }, (_, i) => `Q${i + 1}`).join(' ')}`]) assert.equal(parseCommand(bad), null);
-  const r = report(), extra = extraQuestions();
-  const all = learningHarness('/hey showanswer', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await all.run();
-  const body = all.data.replies[0][1];
-  assert.equal(all.data.calls.length, 0); assert.equal(all.data.saved.grades, undefined);
-  assert.match(body, /^### 정답·해설$/m); assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3); assert.doesNotMatch(body, /심화1|codereviewbot:question:/);
+test('thread reveal uses stored keys without grading, inference or answer credit', async () => {
+  assert.deepEqual(parseCommand('/hey showanswer'), { action: 'reveal' });
+  for (const bad of ['/hey showanswer Q1', '/hey showanswer 심화2', '/hey showanswer all']) assert.equal(parseCommand(bad), null);
+  const r = report(), remote = [{ id: 'root', author: 'bot', surface: 'review', body: renderReport(r) }];
+  const h = learningHarness('/hey showanswer', { report: r, remote, comment: { parentId: 'root', surface: 'review' } }); await h.run();
+  const body = h.data.replies[0][1];
+  assert.equal(h.data.calls.length, 0); assert.equal(h.data.saved.grades, undefined);
+  assert.equal([...body.matchAll(/^#### Q\d+\. /gm)].length, 3); assert.doesNotMatch(body, /심화1|codereviewbot:question:/);
   assert.match(body, /^- \[src\/pay\\\.ts:2\]\(.*\/blob\/.*#L2\)$/m);
-  assert.ok(body.includes('##### 해설\n\n') && body.includes('##### 보기별 해설\n\n')); assert.match(body, /^- \*\*B\.\*\* 보기 B\n\n  > B 보기 해설/m);
-  const picked = learningHarness('/hey showanswer 심화2 Q9', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await picked.run();
-  assert.match(picked.data.replies[0][1], /Q9: .*찾을 수 없습니다/); assert.doesNotMatch(picked.data.replies[0][1], /정답:/);
-  const follow = learningHarness('/hey showanswer 심화2', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await follow.run();
-  assert.match(follow.data.replies[0][1], /^#### 심화2\. charge의 /m); assert.equal([...follow.data.replies[0][1].matchAll(/^#### /gm)].length, 1);
-  const legacy = report(); delete legacy.questions[0].key;
-  const old = learningHarness('/hey showanswer Q1', { report: legacy }); await old.run();
+  assert.ok(body.includes('##### 해설\n\n') && body.includes('##### 보기별 해설\n\n'));
+  assert.match(body, /^- \*\*B\.\*\* 보기 B\n\n  > B 보기 해설/m);
+  delete r.questions[0].key;
+  const old = learningHarness('/hey showanswer', { report: r, remote, comment: { parentId: 'root', surface: 'review' } }); await old.run();
   assert.match(old.data.replies[0][1], /저장된 정답이 없는 이전 질문/);
 });
 test('grading reserves comment room for the request link near the output boundary', async () => {
@@ -322,8 +319,8 @@ test('removed commands return help without code, model, queue or legacy finding 
 test('stored CS explanations accompany both bare-option grading and answer reveal without extra inference', async () => {
   const r = report();
   r.questions[0].key.explanation = '멱등성은 같은 요청을 반복해도 최종 효과가 같다는 성질입니다. pay는 같은 키로 기존 승인을 식별해 재시도 중 중복 결제를 막습니다.';
-  for (const command of ['/hey answer Q1 B', '/hey showanswer Q1']) {
-    const h = learningHarness(command, { report: r }); await h.run();
+  for (const command of ['/hey answer Q1 B', '/hey showanswer']) {
+    const h = learningHarness(command, { report: r, remote: [{ id: 'root', author: 'bot', body: renderReport(r) }], comment: { parentId: 'root' } }); await h.run();
     assert.equal(h.data.calls.length, 0);
     const body = h.data.replies[0][1];
     assert.match(body, /##### 해설\n\n/);
@@ -363,22 +360,27 @@ test('code questions request relevant CS knowledge before applying it to the rep
 
 test('answer and reveal retain stored commit titles when the live snapshot omits metadata', async () => {
   const r = report(); r.snapshot.commits = [{ sha: r.snapshot.headSha, title: '질문 생성 흐름 개선' }];
-  for (const command of ['/hey answer Q1 B', '/hey showanswer Q1']) {
-    const h = learningHarness(command, { report: r, snap: { ...r.snapshot, commits: undefined } }); await h.run();
+  for (const command of ['/hey answer Q1 B', '/hey showanswer']) {
+    const h = learningHarness(command, { report: r, snap: { ...r.snapshot, commits: undefined }, remote: [{ id: 'root', author: 'bot', body: renderReport(r) }], comment: { parentId: 'root' } }); await h.run();
     assert.match(h.data.replies[0][1], /- \[질문 생성 흐름 개선\]/);
     assert.deepEqual(h.data.saved.snapshot.commits, r.snapshot.commits);
   }
 });
 
 
-test('bare showanswer still covers only the initial two questions after requesting more', async () => {
-  const r = report({ questions: initialQuestions() }), extra = extraQuestions();
-  const before = learningHarness('/hey showanswer', { report: r }); await before.run();
-  const after = learningHarness('/hey showanswer', { report: r, batches: [{ snapshot: r.snapshot, questions: extra, start: 1 }] }); await after.run();
-  assert.equal(before.data.replies[0][1], after.data.replies[0][1]);
-  assert.equal([...after.data.replies[0][1].matchAll(/^#### Q\d+\./gm)].length, 2);
-  assert.doesNotMatch(after.data.replies[0][1], /^#### 심화/m);
-  const all = learningHarness('/hey showanswer Q1 Q2 심화1 심화2 심화3 심화4 심화5', { report: r, batches: [{ snapshot: r.snapshot, questions: extra, start: 1 }] }); await all.run();
-  assert.equal([...all.data.replies[0][1].matchAll(/^#### (?:Q|심화)\d+\./gm)].length, 7);
-  assert.equal(all.data.calls.length, 0); assert.equal(all.data.saved.grades, undefined);
+test('additional questions publish in a fresh replyable thread even when requested beneath initial questions', async () => {
+  const h = learningHarness('/hey morequestion', { comment: { discussionId: 'initial-thread' } }); await h.run();
+  const thread = h.data.replies[0][4];
+  assert.equal(thread.path, 'src/pay.ts'); assert.equal(thread.line, 2);
+  assert.equal(thread.snapshot.headSha, h.data.snap.headSha);
+  assert.deepEqual(h.data.saved.questionThread.path, thread.path);
+  assert.match(h.data.replies[0][1], /이 스레드에 답글로 `\/hey showanswer`/);
+  assert.doesNotMatch(h.data.replies[0][1], /showanswer (?:Q|심화)\d/);
+});
+
+test('a queued reveal from the old selector contract never replays its unrelated cached answers', async () => {
+  const h = learningHarness('/hey showanswer', { comment: { discussionId: 'extra-thread', surface: 'note' } });
+  await h.run({ command_result: { snapshot: snapshot(), body: 'OLD INITIAL ANSWERS MUST NOT REPLAY' } });
+  assert.equal(h.data.calls.length, 0); assert.equal(h.data.saved, null);
+  assert.doesNotMatch(h.data.replies[0][1], /OLD INITIAL ANSWERS/); assert.match(h.data.replies[0][1], /방식이 변경/);
 });

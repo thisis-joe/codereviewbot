@@ -24,7 +24,7 @@
 
 답변 달기: `/hey answer Q1 B Q2 C`
 
-정답·해설 보기: `/hey showanswer`
+정답·해설 보기: 이 질문 스레드에 답글로 `/hey showanswer`
 
 더 풀어보기: `/hey morequestion`
 
