@@ -1,0 +1,974 @@
+{
+  "at": "2026-10-25T07:05:28.286480+00:00",
+  "status": "complete",
+  "branch": "codex/migrate-hey-edo1",
+  "repositoryBase": "706c9c4",
+  "deployedRevision": "252d5c85b55dc8127ba8eacf390b1f316c1e4116",
+  "destination": {
+    "sshAlias": "edo1",
+    "directory": "/home/ubuntu/hey",
+    "composeProject": "hey-edo1",
+    "composeFile": "compose.json",
+    "platform": "linux/amd64"
+  },
+  "database": {
+    "recoveredOn": "original ARM PostgreSQL 17.11, isolated copy",
+    "transfer": "pg_dumpall to fresh native PostgreSQL 17.11",
+    "sourceAmcheck": "passed, reviewbot and n8n, heapallindexed",
+    "timeZoneForComparison": "UTC",
+    "reviewbotTables": {
+      "public.bot_comment_history": {
+        "rows": 38,
+        "contentHashMd5": "4002248d57dbc24197b2ab9422fe1b00"
+      },
+      "public.deliveries": {
+        "rows": 186,
+        "contentHashMd5": "67e28f3802dc82939ffc69c0b7b55357"
+      },
+      "public.jobs": {
+        "rows": 146,
+        "contentHashMd5": "d4f481daede1c289a007ba69613c292b"
+      },
+      "public.mattermost_notifications": {
+        "rows": 180,
+        "contentHashMd5": "3410b5c783014c5fa7656027031325fa"
+      },
+      "public.targets": {
+        "rows": 38,
+        "contentHashMd5": "40bd4ceb94b1c999555ea810d570e385"
+      }
+    },
+    "n8nTables": {
+      "public.activity_event": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_background_job": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_budget_applied_call": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_budget_spend": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_channel_status": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_chat_attachments": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_chat_subscriptions": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_checkpoints": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_credential_dependency": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_eval_dataset": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_eval_rating": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_eval_result": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_eval_run": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_execution": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_execution_message_links": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_execution_threads": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_files": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_history": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_message_queue": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_plan": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_plan_history": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_task_definition": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_task_run_lock": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_task_snapshot": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_thread_grants": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agent_workflow_dependency": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_memory_entries": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_memory_entry_candidates": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_memory_entry_locks": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_memory_entry_sources": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_messages": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_observation_cursors": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_observation_locks": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_observations": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_resources": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.agents_threads": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.ai_builder_temporary_workflow": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.ai_preference": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.annotation_tag_entity": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.auth_identity": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.auth_provider_sync_history": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.binary_data": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.chat_hub_agent_tools": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.chat_hub_agents": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.chat_hub_messages": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.chat_hub_session_tools": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.chat_hub_sessions": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.chat_hub_tools": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.credential_dependency": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.credentials_entity": {
+        "rows": 1,
+        "contentHashMd5": "f816e98e91215796dffc619046b402e0"
+      },
+      "public.data_table": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.data_table_column": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.deployment_key": {
+        "rows": 8,
+        "contentHashMd5": "35acc19fcb82b52636d50e9a743bc842"
+      },
+      "public.dynamic_credential_entry": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.dynamic_credential_resolver": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.dynamic_credential_user_entry": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.evaluation_collection": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.evaluation_config": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.event_destinations": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.execution_annotation_tags": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.execution_annotations": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.execution_data": {
+        "rows": 507,
+        "contentHashMd5": "394f84fe35908ed9e5e0835d67b4f7fd"
+      },
+      "public.execution_entity": {
+        "rows": 507,
+        "contentHashMd5": "34c5969e0f17c3ef985290b7d1e84934"
+      },
+      "public.execution_metadata": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.folder": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.folder_tag": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.insights_by_period": {
+        "rows": 686,
+        "contentHashMd5": "565bc0778d32faf9af3f1d0803675374"
+      },
+      "public.insights_metadata": {
+        "rows": 2,
+        "contentHashMd5": "a60ad542835159266b96d0bf506cd292"
+      },
+      "public.insights_raw": {
+        "rows": 560,
+        "contentHashMd5": "4f794d54aab6fc812fe2444c8068f58a"
+      },
+      "public.installed_nodes": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.installed_packages": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_checkpoints": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_events": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_iteration_logs": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_mcp_registry_connections": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_messages": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_observation_cursors": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_observation_locks": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_observational_memory": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_observations": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_pending_confirmations": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_resources": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_thread_grants": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_thread_tabs": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_threads": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_ai_workflow_snapshots": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_credential_assignment": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_monitoring_report": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.instance_version_history": {
+        "rows": 1,
+        "contentHashMd5": "7a730dea0ed94ab5dcc91e0fd80b7507"
+      },
+      "public.invalid_auth_token": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.mcp_registry_server": {
+        "rows": 79,
+        "contentHashMd5": "fb69251a2a6e31f1305520a6270cb8e8"
+      },
+      "public.migration_finding": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.migration_finding_sync": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.migrations": {
+        "rows": 300,
+        "contentHashMd5": "f0a25331c461a65c534e38eca3bdb114"
+      },
+      "public.oauth_access_tokens": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.oauth_authorization_codes": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.oauth_clients": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.oauth_refresh_tokens": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.oauth_user_consents": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.poller_state": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.processed_data": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.project": {
+        "rows": 1,
+        "contentHashMd5": "333b92ead2314b92c3547aba11d00209"
+      },
+      "public.project_pool_settings": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.project_relation": {
+        "rows": 1,
+        "contentHashMd5": "6ead6bf8d18a7b054c0f9511deeb9550"
+      },
+      "public.project_secrets_provider_access": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.promotion_config": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.promotion_connection": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.promotion_connection_project": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.promotion_provider": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.role": {
+        "rows": 15,
+        "contentHashMd5": "8ab8cdffd8fc1c9483d86c72f537a9fd"
+      },
+      "public.role_mapping_rule": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.role_mapping_rule_project": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.role_scope": {
+        "rows": 671,
+        "contentHashMd5": "a747196b6597f680d3d6bcac137f6e83"
+      },
+      "public.scheduled_job": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.scheduled_task": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.scope": {
+        "rows": 200,
+        "contentHashMd5": "29eb92f078c5f776ef373ab26306c328"
+      },
+      "public.secrets_provider_connection": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.settings": {
+        "rows": 7,
+        "contentHashMd5": "52265014b62af13fe62f716261b5f94b"
+      },
+      "public.shared_credentials": {
+        "rows": 1,
+        "contentHashMd5": "c503d435c0fa31876fc0bd332ce9c771"
+      },
+      "public.shared_workflow": {
+        "rows": 2,
+        "contentHashMd5": "f1d07d035eca9c598fec5adb1685a264"
+      },
+      "public.tag_entity": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.test_case_execution": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.test_run": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.token_exchange_jti": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.trusted_key": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.trusted_key_source": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.trusted_source": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.trusted_source_identity": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.type_availability_policy": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.type_availability_policy_attachment": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.type_availability_policy_scope": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.user": {
+        "rows": 1,
+        "contentHashMd5": "3ca67bebf0612508511273ef4bb4e984"
+      },
+      "public.user_api_keys": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.user_favorites": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.variables": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.webhook_entity": {
+        "rows": 1,
+        "contentHashMd5": "660e8956280e97fec7f8735def2c38e3"
+      },
+      "public.workflow_builder_session": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_dependency": {
+        "rows": 30,
+        "contentHashMd5": "5271d75fd9e842017e704f5c4532ee2d"
+      },
+      "public.workflow_entity": {
+        "rows": 2,
+        "contentHashMd5": "c6fb4d50ec4558eee14c9677a6621c47"
+      },
+      "public.workflow_history": {
+        "rows": 2,
+        "contentHashMd5": "ff0742bd0f0f75eda92c662b1bb8972b"
+      },
+      "public.workflow_publication_outbox": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_publication_retry_state": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_publication_trigger_status": {
+        "rows": 3,
+        "contentHashMd5": "37de76ff57e0d4610c404af41b6252a6"
+      },
+      "public.workflow_publish_history": {
+        "rows": 4,
+        "contentHashMd5": "07d4ffbe23fa9722cef0d72ce541799b"
+      },
+      "public.workflow_published_version": {
+        "rows": 2,
+        "contentHashMd5": "94307431da0e2e6520f1ccd0bd859210"
+      },
+      "public.workflow_review_activity": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_review_activity_comment": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_review_request": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_review_request_authors": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_review_request_reviewers": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_review_request_workflow": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_statistics": {
+        "rows": 6,
+        "contentHashMd5": "5a2b3123a2ab747df3f6249ced041d3b"
+      },
+      "public.workflow_statistics_delta": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_suggestion": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflow_suggestion_activity": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "public.workflows_tags": {
+        "rows": 0,
+        "contentHashMd5": "d41d8cd98f00b204e9800998ecf8427e"
+      }
+    },
+    "all162TableFingerprintsMatch": true,
+    "reviewbotAfterApplicationStartupUnchanged": true,
+    "jobsByState": {
+      "completed": 113,
+      "failed": 20,
+      "superseded": 13
+    },
+    "notificationsByState": {
+      "sent": 179,
+      "uncertain": 1
+    }
+  },
+  "runtime": {
+    "at": "2026-10-25T07:04:29.313170+00:00",
+    "services": {
+      "controller": {
+        "id": "b0210a684a07f055cdaf21809ae3cff871f18cf0b3bdc6895178cf68880a16a4",
+        "image": "sha256:fc3a414b39e5c017e9a383ec72b4839273573905c7289b142926363f28d04306",
+        "status": "running",
+        "health": "healthy",
+        "environmentMatch": true,
+        "restart": "unless-stopped",
+        "logging": {
+          "Type": "local",
+          "Config": {
+            "compress": "true",
+            "max-file": "2",
+            "max-size": "5m"
+          }
+        }
+      },
+      "n8n": {
+        "id": "c3336315ff05676dab04e573b0c7809446eae79bfef0595e73587332381fbbfd",
+        "image": "sha256:a18edcf018198b33b5488fb47ededafe11e0b10d28f65b9535b7c447c9ce3b2c",
+        "status": "running",
+        "health": null,
+        "environmentMatch": true,
+        "restart": "unless-stopped",
+        "logging": {
+          "Type": "local",
+          "Config": {
+            "compress": "true",
+            "max-file": "2",
+            "max-size": "5m"
+          }
+        }
+      },
+      "postgres": {
+        "id": "f0c59eb371489f6b52fc6ff9eb97252828e9362414ac7a40ef9fa399b3d8a3ca",
+        "image": "sha256:eee6c6e1b0894fa4fe0075eb054af9fd1cf39a35321c2d4110626cfe506411fb",
+        "status": "running",
+        "health": "healthy",
+        "environmentMatch": true,
+        "restart": "unless-stopped",
+        "logging": {
+          "Type": "local",
+          "Config": {
+            "compress": "true",
+            "max-file": "2",
+            "max-size": "5m"
+          }
+        }
+      },
+      "runner": {
+        "id": "02a37a4de668730db16171e48c51ecbfa9a2993a918649bcd9e7ae49911a554b",
+        "image": "sha256:30085d63322d97f20334ba57d3ee02998ae4146687977bfbc931a70e44de0075",
+        "status": "running",
+        "health": "healthy",
+        "environmentMatch": true,
+        "restart": "unless-stopped",
+        "logging": {
+          "Type": "local",
+          "Config": {
+            "compress": "true",
+            "max-file": "2",
+            "max-size": "5m"
+          }
+        }
+      },
+      "tunnel": {
+        "id": "a7203ebe033d9235e9cc31c88de375bfcb897b86d1d6c5c70fd252de7e121932",
+        "image": "sha256:59bab8d3aceec09bf6bdb07d6beca0225ca5cd7ab79436a87ea97978fe1dc4f9",
+        "status": "running",
+        "health": null,
+        "environmentMatch": true,
+        "restart": "unless-stopped",
+        "logging": {
+          "Type": "local",
+          "Config": {
+            "compress": "true",
+            "max-file": "2",
+            "max-size": "5m"
+          }
+        }
+      }
+    }
+  },
+  "code": {
+    "moduleCountPerService": 31,
+    "controllerAndRunnerMatchSource": true,
+    "sha256": {
+      "answer-gate.js": "bbf7e0bd6b4e61708ec74316288a9f69146eb20dffb23b2e95fccb4b911dc180",
+      "application.js": "833cc1aa18facddcf4a29c7f9719e3ed0aa62f15915f84608072dfbfb88ae889",
+      "auth.js": "367c6474a2482e75dc6e9f79449bb1b36e2b9545fee7e64bb0ae377c8e3c3799",
+      "claude.js": "cea927d43e3c55bc96575a40f1013640e644f1fa2fe7fb0445f124e4c9939331",
+      "codex.js": "b55147197f9030ac48b27786aa4a105fabcc9a61ea2c3c4d45694d2ed79e6e59",
+      "commands.js": "26eaa1b6b8529a304dd0d120576030faa77e84bdca31508c167e5aa7d8c5bcde",
+      "config.js": "453445d90173e3c8d5789f4b4d61c528b5d14d8b57b112c4137e1a7d27c9cab2",
+      "contracts.js": "dc8ee34635d2b7cc2ef9fd3d47147fc18dcf744000ce305cd259b701efa848ce",
+      "controller.js": "e6b5a6c35cffbb96cecc1ad70b067016e9ae0172bf7bcc8fe81d32e496de6d6c",
+      "gms.js": "150f87ba10634fcb8805e5bcb338d78e743141ae41c30fabba1a703c33995570",
+      "http-client.js": "87d20afbcd70296c578b2973bb938dd483b9d0c9a32ea41eb397d840c2dd439e",
+      "learning-command.js": "eac3d0340a6d6104ad368e4795aa079dcd1bbe96078fbfe917186cb0d5eff3c7",
+      "learning.js": "06d1a4f9cd82a32ec40e26f09801cd0aafd9cb95da45004fcb93ce689ffade85",
+      "mattermost.js": "2891432c1383954fae9cbaa9a30315e8ee1073a41991d4f353b4d5e943586fa1",
+      "migrate.js": "00a958c7e0e986bd5d26a926b009b2374cfdf779a76c121e18d887fd771d9cd1",
+      "model-failure.js": "970a016afd29eec88858cf7441457603ffff0c55bf3c829f32ab5a78ee62bdb1",
+      "platform.js": "3f4a66343e0022f339583a9ed4ea22ac89a5d802a047ad53690fee94b1be9341",
+      "policy.js": "a5bc3937d6dec769f9db766bf93338ba47c77129009475df6d25d1c8a7519cb1",
+      "process.js": "2934f23779b0ba8db57946bd45d998f8bea447d942d42b7849e6ab7d9b5d2003",
+      "publish.js": "264554bd8f5b8d33328b7801374cb9b5e9c49f91b423c288b87173e1ae83dd07",
+      "question-thread.js": "b062381a701a88be71feb93782e6d5068c4d7cfb866780402c712eff186192f7",
+      "redact.js": "bbfaa095411c1e60edb47b024529cb4645e0625cbe2ad460f9e934ba26849ec4",
+      "render.js": "36371f6ba05904c8138df60327e415877afae861d3710d1367e80dda4d846eaa",
+      "review.js": "c7ae2a7510418b28762d97212cc38d8a3da1c9f53bbe69f5f47e9b61c2a74890",
+      "runner-server.js": "508a819c615cc30befb809a8c9d05db6018f757a33bab8a127c216a4b65be4c3",
+      "server.js": "88f7fba1afbe56b5d1b33631a9162defdf2c6ea40327650202a00f4189e71ec9",
+      "source-mcp.js": "7eb75bcd04442c0dce085e94a3f6b53ea8bbfb0d430edeea71ae3e6573411d42",
+      "source-reader.js": "b9fb4d33ba5182169491bd76a876c0b597b52517cd363d509706e9a673148d20",
+      "store.js": "182540cc5612ee092c756a7a7ed9d800f7f0674c8038fca6ffc1b859e39987d9",
+      "webhooks.js": "5342f33e9c0f6f77635e9241fd0f90f999dedc9447a25265feebaf39f846f8a0",
+      "workspace.js": "efafdcb081b6300b2635ef17bf14c0b4b35ab19a395cd6be70e73f50a04b31b3"
+    }
+  },
+  "liveGms": {
+    "at": "2026-10-25T06:50:22.417Z",
+    "calls": [
+      {
+        "phase": "initial_questions",
+        "elapsedMs": 39051,
+        "status": "passed"
+      }
+    ],
+    "promptProof": [
+      {
+        "phase": "initial_questions",
+        "checks": {
+          "changeEffect": true,
+          "principleApplication": true,
+          "rejectBranchTrivia": true
+        },
+        "sha256": "d2c98512ab8c3acedbc27b915342cd9b244659c8b4b500871cb76e49e345a7a8"
+      }
+    ],
+    "questions": 2,
+    "externalCommentsPosted": 0,
+    "productionDataWrites": 0
+  },
+  "functional": {
+    "at": "2026-10-25T06:54:24.019Z",
+    "health": {
+      "failed": 10,
+      "queued": 0,
+      "active": false
+    },
+    "n8nWake": 202,
+    "gitlabProjectAccess": 200
+  },
+  "endpoints": {
+    "localControllerHealth": 200,
+    "localN8nHealth": 200,
+    "publicUnsignedGitLabWebhook": 401,
+    "publicHealthPath": 404,
+    "publicHealth404Reason": "Existing ingress forwards only /webhooks/(github|gitlab)"
+  },
+  "n8n": {
+    "workflows": [
+      "crbDispatch",
+      "crbRecovery"
+    ],
+    "encryptionKeyPreserved": true,
+    "recentUnexpiredExecutions": 0,
+    "notes": "Successful execution rows become eligible for deletion; status alone is not an active-run indicator"
+  },
+  "files": {
+    "contentComparisonPassed": {
+      "codex-auth": 5499,
+      "claude-auth": 382,
+      "git-cache": 1536,
+      "n8n-state": 6
+    },
+    "excluded": "Codex tmp launcher files regenerated by actual CLI invocation",
+    "directoryUidGidModesRestored": true,
+    "controllerCacheAndJobsWriteProbe": "passed"
+  },
+  "backup": {
+    "directory": "/home/ubuntu/hey/backups",
+    "directoryMode": "0700 for deployment root",
+    "fileMode": "0600",
+    "cluster.sql.gz": "124a4525e675d111a72c131bbfa594b5344cae441099f14bf901865e813f3f80",
+    "volumes-offline.tar.gz": "a3cd113aab27e9305ef44754339086adf3e9bd620a7add3cff945ce897bf8161",
+    "migration-evidence-20261025.tar.gz": "a5b570f56a5c0b612fb350034a65d5cdccd3b90d201ab78303b93bf4a0ed6453",
+    "postCutoverDump": "gzip integrity checked"
+  },
+  "macCleanup": {
+    "containersDeleted": 5,
+    "namedVolumesDeleted": 6,
+    "imageTagsRemoved": 52,
+    "emptyNetworksRemoved": 7,
+    "sourceRestartDisabledBeforeDeletion": true,
+    "recoveryProcessStopped": true,
+    "temporaryRootfsMountsRemoved": true,
+    "colimaRecoveryDirectoryRemoved": true,
+    "macLaunchdMonitorRemoved": "com.thisisjoe.hey.disk-monitor",
+    "dockerFreeSpaceAfter": "6.1 GiB reported by df -h",
+    "localFiles": {
+      "status": "deleted",
+      "paths": [
+        ".env",
+        "config/repositories.yaml",
+        ".local/secrets",
+        ".local/disk-monitor",
+        ".local/edo1-migration-20261025",
+        ".local-adapters-red.log",
+        ".local-audit.log",
+        ".local-build-cache.log",
+        ".local-build-final.log",
+        ".local-build-slim.log",
+        ".local-build.log",
+        ".local-cache-json.log",
+        ".local-cli-smoke.log",
+        ".local-commands-red.log",
+        ".local-contract-test.log",
+        ".local-deletion-red.log",
+        ".local-engine-test.log",
+        ".local-hardening-integration-red.log",
+        ".local-hardening-red.log",
+        ".local-hey-controller-build.log",
+        ".local-hey-controller-smoke.log",
+        ".local-hey-demo.log",
+        ".local-hey-focused.log",
+        ".local-hey-integration.log",
+        ".local-hey-policy-red.log",
+        ".local-hey-red.log",
+        ".local-hey-release-controller-build.log",
+        ".local-hey-release-controller-smoke.log",
+        ".local-hey-release-integration.log",
+        ".local-hey-release-runner-build.log",
+        ".local-hey-release-runner-smoke.log",
+        ".local-hey-release-unit.log",
+        ".local-hey-runner-build.log",
+        ".local-hey-runner-smoke.log",
+        ".local-hey-unit.log",
+        ".local-integration-final.log",
+        ".local-integration-test.log",
+        ".local-n8n-bootstrap.log",
+        ".local-questions-ci-red.log",
+        ".local-questions-contract-red.log",
+        ".local-questions-edge-red.log",
+        ".local-questions-engine-red.log",
+        ".local-questions-integration-red.log",
+        ".local-questions-integration.log",
+        ".local-questions-maxima-red.log",
+        ".local-questions-mid-test.log",
+        ".local-questions-mode-red.log",
+        ".local-questions-render-edge-red.log",
+        ".local-questions-unit.log",
+        ".local-unit-test.log",
+        ".local-up-final.log",
+        ".local-up-slim.log",
+        ".local-up.log"
+      ],
+      "productionEnvAndRepositoryConfigRemoved": true,
+      "historicalLocalWorkPreserved": true
+    },
+    "preserved": [
+      "source checkout and Git worktrees",
+      "other project containers, images and volumes",
+      "historical .local work artifacts",
+      "shared Colima installation",
+      "unattributed anonymous Docker volumes"
+    ],
+    "at": "2026-10-25T07:06:01.881528+00:00",
+    "verifiedNoLocalContainersVolumesNetworksAppImages": true,
+    "launchdRegistrationAbsent": true,
+    "temporaryHostScriptsRemoved": true
+  },
+  "limitations": [
+    "No new GitLab MR comment or Mattermost test message posted",
+    "Single live initial-question case; no load/quality benchmark",
+    "No server reboot or full rollback rehearsal",
+    "No audit/replay of all GitLab deliveries during prior outage",
+    "n8n Python runner unavailable; existing HTTP workflows checked",
+    "Backups are on destination host, not independent off-host storage",
+    "No new edo1 disk monitor or recurring backup automation installed",
+    "Prior failed jobs and one uncertain notification preserved",
+    "Author self-review only; no independent review claimed"
+  ],
+  "approvalBoundary": {
+    "broadLocalArchive": "rejected by automatic approval review for unrelated data/secrets risk",
+    "resolution": "Only this migration directory and identified retired monitor configuration archived; historical .local material preserved"
+  },
+  "verificationScope": "Destination image builds, source code hashes, all-table row/content comparisons, file hashes/permissions, actual GMS RPC, authenticated n8n wake, GitLab project read and public webhook authentication boundary; application source unchanged"
+}
