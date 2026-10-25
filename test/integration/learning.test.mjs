@@ -6,6 +6,7 @@ import { Store } from '../../dist/store.js';
 import { Controller } from '../../dist/controller.js';
 import { application } from '../../dist/application.js';
 import { report, snapshot } from '../fixtures.mjs';
+import { driveWorkflow } from '../workflow-driver.mjs';
 import { questionId } from '../../dist/learning.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
@@ -36,7 +37,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
     if (!comments.some(c => c.id === id && c.surface === surface)) comments.push({ id, body, surface, author: bot ? 'bot' : 'joe', url: `${snap.webUrl}#${surface === 'review' ? 'discussion_r' : 'issuecomment-'}${id}` });
     assert.equal((await fetch(base + '/webhooks/github', { method: 'POST', headers, body: raw })).status, 202);
   };
-  const tick = async () => { assert.equal((await fetch(base + '/internal/tick', { method: 'POST', headers: { authorization: 'Bearer internal-test-secret' } })).status, 202); await controller.active; };
+  const tick = () => driveWorkflow(base, 'internal-test-secret');
   await submit('100', '/hey morequestion'); await submit('100', '/hey morequestion'); await tick();
   assert.equal(calls.length, 1); assert.equal(replies.length, 1);
   const saved = (await pool.query("SELECT * FROM jobs WHERE kind='command'")).rows;
@@ -83,7 +84,7 @@ test('answering every published question, right or wrong, clears the merge gate'
   const server = application(controller, [config], { INTERNAL_TOKEN: 'internal-test-secret', HOOK_SECRET: 'hook-test-secret' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;
-  const tick = async () => { assert.equal((await fetch(base + '/internal/tick', { method: 'POST', headers: { authorization: 'Bearer internal-test-secret' } })).status, 202); await controller.active; };
+  const tick = () => driveWorkflow(base, 'internal-test-secret');
   const submit = async (id, body) => {
     const raw = JSON.stringify({ action: 'created', repository: { full_name: 'joe/demo' }, issue: { number: 1, pull_request: {} }, comment: { id, body, user: { login: 'joe', type: 'User' } } });
     comments.push({ id, body, surface: 'issue', author: 'joe', url: '' });
@@ -141,14 +142,14 @@ test('GitLab signed replies reveal their persisted initial or follow-up question
     const raw=JSON.stringify({object_kind:'note',project:{path_with_namespace:snap.repository},merge_request:{iid:1},user:{username:'human'},object_attributes:{id,note:body,noteable_type:'MergeRequest',discussion_id:discussion}});
     const timestamp=String(Math.floor(Date.now()/1000)); const signature='v1,'+createHmac('sha256',signingKey).update(`${id}.${timestamp}.${raw}`).digest('base64');
     const response=await fetch(base+'/webhooks/gitlab',{method:'POST',headers:{'content-type':'application/json','x-gitlab-event':'Note Hook','webhook-id':id,'webhook-timestamp':timestamp,'webhook-signature':signature},body:raw}); assert.equal(response.status,202);
-    await fetch(base+'/internal/tick',{method:'POST',headers:{authorization:'Bearer thread-internal-secret'}}); await controller.active;
+    await driveWorkflow(base, 'thread-internal-secret');
   }
   await submit('more','/hey morequestion','initial-thread');
   assert.equal(replies.length,1); assert.notEqual(replies[0].thread,'initial-thread');
   const job=(await pool.query("SELECT id FROM jobs WHERE kind='command' AND command_result->'questions' IS NOT NULL")).rows[0];
   await pool.query('UPDATE jobs SET due_at=now() WHERE id=$1',[job.id]);
   await new Promise(resolve=>server.close(resolve)); controller=new Controller(new Store(pool),[platform],workspaces,model); base=await start();
-  await fetch(base+'/internal/tick',{method:'POST',headers:{authorization:'Bearer thread-internal-secret'}}); await controller.active;
+  await driveWorkflow(base, 'thread-internal-secret');
   assert.equal(replies.length,1,'lost reply reconciles without duplicating the batch'); assert.equal(calls,1);
   await submit('reveal-extra','/hey showanswer',replies[0].thread);
   assert.equal([...replies[1].body.matchAll(/^#### 심화\d+\./gm)].length,5); assert.doesNotMatch(replies[1].body,/^#### Q\d+\./m);

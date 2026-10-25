@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import pg from 'pg';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { driveWorkflow } from '../workflow-driver.mjs';
 import { HttpError } from '../../dist/http-client.js';
 import { Store } from '../../dist/store.js';
 import { application } from '../../dist/application.js';
@@ -22,7 +26,8 @@ test('signed HTTP admission, database work, single-pass questions and replay-saf
     gateStatus: async () => statuses.at(-1) ?? null, setGateStatus: async (s, gate) => { statuses.push(gate); },
   };
   const patch = '@@ -1,2 +1,2 @@\n function pay() {\n+charge();\n';
-  const workspaces = { prepare: async () => ({ policy: { version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5, requireAnswers: true }, guidelines: [], mode: 'full', context: { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/snapshots/source' } }), cleanup: async () => {} };
+  const root = await mkdtemp(join(tmpdir(), 'hey-http-flow-')); t.after(() => rm(root, { recursive: true, force: true }));
+  const workspaces = { root, prepare: async () => ({ policy: { version: 1, pathInstructions: [], exclude: [], maxInlineComments: 5, requireAnswers: true }, guidelines: [], mode: 'full', context: { files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } }, excluded: [], limited: false, sourceDir: '/snapshots/source' } }), cleanup: async () => {} };
   const calls = [];
   const model = { run: async phase => { calls.push(phase); return { questions: initialQuestions() }; } };
   const controller = new Controller(store, [platform], workspaces, model);
@@ -38,7 +43,9 @@ test('signed HTTP admission, database work, single-pass questions and replay-saf
   assert.equal((await ignored.json()).admitted,0);assert.equal((await store.health()).queued,0);assert.equal(calls.length,0);
   merged = true;
   for (let i=0;i<2;i++) assert.equal((await fetch(base+'/webhooks/github', { method:'POST', headers, body })).status, 202);
-  const tick = async () => { const response = await fetch(base+'/internal/tick', { method:'POST', headers:{ authorization:'Bearer internal-test-secret' } }); assert.equal(response.status,202); await controller.active; };
+  const tick = () => driveWorkflow(base, 'internal-test-secret');
+  assert.equal((await fetch(base+'/internal/tick', { method:'POST', headers:{ authorization:'Bearer internal-test-secret' } })).status,410);
+  assert.equal((await fetch(base+'/internal/flow/claim', { method:'POST' })).status,401);
   await tick(); await tick(); await tick();
   assert.equal(comments.length,1); assert.equal(inline.length,0);
   assert.match(comments[0].body,/hey! 이건 알고 머지한거지\? 😏/); assert.doesNotMatch(comments[0].body,/CRB-|수정 필요/); assert.deepEqual(calls,['initial_questions']);
@@ -67,8 +74,10 @@ test('signed HTTP admission, database work, single-pass questions and replay-saf
   assert.equal((await store.getTarget(snapshot())).report.questionsUnavailableReason, unavailable.questionsUnavailableReason);
   workspaces.prepare = prepare;
   const failed = await store.enqueue({ kind: 'review', requested: true, target: snapshot(), deliveryId: 'failed-full', headSha: snapshot().headSha }, true);
-  await pool.query('UPDATE jobs SET attempts=2 WHERE id=$1', [failed]);
-  await tick(); await tick();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await pool.query('UPDATE jobs SET due_at=now() WHERE id=$1', [failed]);
+    await tick();
+  }
   const failedReport = (await store.getTarget(snapshot())).report;
   assert.equal(failedReport.state, 'failed'); assert.deepEqual(failedReport.questions, []);
   assert.doesNotMatch(comments[0].body, /^\d+\. /m);

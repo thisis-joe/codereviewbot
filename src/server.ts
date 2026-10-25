@@ -19,5 +19,5 @@ const notifications = new Mattermost(store, platforms);
 const controller = new Controller(store, platforms, new Workspaces(process.env.DATA_ROOT ?? '/data'), new HttpModel(process.env.RUNNER_URL ?? 'http://runner:8091', process.env.RUNNER_TOKEN!), notifications);
 const server = application(controller, repositories);
 server.listen(Number(process.env.PORT ?? 8092), process.env.HOST ?? '0.0.0.0', () => console.log('{"service":"controller","ready":true}'));
-async function stop() { controller.stopping = true; server.close(); await controller.active; await notifications.active; await pool.end(); }
+async function stop() { controller.stopping = true; server.close(); await controller.active; await notifications.active; await Promise.all(controller.maintenance.values()); await pool.end(); }
 process.once('SIGTERM', () => void stop()); process.once('SIGINT', () => void stop());

@@ -62,3 +62,9 @@ CREATE TABLE IF NOT EXISTS bot_comment_history (
   bot_login text NOT NULL,
   PRIMARY KEY(target_key,surface,comment_id)
 );
+
+-- n8n owns phase ordering; jobs keep durable phase/lease checkpoints across restarts.
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS workflow_step text CHECK (workflow_step IN ('prepare','generate','validate','publish','gate','notify','command','complete'));
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS workflow_status text CHECK (workflow_status IN ('pending','running'));
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS workflow_owner uuid;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS workflow_data jsonb NOT NULL DEFAULT '{}';

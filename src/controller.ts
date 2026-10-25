@@ -14,13 +14,19 @@ import { commentKey, type Comment, type Event } from './webhooks.js';
 import { syncAnswerGate } from './answer-gate.js';
 import { sameRevision, questionId } from './learning.js';
 import type { Mattermost } from './mattermost.js';
+import { Workflow } from './workflow.js';
 import { failureInfo, failureMessage, scheduleFailure, recoveryAttempts } from './model-failure.js';
+
+export interface FailureContext { snap?: Snapshot; previous?: Report | null; requireAnswers?: boolean }
+export interface PreparedReview { snap: Snapshot; previous: Report | null; prepared: Awaited<ReturnType<Workspaces['prepare']>>; prepareMs: number; requireAnswers: boolean; cached: Report | null }
+export interface GeneratedReview { report: Report; diff: Record<string, import('./review.js').DiffMetadata>; reviewSeconds: number | null }
 
 export class Controller {
   active: Promise<void> | null = null;
   reconciling = false;
   stopping = false;
-  constructor(readonly store: Store, readonly platforms: Platform[], readonly workspaces: Workspaces, readonly model: Model, readonly notifications?: Mattermost) {}
+  readonly workflow: Workflow;
+  constructor(readonly store: Store, readonly platforms: Platform[], readonly workspaces: Workspaces, readonly model: Model, readonly notifications?: Mattermost) { this.workflow = new Workflow(this, workspaces.root ?? '/data'); }
   platform(t: Target): Platform {
     const platform = this.platforms.find(p => p.config.platform === t.platform && p.config.instance === t.instance && p.config.repository === t.repository);
     if (!platform) throw new Error('Repository no longer allowed'); return platform;
@@ -34,73 +40,102 @@ export class Controller {
     return job.id;
   }
   async perform(job: Job): Promise<void> {
-    const lease = () => this.store.assertLease(job.id, job.owner);
     const heartbeat = setInterval(() => { void this.store.heartbeat(job.id, job.owner).catch(() => {}); }, 15000);
-    let snap: Snapshot | undefined, previous: Report | null = null, requireAnswers: boolean | undefined;
+    const context: FailureContext = {};
     try {
-      const platform = this.platform(job.body.target);
+      const platform = this.platform(job.body.target), lease = () => this.store.assertLease(job.id, job.owner);
       if (job.state === 'publishing') {
-        if (!job.result) throw new Error('Missing review result');
-        if (!isQuestionReport(job.result)) {
-          const live = await platform.snapshot(job.body.target.number, job.body.requested || job.body.merged);
-          await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: live.headSha, deliveryId: `questions-v2:${job.id}`, ...(job.body.requested ? { requested: true } : {}), ...(job.body.merged ? { merged: true } : {}) }, true);
-          return;
-        }
-        const publishStarted = Date.now();
-        await publish(platform, job.result, job.diff ?? {}, job.max_inline, lease, await this.store.answerResults(job.result.snapshot), job.body.requested || job.body.merged, await this.historicalComments(platform, job.result.snapshot));
-        console.info(JSON.stringify({ jobId: job.id, event: 'questions_published', publishMs: Date.now() - publishStarted }));
-        await this.syncGate(platform, job.result);
-        await this.notifications?.questionsPublished(platform, job.result);
+        if (!await this.publishReview(job)) return;
+        await this.synchronizeReview(job);
+        await this.notifyReview(job);
         await this.store.complete(job.id, job.owner); return;
       }
-      if (job.kind === 'command') {
-        await this.command(job, platform, lease); await this.store.complete(job.id, job.owner);
-        if (job.body.comment) await this.settleAck(platform, job.body.target.number, job.body.comment);
-        const result = (await this.store.getJob(job.id))?.command_result;
-        if (result?.answered || result?.grades?.length) {
-          const report = (await this.store.getTarget(job.body.target))?.report;
-          if (report) { await this.refreshSummary(platform, report, true); await this.syncGate(platform, report); }
-        }
-        return;
-      }
-      // Drain legacy CI jobs without fetching checks, preparing source or invoking the model.
+      if (job.kind === 'command') { await this.command(job, platform, lease); await this.finishCommand(job); return; }
       if (job.kind === 'ci') { await this.store.complete(job.id, job.owner); return; }
-      snap = await platform.snapshot(job.body.target.number, job.body.requested || job.body.merged);
-      snap.title = redact(snap.title); snap.description = redact(snap.description);
-      previous = (await this.store.getTarget(snap))?.report ?? null;
-      const prepareStarted = Date.now();
-      const priorSnapshot = !job.body.merged && !job.body.force && isQuestionReport(previous) && previous.state === 'completed' && !(job.body.regenerate && sameRevision(previous.snapshot, snap)) ? previous.snapshot : null;
-      const prepared = await this.workspaces.prepare(platform, snap, job.id, priorSnapshot);
-      requireAnswers = !job.body.merged && prepared.policy.requireAnswers === true;
-      const prepareMs = Date.now() - prepareStarted;
-      await lease();
-      if (!job.body.force && !job.body.regenerate && isQuestionReport(previous) && reviewed(previous) && previous.snapshot.headSha === snap.headSha && previous.snapshot.baseSha === snap.baseSha && previous.snapshot.startSha === snap.startSha && previous.snapshot.policyVersion === snap.policyVersion) {
-        const cached = previous.snapshot.commits ? previous : { ...previous, snapshot: { ...previous.snapshot, commits: snap.commits } };
-        await this.store.saveResult(job.id, job.owner, cached, {}, 0); return;
-      }
-      await this.announce(platform, snap, prepared.mode, previous);
-      const issues = (await platform.linkedIssues(snap.description)).map(redact);
-      const started = Date.now();
-      const result = await generateQuestions(this.model, job.id, snap, prepared.policy, prepared.context, previous, prepared.guidelines, issues, prepared.mode);
-      console.info(JSON.stringify({ jobId: job.id, event: 'questions_generated', prepareMs, generateMs: Date.now() - started, modelCalls: hasQuestionSource(prepared.context) ? 1 : 0 }));
-      await lease(); const live = await platform.snapshot(snap.number, job.body.requested || job.body.merged);
-      if (live.headSha !== snap.headSha || live.baseSha !== snap.baseSha || live.startSha !== snap.startSha) throw new Superseded('Review snapshot changed');
-      await this.store.saveResult(job.id, job.owner, { ...result, requireAnswers: !job.body.merged && prepared.policy.requireAnswers === true }, Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), 0, Math.round((Date.now() - started) / 1000));
-    } catch (error) {
-      const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
-      if (superseded) await this.store.supersede(job.id, job.owner);
-      else if (snap && job.state !== 'publishing' && (job.attempts >= 3 || ['rate_limit', 'authentication'].includes(failureInfo(error).code))) {
-        const failure = recoveryAttempts(job.body, snap) < 3 ? scheduleFailure(failureInfo(error)) : failureInfo(error);
-        const failed = { ...emptyReport(snap, 'failed', failureMessage(failure)), failure, requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous) };
-        try { await this.store.saveResult(job.id, job.owner, failed, {}, 0); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
-      } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
-      // Commands also run on closed PR/MRs, so a closed notice is only a fallback; the last failed attempt leaves a failure notice.
-      if (job.kind === 'command' && job.body.comment && (superseded || job.attempts >= 3)) {
-        try { await this.settleAck(this.platform(job.body.target), job.body.target.number, job.body.comment, superseded ? 'closed' : 'failed'); } catch { /* repository removed */ }
-      }
-      console.error(JSON.stringify({ jobId: job.id, kind: job.kind, stage: job.state, attempt: job.attempts, error: superseded ? 'superseded' : 'execution_failed', ...(error instanceof Superseded ? {} : { cause: describeFailure(error) }) }));
-    } finally { clearInterval(heartbeat); }
+      const prepared = await this.prepareReview(job, context);
+      const generated = await this.generateReview(job, prepared);
+      await this.validateReview(job, prepared.snap);
+      await this.store.saveResult(job.id, job.owner, generated.report, generated.diff, 0, generated.reviewSeconds);
+    } catch (error) { await this.handleFailure(job, error, context); }
+    finally { clearInterval(heartbeat); }
   }
+  async prepareReview(job: Job, context: FailureContext = {}): Promise<PreparedReview> {
+    const platform = this.platform(job.body.target);
+    const snap = await platform.snapshot(job.body.target.number, job.body.requested || job.body.merged);
+    context.snap = snap;
+    snap.title = redact(snap.title); snap.description = redact(snap.description);
+    const previous = (await this.store.getTarget(snap))?.report ?? null;
+    context.previous = previous;
+    const started = Date.now();
+    const priorSnapshot = !job.body.merged && !job.body.force && isQuestionReport(previous) && previous.state === 'completed' && !(job.body.regenerate && sameRevision(previous.snapshot, snap)) ? previous.snapshot : null;
+    const prepared = await this.workspaces.prepare(platform, snap, job.id, priorSnapshot);
+    context.requireAnswers = !job.body.merged && prepared.policy.requireAnswers === true;
+    const prepareMs = Date.now() - started;
+    await this.store.assertLease(job.id, job.owner);
+    const cached = !job.body.force && !job.body.regenerate && isQuestionReport(previous) && reviewed(previous) && sameRevision(previous.snapshot, snap) && previous.snapshot.policyVersion === snap.policyVersion
+      ? previous.snapshot.commits ? previous : { ...previous, snapshot: { ...previous.snapshot, commits: snap.commits } } : null;
+    if (!cached) await this.announce(platform, snap, prepared.mode, previous);
+    return { snap, previous, prepared, prepareMs, requireAnswers: context.requireAnswers, cached };
+  }
+  async generateReview(job: Job, value: PreparedReview): Promise<GeneratedReview> {
+    if (value.cached) return { report: value.cached, diff: {}, reviewSeconds: null };
+    const { snap, previous, prepared, prepareMs } = value;
+    const issues = (await this.platform(job.body.target).linkedIssues(snap.description)).map(redact);
+    const started = Date.now();
+    const result = await generateQuestions(this.model, job.id, snap, prepared.policy, prepared.context, previous, prepared.guidelines, issues, prepared.mode);
+    console.info(JSON.stringify({ jobId: job.id, event: 'questions_generated', prepareMs, generateMs: Date.now() - started, modelCalls: hasQuestionSource(prepared.context) ? 1 : 0 }));
+    return { report: { ...result, requireAnswers: value.requireAnswers }, diff: Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), reviewSeconds: Math.round((Date.now() - started) / 1000) };
+  }
+  async validateReview(job: Job, snap: Snapshot): Promise<void> {
+    await this.store.assertLease(job.id, job.owner);
+    const live = await this.platform(job.body.target).snapshot(snap.number, job.body.requested || job.body.merged);
+    if (!sameRevision(live, snap)) throw new Superseded('Review snapshot changed');
+  }
+  async publishReview(job: Job): Promise<boolean> {
+    if (!job.result) throw new Error('Missing review result');
+    const platform = this.platform(job.body.target);
+    if (!isQuestionReport(job.result)) {
+      const live = await platform.snapshot(job.body.target.number, job.body.requested || job.body.merged);
+      await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: live.headSha, deliveryId: `questions-v2:${job.id}`, ...(job.body.requested ? { requested: true } : {}), ...(job.body.merged ? { merged: true } : {}) }, true);
+      return false;
+    }
+    const started = Date.now();
+    await publish(platform, job.result, job.diff ?? {}, job.max_inline, () => this.store.assertLease(job.id, job.owner), await this.store.answerResults(job.result.snapshot), job.body.requested || job.body.merged, await this.historicalComments(platform, job.result.snapshot));
+    console.info(JSON.stringify({ jobId: job.id, event: 'questions_published', publishMs: Date.now() - started }));
+    return true;
+  }
+  async synchronizeReview(job: Job): Promise<void> {
+    if (job.result) await this.syncGate(this.platform(job.body.target), job.result);
+  }
+  async notifyReview(job: Job): Promise<void> {
+    if (job.result) await this.notifications?.questionsPublished(this.platform(job.body.target), job.result);
+  }
+  async finishCommand(job: Job): Promise<void> {
+    const platform = this.platform(job.body.target);
+    await this.store.complete(job.id, job.owner);
+    if (job.body.comment) await this.settleAck(platform, job.body.target.number, job.body.comment);
+    const result = (await this.store.getJob(job.id))?.command_result;
+    if (result?.answered || result?.grades?.length) {
+      const report = (await this.store.getTarget(job.body.target))?.report;
+      if (report) { await this.refreshSummary(platform, report, true); await this.syncGate(platform, report); }
+    }
+  }
+  async handleFailure(job: Job, error: unknown, context: FailureContext = {}, orchestrated = false): Promise<void> {
+    const { snap, previous, requireAnswers } = context;
+    const superseded = error instanceof Superseded || (error instanceof HttpError && error.status === 410);
+    if (superseded) await this.store.supersede(job.id, job.owner);
+    else if (snap && job.state !== 'publishing' && (job.attempts >= 3 || ['rate_limit', 'authentication'].includes(failureInfo(error).code))) {
+      const failure = recoveryAttempts(job.body, snap) < 3 ? scheduleFailure(failureInfo(error)) : failureInfo(error);
+      const failed = { ...emptyReport(snap, 'failed', failureMessage(failure)), failure, requireAnswers: requireAnswers ?? previous?.requireAnswers, findings: archivedFindings(previous ?? null) };
+      try { await this.store.saveResult(job.id, job.owner, failed, {}, 0, null, orchestrated); } catch { await this.store.fail(job, 'Review failed after lease loss'); }
+    } else await this.store.fail(job, error instanceof HttpError ? `Platform API ${error.status}` : 'Review execution failed; inspect runner authentication, resource limits and configuration');
+    // Commands also run on closed PR/MRs, so a closed notice is only a fallback; the last failed attempt leaves a failure notice.
+    if (job.kind === 'command' && job.body.comment && (superseded || job.attempts >= 3)) {
+      try { await this.settleAck(this.platform(job.body.target), job.body.target.number, job.body.comment, superseded ? 'closed' : 'failed'); } catch { /* repository removed */ }
+    }
+    console.error(JSON.stringify({ jobId: job.id, kind: job.kind, stage: job.state, attempt: job.attempts, error: superseded ? 'superseded' : 'execution_failed', ...(error instanceof Superseded ? {} : { cause: describeFailure(error) }) }));
+  }
+
   async command(job: Job, platform: Platform, lease: () => Promise<void>): Promise<void> {
     const comment = job.body.comment; if (!comment) return;
     const permission = await platform.permission(comment.author); if (permission === 'none') return;
@@ -202,25 +237,38 @@ export class Controller {
     const snap = await platform.snapshot(job.body.target.number, true);
     await this.store.enqueue({ kind: 'review', target: job.body.target, headSha: snap.headSha, deliveryId: `${job.id}:tryagain`, regenerate: true, requested: true });
   }
-  async recover(): Promise<void> {
-    if (this.reconciling || this.stopping) return; this.reconciling = true;
-    try {
+  readonly maintenance = new Map<string, Promise<void>>();
+  maintain(task: 'reconcile' | 'recover' | 'cleanup'): Promise<void> {
+    if (this.stopping) return Promise.resolve();
+    const current = this.maintenance.get(task); if (current) return current;
+    const operation = (async () => {
+      if (task === 'cleanup') {
+        await this.store.cleanupWorkspaces(protectedJobs => this.workspaces.cleanup(undefined, protectedJobs)); return;
+      }
       for (const platform of this.platforms) {
         try {
-          for (const number of await platform.openNumbers()) {
-            const snap = await platform.snapshot(number); const state = await this.store.getTarget(snap);
-            if (state?.report && sameRevision(state.report.snapshot, snap)) await this.syncGate(platform, state.report);
+          if (task === 'reconcile') {
+            for (const number of await platform.openNumbers()) {
+              const snap = await platform.snapshot(number), state = await this.store.getTarget(snap);
+              if (state?.report && sameRevision(state.report.snapshot, snap)) await this.syncGate(platform, state.report);
+            }
+          } else {
+            // Only previously admitted merge/manual work is eligible for automatic retry.
+            for (const target of await this.store.recoveryTargets(platform.config)) {
+              const snap = await platform.snapshot(target.number, true), retry = await this.store.recoveryEvent(snap);
+              if (retry) await this.store.enqueue(retry);
+            }
           }
-          // Retry only accepted merge/manual work; never discover new work from open MR pushes.
-          for (const target of await this.store.recoveryTargets(platform.config)) {
-            const snap = await platform.snapshot(target.number, true);
-            const retry = await this.store.recoveryEvent(snap);
-            if (retry) await this.store.enqueue(retry);
-          }
-        } catch { console.error(JSON.stringify({ repository: platform.config.repository, error: 'recovery_fetch_failed' })); }
+        } catch { console.error(JSON.stringify({ repository: platform.config.repository, task, error: 'recovery_fetch_failed' })); }
       }
-      await this.store.cleanupWorkspaces(protectedJobs => this.workspaces.cleanup(undefined, protectedJobs));
-    } finally { this.reconciling = false; }
+    })().finally(() => { this.maintenance.delete(task); });
+    this.maintenance.set(task, operation);
+    return operation;
+  }
+  async recover(): Promise<void> {
+    if (this.reconciling || this.stopping) return; this.reconciling = true;
+    try { for (const task of ['reconcile','recover','cleanup'] as const) await this.maintain(task); }
+    finally { this.reconciling = false; }
   }
 }
 function normalizeMention(platform: Platform, body: string): string {
