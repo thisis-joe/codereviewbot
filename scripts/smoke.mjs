@@ -17,12 +17,14 @@ assert.equal((await request(`${controller}/healthz`)).status, 200);
 assert.equal((await request(`${n8n}/healthz`)).status, 200);
 assert.equal((await request(`${controller}/internal/tick`, { method: 'POST' })).status, 401);
 assert.equal((await request(`${n8n}/webhook/review-wakeup`, { method: 'POST' })).status, 403);
-function successes() {
+function latestExecution() {
   return Number(execFileSync('docker', ['compose', 'exec', '-T', 'postgres', 'psql', '-U', 'postgres', '-d', 'n8n', '-Atc',
-    `SELECT count(*) FROM execution_entity WHERE "workflowId"='crbDispatch' AND status='success'`], { encoding: 'utf8' }).trim());
+    `SELECT coalesce(max(id),0) FROM execution_entity WHERE "workflowId"='crbDispatch'`], { encoding: 'utf8' }).trim());
 }
-const before = successes();
+assert.equal((await request(`${controller}/internal/flow/claim`, { method: 'POST' })).status, 401);
+assert.equal((await request(`${controller}/internal/tick`, { method: 'POST', headers: { Authorization: `Bearer ${env.INTERNAL_TOKEN}` } })).status, 410);
+const before = latestExecution();
 assert.equal((await request(`${n8n}/webhook/review-wakeup`, { method: 'POST', headers: { Authorization: `Bearer ${env.INTERNAL_TOKEN}` } })).status, 202);
-for (let i = 0; i < 15 && successes() <= before; i++) await setTimeout(1000);
-assert.ok(successes() > before, 'n8n dispatch did not complete successfully');
-console.log('Local health, ingress authentication and real n8n → controller dispatch passed. No Git/model accounts used.');
+for (let i = 0; i < 15 && latestExecution() <= before; i++) await setTimeout(1000);
+assert.ok(latestExecution() > before, 'n8n did not allocate a phase-workflow execution');
+console.log('Local health, internal authentication, retired tick route and real n8n wake admission passed. Successful execution history is not required by the error-only retention policy. Task completion and external model/platform behavior require separate verification.');

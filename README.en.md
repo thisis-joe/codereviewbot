@@ -172,13 +172,16 @@ A posted grade counts even for an incorrect answer. Follow-ups and answer reveal
 flowchart LR
     Git[GitHub · GitLab] -->|Merge · comment webhooks| Controller[controller]
     Controller --> DB[(PostgreSQL)]
-    N8N[n8n] -->|Dispatch · failure recovery| Controller
+    Controller -->|Job wake-up| N8N[n8n]
+    N8N -->|Prepare · generate · validate · publish · recover| Controller
     Controller -->|Fixed source snapshot| Runner[runner]
     Runner -->|Default engine| GMS[GMS Responses API]
     Controller -->|Question · explanation comments| Git
 ```
 
-The controller authenticates webhooks and stores jobs and learning history. n8n triggers dispatch and recovery. The runner reads a fixed source snapshot to generate questions. Before publishing, the controller checks the code revision and existing comments to avoid stale results and duplicate posts.
+The controller authenticates webhooks and stores jobs and learning history. n8n manages preparation, generation, validation, publication, completion polling, retry timing and recovery. The runner reads a fixed source snapshot to generate questions. Before publishing, the controller checks the code revision and existing comments to avoid stale results and duplicate posts.
+
+See the [n8n orchestration guide](docs/n8n-orchestration.md) for phase APIs, nodes and coordinated rollout/rollback.
 
 - The model receives only snapshot listing, reading and search tools. It does not execute the target repository's installation scripts, code or tests.
 - Source needed for generation is sent to GMS. The runner has no mounted host home, Docker socket or Git cache.

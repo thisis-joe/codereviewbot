@@ -172,13 +172,16 @@ pathInstructions:
 flowchart LR
     Git[GitHub · GitLab] -->|머지 · 댓글 웹훅| Controller[controller]
     Controller --> DB[(PostgreSQL)]
-    N8N[n8n] -->|작업 실행 · 실패 복구| Controller
+    Controller -->|작업 도착 알림| N8N[n8n]
+    N8N -->|준비 · 생성 · 검증 · 게시 · 복구 지시| Controller
     Controller -->|고정 코드 스냅샷| Runner[runner]
     Runner -->|기본 엔진| GMS[GMS Responses API]
     Controller -->|질문 · 해설 댓글| Git
 ```
 
-컨트롤러가 웹훅을 인증하고 작업·학습 이력을 저장합니다. n8n이 작업 실행과 복구를 깨우고, 실행기는 고정된 코드 스냅샷을 읽어 질문을 생성합니다. 게시 전에는 코드 기준과 기존 댓글을 확인해 오래된 결과와 중복 게시를 방지합니다.
+컨트롤러가 웹훅을 인증하고 작업·학습 이력을 저장합니다. n8n이 준비·생성·검증·게시 단계와 완료 대기·재시도·복구를 관리하고, 실행기는 고정된 코드 스냅샷을 읽어 질문을 생성합니다. 게시 전에는 코드 기준과 기존 댓글을 확인해 오래된 결과와 중복 게시를 방지합니다.
+
+단계별 API, n8n 노드 구성과 전환·복구 방법은 [n8n 실행 흐름](docs/n8n-orchestration.md)을 참고하세요.
 
 - 모델에는 스냅샷 파일 목록·읽기·검색 도구만 제공합니다. 대상 저장소의 설치 스크립트·코드·테스트를 실행하지 않습니다.
 - GMS 호출 시 출제에 필요한 소스를 GMS로 전송합니다. 실행기에는 호스트 홈·Docker 소켓·Git 캐시를 마운트하지 않습니다.

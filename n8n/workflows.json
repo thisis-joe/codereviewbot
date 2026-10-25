@@ -1,7 +1,7 @@
 [
   {
     "id": "crbDispatch",
-    "name": "hey — durable dispatch",
+    "name": "hey — job orchestration",
     "active": false,
     "nodes": [
       {
@@ -10,8 +10,8 @@
         "type": "n8n-nodes-base.scheduleTrigger",
         "typeVersion": 1.2,
         "position": [
-          200,
-          100
+          0,
+          0
         ],
         "parameters": {
           "rule": {
@@ -29,10 +29,9 @@
         "name": "Webhook",
         "type": "n8n-nodes-base.webhook",
         "typeVersion": 2,
-        "webhookId": "crb-review-wakeup",
         "position": [
-          200,
-          300
+          0,
+          200
         ],
         "parameters": {
           "httpMethod": "POST",
@@ -47,6 +46,7 @@
             }
           }
         },
+        "webhookId": "crb-review-wakeup",
         "credentials": {
           "httpHeaderAuth": {
             "id": "crbInternalAuth",
@@ -55,17 +55,45 @@
         }
       },
       {
-        "id": "Dispatch",
-        "name": "Dispatch",
+        "id": "Deliver queued notification",
+        "name": "Deliver queued notification",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          240,
+          100
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://controller:8092/internal/flow/notifications",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "options": {
+            "timeout": 60000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Claim durable job",
+        "name": "Claim durable job",
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.2,
         "position": [
           480,
-          200
+          100
         ],
         "parameters": {
           "method": "POST",
-          "url": "http://controller:8092/internal/tick",
+          "url": "http://controller:8092/internal/flow/claim",
           "authentication": "genericCredentialType",
           "genericAuthType": "httpHeaderAuth",
           "options": {
@@ -81,6 +109,780 @@
         "retryOnFail": true,
         "maxTries": 3,
         "waitBetweenTries": 1000
+      },
+      {
+        "id": "Job available",
+        "name": "Job available",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          700,
+          100
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "available",
+                "leftValue": "={{ $json.available }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "Choose job phase",
+        "name": "Choose job phase",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          940,
+          100
+        ],
+        "parameters": {
+          "mode": "rules",
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "step-prepare",
+                      "leftValue": "={{ $json.step }}",
+                      "rightValue": "prepare",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "prepare"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "step-generate",
+                      "leftValue": "={{ $json.step }}",
+                      "rightValue": "generate",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "generate"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "step-validate",
+                      "leftValue": "={{ $json.step }}",
+                      "rightValue": "validate",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "validate"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "step-publish",
+                      "leftValue": "={{ $json.step }}",
+                      "rightValue": "publish",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "publish"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "step-gate",
+                      "leftValue": "={{ $json.step }}",
+                      "rightValue": "gate",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "gate"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "step-notify",
+                      "leftValue": "={{ $json.step }}",
+                      "rightValue": "notify",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "notify"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "step-command",
+                      "leftValue": "={{ $json.step }}",
+                      "rightValue": "command",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "command"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "step-complete",
+                      "leftValue": "={{ $json.step }}",
+                      "rightValue": "complete",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "complete"
+              }
+            ]
+          },
+          "options": {
+            "fallbackOutput": "extra",
+            "renameFallbackOutput": "Unexpected state"
+          }
+        }
+      },
+      {
+        "id": "Prepare source",
+        "name": "Prepare source",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1260,
+          -420
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/step\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner, step: 'prepare' } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Generate questions",
+        "name": "Generate questions",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1260,
+          -260
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/step\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner, step: 'generate' } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Validate revision",
+        "name": "Validate revision",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1260,
+          -100
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/step\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner, step: 'validate' } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Publish questions",
+        "name": "Publish questions",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1260,
+          60
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/step\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner, step: 'publish' } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Sync answer gate",
+        "name": "Sync answer gate",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1260,
+          220
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/step\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner, step: 'gate' } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Queue question notification",
+        "name": "Queue question notification",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1260,
+          380
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/step\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner, step: 'notify' } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Handle command",
+        "name": "Handle command",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1260,
+          540
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/step\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner, step: 'command' } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Complete job",
+        "name": "Complete job",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1260,
+          700
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/step\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner, step: 'complete' } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Wait for phase",
+        "name": "Wait for phase",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          1540,
+          100
+        ],
+        "parameters": {
+          "resume": "timeInterval",
+          "amount": 2,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "Read phase status",
+        "name": "Read phase status",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1760,
+          100
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "={{ \"http://controller:8092/internal/flow/jobs/\" + $json.jobId + \"/status\" }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ { owner: $json.owner } }}",
+          "options": {
+            "timeout": 10000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Choose next action",
+        "name": "Choose next action",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          2000,
+          100
+        ],
+        "parameters": {
+          "mode": "rules",
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "status-pending",
+                      "leftValue": "={{ $json.status }}",
+                      "rightValue": "pending",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "pending"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "status-running",
+                      "leftValue": "={{ $json.status }}",
+                      "rightValue": "running",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "running"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "status-retry",
+                      "leftValue": "={{ $json.status }}",
+                      "rightValue": "retry",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "retry"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "status-completed",
+                      "leftValue": "={{ $json.status }}",
+                      "rightValue": "completed",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "completed"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "status-superseded",
+                      "leftValue": "={{ $json.status }}",
+                      "rightValue": "superseded",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "superseded"
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "id": "status-failed",
+                      "leftValue": "={{ $json.status }}",
+                      "rightValue": "failed",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      }
+                    }
+                  ],
+                  "combinator": "and"
+                },
+                "renameOutput": true,
+                "outputKey": "failed"
+              }
+            ]
+          },
+          "options": {
+            "fallbackOutput": "extra",
+            "renameFallbackOutput": "Unexpected state"
+          }
+        }
+      },
+      {
+        "id": "Wait until retry is due",
+        "name": "Wait until retry is due",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          2220,
+          360
+        ],
+        "parameters": {
+          "resume": "specificTime",
+          "dateTime": "={{ $json.retryAt }}"
+        }
+      },
+      {
+        "id": "Job failed",
+        "name": "Job failed",
+        "type": "n8n-nodes-base.stopAndError",
+        "typeVersion": 1,
+        "position": [
+          2240,
+          680
+        ],
+        "parameters": {
+          "errorType": "errorMessage",
+          "errorMessage": "={{ \"Job \" + $json.jobId + \" failed during \" + ($json.failure?.step || $json.step) + \" (\" + ($json.failure?.code || \"unknown\") + \"). The durable failure record is preserved.\" }}"
+        }
+      },
+      {
+        "id": "Unexpected workflow state",
+        "name": "Unexpected workflow state",
+        "type": "n8n-nodes-base.stopAndError",
+        "typeVersion": 1,
+        "position": [
+          2240,
+          900
+        ],
+        "parameters": {
+          "errorType": "errorMessage",
+          "errorMessage": "Controller returned an unsupported workflow phase or status."
+        }
+      },
+      {
+        "id": "No pending job",
+        "name": "No pending job",
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [
+          940,
+          940
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "Workflow guide",
+        "name": "Workflow guide",
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          0,
+          -460
+        ],
+        "parameters": {
+          "content": "## hey · n8n orchestration\nEach named phase executes separately. Wait/status nodes observe real completion. PostgreSQL fences owners and preserves retry checkpoints; source/prompt/question bodies never enter this workflow. Commands preserve the existing learning flow. A failed job stops visibly here; periodic recovery can admit only eligible retries.",
+          "height": 300,
+          "width": 700
+        }
       }
     ],
     "connections": {
@@ -88,7 +890,7 @@
         "main": [
           [
             {
-              "node": "Dispatch",
+              "node": "Deliver queued notification",
               "type": "main",
               "index": 0
             }
@@ -99,7 +901,288 @@
         "main": [
           [
             {
-              "node": "Dispatch",
+              "node": "Deliver queued notification",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Deliver queued notification": {
+        "main": [
+          [
+            {
+              "node": "Claim durable job",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claim durable job": {
+        "main": [
+          [
+            {
+              "node": "Job available",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Job available": {
+        "main": [
+          [
+            {
+              "node": "Choose job phase",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "No pending job",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Choose job phase": {
+        "main": [
+          [
+            {
+              "node": "Prepare source",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Generate questions",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Validate revision",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Publish questions",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Sync answer gate",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Queue question notification",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Handle command",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Complete job",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Unexpected workflow state",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare source": {
+        "main": [
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generate questions": {
+        "main": [
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate revision": {
+        "main": [
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Publish questions": {
+        "main": [
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Sync answer gate": {
+        "main": [
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Queue question notification": {
+        "main": [
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Handle command": {
+        "main": [
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Complete job": {
+        "main": [
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait for phase": {
+        "main": [
+          [
+            {
+              "node": "Read phase status",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read phase status": {
+        "main": [
+          [
+            {
+              "node": "Choose next action",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Choose next action": {
+        "main": [
+          [
+            {
+              "node": "Choose job phase",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Wait for phase",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Wait until retry is due",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Deliver queued notification",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Deliver queued notification",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Job failed",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Unexpected workflow state",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait until retry is due": {
+        "main": [
+          [
+            {
+              "node": "Deliver queued notification",
               "type": "main",
               "index": 0
             }
@@ -123,8 +1206,8 @@
         "type": "n8n-nodes-base.scheduleTrigger",
         "typeVersion": 1.2,
         "position": [
-          200,
-          100
+          0,
+          0
         ],
         "parameters": {
           "rule": {
@@ -138,21 +1221,105 @@
         }
       },
       {
-        "id": "Recover",
-        "name": "Recover",
+        "id": "Reconcile answer gates",
+        "name": "Reconcile answer gates",
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.2,
         "position": [
-          480,
-          200
+          260,
+          0
         ],
         "parameters": {
           "method": "POST",
-          "url": "http://controller:8092/internal/recover",
+          "url": "http://controller:8092/internal/flow/reconcile",
           "authentication": "genericCredentialType",
           "genericAuthType": "httpHeaderAuth",
           "options": {
-            "timeout": 10000
+            "timeout": 180000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Schedule eligible retries",
+        "name": "Schedule eligible retries",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          540,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://controller:8092/internal/flow/recover",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "options": {
+            "timeout": 180000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Clean expired source snapshots",
+        "name": "Clean expired source snapshots",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          820,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://controller:8092/internal/flow/cleanup",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "options": {
+            "timeout": 180000
+          }
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "crbInternalAuth",
+            "name": "hey Internal"
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      },
+      {
+        "id": "Deliver queued notification",
+        "name": "Deliver queued notification",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1100,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://controller:8092/internal/flow/notifications",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "options": {
+            "timeout": 60000
           }
         },
         "credentials": {
@@ -171,7 +1338,40 @@
         "main": [
           [
             {
-              "node": "Recover",
+              "node": "Reconcile answer gates",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Reconcile answer gates": {
+        "main": [
+          [
+            {
+              "node": "Schedule eligible retries",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule eligible retries": {
+        "main": [
+          [
+            {
+              "node": "Clean expired source snapshots",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Clean expired source snapshots": {
+        "main": [
+          [
+            {
+              "node": "Deliver queued notification",
               "type": "main",
               "index": 0
             }

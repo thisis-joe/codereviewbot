@@ -1,0 +1,56 @@
+{
+  "runId": "503f24fb",
+  "verifiedAt": "2026-10-25T07:52:45.733Z",
+  "n8n": "2.43.8",
+  "postgres": "17",
+  "result": "passed",
+  "executedNodes": [
+    "Prepare source",
+    "Generate questions",
+    "Validate revision",
+    "Publish questions",
+    "Sync answer gate",
+    "Queue question notification",
+    "Handle command",
+    "Complete job",
+    "Wait for phase",
+    "Read phase status",
+    "Reconcile answer gates",
+    "Schedule eligible retries",
+    "Clean expired source snapshots"
+  ],
+  "jobs": [
+    {
+      "kind": "review",
+      "state": "completed",
+      "workflow_step": "complete"
+    },
+    {
+      "kind": "command",
+      "state": "completed",
+      "workflow_step": "complete"
+    }
+  ],
+  "modelCalls": 1,
+  "visibleComments": 2,
+  "errors": 0,
+  "limits": "Signed HTTP admission, real application/PostgreSQL/n8n; external platform and AI are fixtures. Schedules are disabled in this isolated probe and recovery uses a fixture-only trigger. Success execution data is retained here for verification only.",
+  "checks": {
+    "unit": {
+      "passed": 154,
+      "failed": 0
+    },
+    "postgres_http_integration": {
+      "passed": 65,
+      "failed": 0
+    },
+    "sensitivity": "Disabling admission in an isolated copy makes all 8 new workflow integration checks fail.",
+    "build": "passed",
+    "demo": "passed",
+    "compose": "passed with fixture-only values",
+    "review": "author review of the full scope; no independent review claimed"
+  },
+  "baseline": "0a7a84aaf76dc56344e953e67b5cec97ad893e09",
+  "backend_commit": "2d79d86",
+  "deployment": "not yet activated"
+}
