@@ -1,302 +1,217 @@
 # hey
 
-[![한국어](https://img.shields.io/badge/%EC%96%B8%EC%96%B4-%ED%95%9C%EA%B5%AD%EC%96%B4-red.svg)](README.md)
-[![English](https://img.shields.io/badge/lang-English-blue.svg)](README.en.md)
+### hey! 이건 알고 머지한거지? 😏
 
-**A self-hosted question bot for GitHub pull requests and GitLab merge requests.**
-Authors review code quality while writing code. The bot uses n8n and the Codex CLI or Claude Code CLI to read the change and related callers, ask Korean multiple-choice questions, and grade replies with explanations.
-It no longer performs automatic code review, generates findings or reports CI results.
+**A GitHub and GitLab learning bot that turns merged changes into CS questions and explanations.**
 
-The project name is `hey`, with `/hey` commands and `@hey` questions. Existing `/reviewbot` and `@reviewbot` instructions remain supported.
+When a PR/MR is merged, hey reads the final change and posts **2 basic multiple-choice questions**. Answer in a comment to receive explanations grounded in CS principles and the code. Request **5 follow-up questions** when you want to go deeper.
 
-> [!NOTE]
-> The bot never commits code, approves or merges. It only posts comments.
-> Questions and bot replies are written in Korean.
+[한국어](README.md) · [Try it locally](#try-it-locally) · [Comment commands](#comment-commands) · [Install and connect](#install-and-connect) · [Operations guide](docs/operations.md)
 
-## Contents
+## How it works for your team
 
-- [Features](#features)
-- [How it works](#how-it-works)
-- [Quick start](#quick-start)
-- [Question comments](#question-comments)
-- [Comment commands](#comment-commands)
-- [Learning through comments](#learning-through-comments)
-- [Repository policy](#repository-policy)
-- [Safety](#safety)
-- [Project layout](#project-layout)
-- [Docs](#docs)
+1. **Merge a PR/MR.** Opening, reopening and pushing do not automatically generate questions.
+2. **Answer 2 questions.** Each has A–D options and tests a CS concept relevant to the actual change. Initial questions stay at a basic level.
+3. **Read the explanations.** Get the correct option as a sentence, an explanation, per-option notes and links to code at the relevant commit.
+4. **Go deeper when needed.** `/hey morequestion` adds 5 deeper questions about the same change.
 
-## Features
+Questions and replies are written in Korean. hey supports code understanding; it does not find defects automatically, edit code, approve or merge PRs.
 
-| Feature | Description |
-|---|---|
-| Automatic questions | Each push generates questions about changed code and related callers. The first run covers the whole PR/MR; subsequent runs cover the new changes. A new push prevents publishing the obsolete result. |
-| One initial generation call | One `initial_questions` model call produces questions and private answer keys, with a 120,000ms call timeout. Code validates structure, duplicates and source locations. |
-| Change understanding | Exactly four questions (three basic, one advanced), four choices A–D, with a `[심화]` tag on the advanced one. |
-| Answer grading | Reply with question numbers and choices for grades, explanations and per-option notes. A bare option letter works in a single-question inline thread. |
-| Deeper learning | Each request adds five deeper questions, excluding those already asked. |
-| Command help | Ordinary question, follow-up and grading comments show one help entry point. `/hey help` returns the complete four-column table of 6 commands. |
-| Merge after answering | Optional commit status requires answers to the initial questions visible in the current summary before merging. |
-| Repository context | Base-branch policy and guide files inform questions and explanations. |
+### A question preview
 
-## How it works
+This is **one illustrative question**, assuming payment retries reuse the first request's idempotency key. A real initial comment contains two questions.
 
-```mermaid
-flowchart LR
-  Git[GitHub / GitLab] --> Tunnel[Cloudflare Tunnel]
-  Tunnel --> API[Verify webhook, store in DB]
-  API --> N8N[n8n wakes jobs]
-  N8N --> Queue[Claim job in PostgreSQL]
-  Queue --> Questions[Prepare code, generate initial questions once]
-  Questions --> Publish[Recheck SHA, match comments, publish]
-```
+> #### hey! 이건 알고 머지한거지? 😏
+>
+> #### Q1. 결제 재시도에 첫 요청의 멱등 키를 사용하는 이유는 무엇인가요?
+>
+> A. 재시도마다 새 승인을 만들기 위해서입니다.<br>
+> B. 동일 요청을 식별해 중복 승인을 막기 위해서입니다.<br>
+> C. 주문 저장을 생략하기 위해서입니다.<br>
+> D. 모든 재시도를 금지하기 위해서입니다.
+>
+> ---
+>
+> 답변 달기: `/hey answer Q1 B`<br>
+> 정답·해설 보기: 이 질문 스레드에 답글로 `/hey showanswer`<br>
+> 더 풀어보기: `/hey morequestion`
 
-1. A GitHub or GitLab webhook arrives; its signature is verified and the job is stored in the database.
-2. n8n wakes the next job every 10 seconds and checks for missed changes and answer-completion status every minute. CI events do not regenerate questions.
-3. The controller prepares a fixed source snapshot. The selected model (Codex or Claude) generates the initial questions in one isolated call. No readable text change means no model call and an explicit unavailable reason.
-4. Code validates question structure, duplicates, diff locations and answer-key structure. The controller rechecks SHAs before publishing and regenerates against new code after a push.
-5. The summary first shows `질문 생성 중` (generating questions), the commit and an estimated duration, then becomes the questions. Estimates use only question-generation history from the new version, with a two-minute unmeasured default. Historical review durations are excluded.
+Questions use H4 headings and blank lines. Reference commits appear as a list of **linked commit titles** rather than hashes. Follow-ups start with the first question, without a batch heading or `[심화]` difficulty tag.
 
-A new push to an open PR/MR creates a new progress comment and preserves earlier question comments. Only the new comment becomes the new result. Configured basic and advanced question counts remain; at least one asks about the change's purpose or design rationale supported by code, with the others checking behavior, flow or edge cases. The bot must not guess the author's personal intentions as a correct answer.
+Explanations show the correct option's sentence, then **explanation → per-option notes → code evidence**. Notes are indented on a new line beneath each option. Each generated explanation is 1–3 sentences connecting CS principles to concrete code conditions. Your answer and the correct option letters are not displayed side by side.
 
-Incremental generation receives the actual diff since the last question revision and previous question text. The full PR/MR diff supplies publication coordinates. A partial or failed previous generation, changed base refs or policy, or a force-push breaking ancestry falls back to full scope. The bot does not replay every intermediate push.
-
-| Service | Role |
-|---|---|
-| `controller` | Webhook auth, job queue, Git cache and snapshots, platform API calls and comment publishing |
-| `runner` | Runs the Codex CLI or Claude Code CLI (chosen with `MODEL_PROVIDER`; account login or API key). Uses only read/search tools on a fixed snapshot; has no Git write access. |
-| `postgres` | Reports, job state, webhook deduplication, question and answer history |
-| `n8n` | Periodic dispatch and recovery calls. Question generation and learning logic live in the controller. |
-| `tunnel` | Optional. Exposes only the webhook path through Cloudflare Tunnel. |
-
-## Quick start
-
-### Requirements
-
-- Node.js 22+, npm, Git
-- Docker or Colima (for integration tests and running the server)
-- At least 8 GiB of free disk space for image builds (on Colima, inside the VM disk)
-
-### 1. Test locally
-
-```sh
-npm ci --ignore-scripts
-npm test                       # unit tests
-node scripts/integration.mjs   # integration tests with a temporary PostgreSQL container
-npm run demo                   # question, learning and help examples without model calls
-```
-
-`npm run demo` writes `demo-report.md` (questions), `demo-inline.md` (question thread), `demo-learning.md` (five deeper questions and a grade) and `demo-help.md` (all commands) to `.local/`.
-These are fixtures. Actual answer quality and time saved against the former workflow still require live model evaluation.
-
-### 2. Run the server
-
-```sh
-node scripts/setup.mjs                  # create internal tokens and DB password in .env (keeps existing values)
-docker compose build controller runner
-docker compose up -d
-node scripts/bootstrap-n8n.mjs          # register n8n workflows
-node scripts/smoke.mjs                  # check it works
-```
-
-| URL | Purpose |
-|---|---|
-| <http://localhost:5688> | n8n (set up the Owner account on first visit) |
-| <http://localhost:18092/healthz> | Controller health check |
-
-The internal API, database and runner are not exposed externally.
-Repository connections are off by default. To connect real GitHub or GitLab repositories, follow the [connection guide](docs/connections.md) (Korean).
-
-> [!WARNING]
-> Use `docker compose stop` to stop the server.
-> `docker compose down -v` deletes credentials, the database and n8n state.
-
-## Question comments
-
-The comment opens with one line on how to answer and one on how to reveal answers and explanations; each question is a `####` heading. Only advanced questions carry a `[심화]` tag. Source commit and answer progress sit below the questions; the state label appears only for partial or failed runs. The old summary, findings and checks/caveats sections, review verdict and CI report have been removed. The question heading has no section number.
-
-```markdown
-#### hey! 이건 알고 머지하는거지? 😏
-
-답변 달기: `/hey answer Q1 B` — 여러 개는 `/hey answer Q1 B Q2 C`
-정답·해설 한 번에 보기: `/hey showanswer` — 답하지 않고 모든 질문의 정답과 보기별 해설 확인
-
-#### Q1. pay의 재시도에 첫 요청의 멱등 키를 전달하는 이유는 무엇인가요?
-    A. 재시도마다 새 승인을 만들기 위해
-    B. 외부 승인 서비스가 동일 요청을 식별하도록 하기 위해
-    C. 주문 저장을 생략하기 위해
-    D. 모든 오류의 재시도를 금지하기 위해
-
-#### Q2. 외부 승인이 성공하고 주문 저장이 실패한 뒤 같은 키로 재시도하면 무엇을 기대하나요?
-    A. 새로운 결제 승인이 반드시 발생한다
-    B. 주문 저장은 항상 생략한다
-    C. 외부 승인이 자동 취소된다
-    D. 같은 승인을 식별하고 주문 저장을 다시 시도한다
-
-#### Q3. 외부 승인은 성공했지만 주문 저장이 실패한 주문은 어떤 상태로 남나요?
-    A. 승인과 주문이 모두 없는 상태
-    B. 승인은 있고 주문 기록은 없는 상태
-    C. 주문 기록만 있고 승인은 없는 상태
-    D. 승인과 주문이 모두 완료된 상태
-
-#### Q4. [심화] DB 트랜잭션만으로 외부 승인을 되돌릴 수 없는 이유는 무엇인가요?
-    A. 외부 서비스의 부작용이 로컬 DB 트랜잭션에 참여하지 않기 때문에
-    B. DB 트랜잭션은 읽기만 허용하기 때문에
-    C. 멱등 키가 DB 잠금을 해제하기 때문에
-    D. 주문 저장보다 승인이 항상 느리기 때문에
-
-기준 커밋 bbbbbbbb · 답변 0/4
-명령어 안내: `/hey help`
-```
-
-In actual comments, the source commit is linked and each choice occupies its own line. The question list carries no code locations; grading and reveal replies link to the exact source revision. The payment behavior above is an illustrative fixture assumption.
-
-Questions on publishable diff lines also receive an inline thread. Questions that cannot be positioned in the diff remain in the summary. New findings and code-fix suggestions are not published.
-
-- Topics fit the change: behavior and invariants, design choices, edge cases, failure recovery and relevant technical principles.
-- Each initial batch has exactly four questions, three basic and one advanced (always last, Q4), with one correct answer among A–D. The key and explanations stay private until grading or `/hey showanswer`.
-- Code validates question/key structure and source locations. There is no extra model verification pass to guarantee semantic correctness; live evaluation is still needed.
-- Binary-only or excluded-only changes show why questions are unavailable. Failures and source limits are shown as generation state and a short reason.
-- Comment compaction is disclosed and preserves all four initial questions and their choices.
-
-### Transition from existing results
-
-New results use `schemaVersion: "2"`. A previous result is converted once even when head/base/start SHAs are unchanged; subsequent runs reuse the question result. Old results awaiting publication are regenerated as questions and never repost historical findings.
-The existing database, published questions and answer history are retained. Previously published remote comments are kept.
+[Initial question example](docs/examples/initial-questions.md) · [Follow-up and explanation examples](docs/examples/morequestion-with-cs.md)
 
 ## Comment commands
 
-Control the bot with PR/MR comments. Requires Write (GitHub) or Developer (GitLab) access or higher.
+Comment on a connected PR/MR. Commands require GitHub Write or GitLab Developer access or higher, and also work on closed or merged PRs/MRs.
 
-Ordinary bot comments show only `명령어 안내: /hey help`; the question summary also shows the answer and reveal lines. Help runs without a model and works even when no questions exist. Its four columns are command, meaning, description and example; all 6 commands are included.
-
-| Command | Action |
+| Goal | Comment |
 |---|---|
-| `/hey help` | Show the complete command table |
-| `/hey tryagain` | Regenerate questions for the latest change scope |
-| `@hey question` | Answer a question using code evidence |
-| `/hey morequestion` | Add five deeper questions |
-| `/hey answer Q1 B Q2 C` | Answer one or several questions by number and option, then receive grades and explanations |
-| `/hey showanswer` | Reveal answers and explanations for every review question without answering. Name questions (`/hey showanswer Q1 심화2`) to reveal only those, follow-ups included |
+| Get help | `/hey help` |
+| Answer one question | `/hey answer Q1 B` |
+| Answer several questions | `/hey answer Q1 B Q2 A` |
+| Reveal the questions in the comment you reply to | `/hey showanswer` |
+| Get 5 follow-up questions | `/hey morequestion` |
+| Regenerate questions | `/hey tryagain` |
+| Ask about the code | `@hey 이 변경에서 멱등성이 필요한 이유가 뭔가요?` |
 
-## Learning through comments
+### Answers and explanations
 
-### Answering a question
+- Add reasoning after your choice, for example: `/hey answer Q1 B 같은 요청의 승인을 재사용해야 하기 때문입니다`.
+- In an inline thread containing one question, a reply such as `B` is enough for grading. Use question numbers in summary comments.
+- A choice alone is graded from the stored answer key. If you add reasoning, the model also assesses it.
+- `/hey showanswer` reads stored explanations without a model call or marking questions as answered.
+- **The question comment you reply to determines the scope.** Reply beneath the initial questions to reveal only those, or beneath a follow-up batch to reveal only that batch. Individual question selectors are not supported.
+- Each follow-up batch opens a separate thread. Outside a question thread, the bot asks you to reply to the relevant question comment. It does not guess a scope for older revisions or legacy threads mixing several batches.
+- On GitLab, use the question comment's reply field. Ordinary GitHub PR comments have no child replies, so use a **question thread attached to code**. The 5 follow-ups share a separate code thread; an initial inline thread reveals only the one question shown there.
 
-Every question has four options. Answer with the question number (`Q1`) and an option letter (`A`–`D`), optionally followed by your reasoning.
-Initial questions are numbered `Q1`, `Q2`…; questions from `/hey morequestion` are numbered separately as `심화1`, `심화2`… so the two never collide. Follow-up numbers continue across requests within one code revision (심화1–5, then 심화6–10). Hash IDs like `Q-0123456789ab` from older comments still work.
+Follow-up numbers continue within the same code version: `심화1–5`, then `심화6–10`. Each PR/MR allows up to 5 follow-up requests per code version. Earlier question and answer history is preserved.
 
-```text
-/hey answer Q1 B
-/hey answer Q1 B Q2 C Q3 A Q4 D
-/hey answer 심화1 B 심화2 C
+## Try it locally
+
+You need **Node.js 22+, npm and Git**. Running the server or integration tests also requires **Docker Compose, or Colima with Docker Compose available**.
+
+Generate sample comments without API keys or external accounts:
+
+```sh
+git clone https://github.com/thisis-joe/codereviewbot.git
+cd codereviewbot
+npm ci --ignore-scripts
+npm run demo
 ```
 
-- Each initial question is also posted as an inline thread on its code line; replying with just `B` there is graded.
-- The answer key is fixed when the question is written and stays out of question comments until grading or `/hey showanswer`. A bare option letter is graded from the key without a model call; added reasoning is assessed by the model, but the key alone decides right or wrong.
-- After grading, the summary comment marks the question (`✅ 정답`, `🟡 부분 정답`, `❌ 오답`, `⏸ 판정 보류`) and updates `답변 n/m`.
+Open the generated files below. The demo uses fixtures and makes no model calls.
 
-The bot replies in this order:
-
-**Correct · Partially correct · Incorrect · Undecided → Answer assessment → Explanation → Per-option notes → Code evidence**
-
-Design questions accept any reasonable alternative. If the code evidence is not enough, the bot withholds a verdict.
-
-### Reveal answers and explanations
-
-Comment `/hey showanswer` to get the answer, code location, explanation and per-option notes for every review question in one reply, without answering. Add numbers (`/hey showanswer Q1 심화2`, up to 10) to reveal only those; follow-up questions appear only when named.
-
-- It is built from the stored key, so no model is called.
-- It is not grading, so it does not change `답변 n/m` or the `requireAnswers` merge gate.
-- Older questions stored without a key point the reader to `/hey answer` instead.
-
-### Getting deeper questions
-
-Comment `/hey morequestion` to get five deeper questions, excluding ones already asked, in the same format as initial questions. The comment opens with an answer example and a `/hey showanswer 심화1 심화2 …` line using that batch's own numbers, so all five can be revealed at once.
-They cover how the technique works, design choices, failure recovery, concurrency, performance and test strategy.
-
-- 5 questions at a time, up to 5 requests per code version across the whole PR/MR
-- The model call timeout for initial generation (`initial_questions`), deeper questions (`questions`) and reasoning grades (`grade`) is 120,000ms each. Queueing, source preparation, publication and retries take additional time.
-
-### Merge only after every question is answered (optional)
-
-Add `requireAnswers: true` to `.hey.yaml` and the bot posts a `codereviewbot/questions` status on the PR's latest commit.
-When a repository admin makes that status a required check, the merge button stays blocked until every initial question visible in the current summary is answered.
-
-| Situation | Status |
+| Generated file | Content |
 |---|---|
-| Some questions are unanswered | Pending · `질문 답변 1/3` (1 of 3 answered) |
-| Every question shown in the report is answered (correct, incorrect or undecided all count) | Success |
-| No questions could be made, e.g. only binary files changed | Success |
-| Question generation failed | Pending · request again with `/hey tryagain` |
+| `.local/demo-report.md` | Initial question comment |
+| `.local/demo-inline.md` | A question attached to a code line |
+| `.local/demo-learning.md` | 5 follow-ups and a graded explanation |
+| `.local/demo-help.md` | Full command help |
 
-- An answer counts once its grading reply is posted. A wrong answer still counts, since it gets an explanation.
-- Deeper questions from `/hey morequestion` are not required.
-- A new push starts over with the newly generated questions.
-- See the [connection guide](docs/connections.md) (Korean) for setup.
+## Install and connect
 
-<details>
-<summary>Where replies go and how questions are kept</summary>
+### 1. Prepare local configuration
 
-- In GitHub inline review threads and GitLab discussions, the bot replies in the same thread.
-- For ordinary GitHub PR comments, the bot posts a new comment with a link to the request.
-- In a bot thread with only one question, a plain reply is graded without an ID. With several, the bot asks for the ID.
-- Comment bodies are read up to 8,000 characters.
-- Questions are tied to the head, base and start SHAs. If the code changes, the bot points you to the latest questions.
-- New revisions have separate question comments; earlier questions and grade marks remain unchanged. Publication retries and grade refreshes update only their revision's comment. Questions posted before the update are also preserved on new pushes, and existing questions for the current code can still be graded.
-- Regenerating a report or failed question generation on the same code keeps posted question IDs and learning history.
+```sh
+node scripts/setup.mjs
+```
 
-</details>
+This prepares `.env` with internal tokens and database passwords, and `config/repositories.yaml` with example connections. Existing values are preserved. External repository connections are disabled by default.
 
-## Repository policy
+Set your issued GMS key in `.env`:
 
-Put `.hey.yaml` on the target repository’s base branch to configure source scope and question context.
-If it is absent, the existing `.codereviewbot.yaml` is used. When both exist, `.hey.yaml` takes precedence.
+```dotenv
+MODEL_PROVIDER=gms
+GMS_KEY=<your-issued-key>
+GMS_MODEL=gpt-6.1-sol
+GMS_RESPONSES_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses
+```
+
+The default engine calls the **GMS Responses API directly**. With `MODEL_PROVIDER=gms`, it does not invoke Claude CLI or fall back to another engine after a failure. The runner will not start without `GMS_KEY`. Codex CLI and Claude Code CLI are optional engines; see the [connection guide](docs/connections.md) for authentication.
+
+### 2. Start the services
+
+```sh
+docker compose build controller runner
+docker compose up -d
+```
+
+Set up the initial n8n Owner account at [http://localhost:5688](http://localhost:5688), then register the workflows and check the installation:
+
+```sh
+node scripts/bootstrap-n8n.mjs
+node scripts/smoke.mjs
+```
+
+Controller health is available at [http://localhost:18092/healthz](http://localhost:18092/healthz). The smoke check verifies health, internal authentication and n8n-to-controller dispatch. It does not verify live model, GitHub or GitLab connections.
+
+### 3. Connect GitHub or GitLab
+
+Follow the [connection guide](docs/connections.md) to configure bot authentication, repository details, the actual bot login in `config/repositories.yaml`, and webhooks. Set `enabled: true`. Recreate the affected service containers after changing environment values.
+
+| Platform | Webhook path | Events for questions and commands |
+|---|---|---|
+| GitHub | `/webhooks/github` | Pull request, Issue comment, Pull request review comment |
+| GitLab | `/webhooks/gitlab` | Merge request, Comment/Note |
+
+Webhooks use signature authentication. Provide a public HTTPS endpoint; Cloudflare Tunnel is optional. Keep n8n, the database, runner and internal API private. Optional GitLab Mattermost notifications are described in the [operations guide](docs/operations.md#mattermost-알림).
+
+**Merge a small PR/MR** to verify that 2 questions appear, then try answering, revealing explanations and requesting follow-ups. Past merged PRs/MRs are not generated in bulk; use `/hey tryagain` for an explicit request.
+
+Do not commit `.env`, tokens, private keys or `config/repositories.yaml`. Use `docker compose stop` to pause services. **`docker compose down -v` deletes database, authentication and n8n volumes.**
+
+## Repository-specific context
+
+Place `.hey.yaml` on the target repository's base branch to configure scope and context:
 
 ```yaml
 version: 1
-maxInlineComments: 5    # legacy finding limit; does not limit question threads
-requireAnswers: false   # true: merge only after every question is answered
-exclude: ["generated/**"]
+exclude:
+  - "generated/**"
 pathInstructions:
-  - path: "src/controllers/**"
-    instructions: "인증·권한·입력 검증의 의도를 이해하는 질문을 출제한다."
+  - path: "src/payments/**"
+    instructions: "멱등성과 외부 결제 호출의 실패 경계를 묻는다."
 ```
 
-- The policy is read from the base branch. Changing it in a PR does not change that PR's question policy.
-- `AGENTS.md` and `docs/coding-standards.md` on the base branch and linked issues are also used.
-- Generated files, binaries, agent configs and credential files are excluded from question sources. An explicit reason is shown when no readable change remains.
-- Limits: 1,500 files, 12 MiB total, 200 KB per file, 150 KB of diff. Anything beyond that marks question generation as partial.
+Policies are read from the base branch; a policy change inside a PR does not immediately change that PR's policy. `.codereviewbot.yaml` is used when `.hey.yaml` is absent. Base-branch `AGENTS.md`, `docs/coding-standards.md` and linked issues provide additional context.
 
-## Safety
+<details>
+<summary>Optional: require answers to manually generated questions before merging</summary>
 
-- The model CLI's built-in tools (shell, browser, other apps, sub-agents) are turned off; only read/search tools on a fixed snapshot are provided.
-- The runner cannot reach the host home folder, the Docker socket or the Git cache. Only the controller has Git write credentials.
-- The target project's code, tests and install scripts are never run.
-- Instructions inside PR descriptions, issues and code comments are treated as data only.
-- If a response is lost while publishing, the bot looks up existing comments and retries without duplicates.
+Combine `requireAnswers: true` in `.hey.yaml` with a required repository status check to require answers to initial questions generated manually before merge. The bot posts `codereviewbot/questions`; repository settings enforce the gate.
 
-## Project layout
+A posted grade counts even for an incorrect answer. Follow-ups and answer reveals do not count toward the requirement. **Automatic questions are generated after merge and do not apply this gate.** See the [connection guide](docs/connections.md#답변-완료-후-머지-선택) for permissions and protection settings.
 
-```text
-src/          controller and runner servers, question generation engine, platform adapters, renderer, DB store
-migrations/   PostgreSQL schema
-n8n/          n8n workflows (generated by scripts/generate-workflows.mjs)
-config/       sample repository config (repositories.yaml is not committed)
-ops/          DB init and Cloudflare Tunnel examples
-scripts/      setup, n8n bootstrap, smoke and integration tests, demo
-test/         unit tests and test/integration integration tests
-docs/         implementation contract, progress log, connection and operations guides
+</details>
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Git[GitHub · GitLab] -->|Merge · comment webhooks| Controller[controller]
+    Controller --> DB[(PostgreSQL)]
+    N8N[n8n] -->|Dispatch · failure recovery| Controller
+    Controller -->|Fixed source snapshot| Runner[runner]
+    Runner -->|Default engine| GMS[GMS Responses API]
+    Controller -->|Question · explanation comments| Git
 ```
 
-## Docs
+The controller authenticates webhooks and stores jobs and learning history. n8n triggers dispatch and recovery. The runner reads a fixed source snapshot to generate questions. Before publishing, the controller checks the code revision and existing comments to avoid stale results and duplicate posts.
 
-| Document | Contents |
+- The model receives only snapshot listing, reading and search tools. It does not execute the target repository's installation scripts, code or tests.
+- Source needed for generation is sent to GMS. The runner has no mounted host home, Docker socket or Git cache.
+- Question structure, code locations and answer-key format are validated. This does not guarantee that generated answers are semantically correct.
+- Unreadable changes, size limits and generation failures are disclosed in comments.
+
+## Development and verification
+
+```sh
+npm test                      # Build and unit tests
+node scripts/integration.mjs  # Integration tests with disposable PostgreSQL
+npm run demo                  # Generate fixture comments without model calls
+```
+
+With an existing test database, set `TEST_DATABASE_URL` and run `npm run test:integration`. Do not use a production database for integration tests.
+
+| Path | Purpose |
 |---|---|
-| [Connection guide](docs/connections.md) | Question engine (Codex/Claude) login and API keys, GitHub and GitLab, Cloudflare Tunnel (Korean) |
-| [Operations guide](docs/operations.md) | Health checks, recovery, backups (Korean) |
-| [Implementation contract](docs/plan.md) | Scope, output contract, acceptance criteria |
-| [Progress log](docs/progress.md) | Work history and verification results |
+| `src/` | Controller, runner, GMS adapter, generation, grading and rendering |
+| `config/` · `ops/` | Connection examples, database initialization and tunnel configuration |
+| `migrations/` | PostgreSQL schema |
+| `n8n/` · `scripts/` | Workflows, setup and verification tools |
+| `test/` | Unit and integration tests |
+| `docs/` | Connection and operations guides, examples and implementation history |
+
+## Further reading
+
+- [Connection guide](docs/connections.md): GMS and optional engine authentication, GitHub, GitLab and tunnels
+- [Operations guide](docs/operations.md): health checks, recovery, notifications and data management
+- [Implementation contract](docs/plan.md): output contracts and scope
+- [Progress log](docs/progress.md): changes and verification evidence
+
+Detailed guides are written in Korean.
 
 ## License
 

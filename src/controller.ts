@@ -122,7 +122,7 @@ export class Controller {
     if (!command) return;
     await lease();
     if (command.action === 'questions' || command.action === 'answer' || command.action === 'reveal') {
-      await handleLearning(command, job, platform, this.store, this.workspaces, this.model, all, lease); return;
+      await handleLearning(command, job, platform, this.store, this.workspaces, this.model, all, lease, all.filter(trusted)); return;
     }
     let answer = '요청을 처리했습니다.', evidence: string[] = [], next = COMMAND_HELP_HINT, answeredSnapshot: Snapshot | undefined;
     const target = job.body.target;

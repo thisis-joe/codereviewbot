@@ -107,3 +107,54 @@ test('answering every published question, right or wrong, clears the merge gate'
   assert.equal(statuses.length, 4);
   assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
 });
+
+test('GitLab signed replies reveal their persisted initial or follow-up question thread after restart', async t => {
+  const { initialQuestions } = await import('../fixtures.mjs');
+  const { renderReport } = await import('../../dist/render.js');
+  const snap = snapshot({ platform: 'gitlab', instance: 'https://gitlab.example', repository: 'team/demo', webUrl: 'https://gitlab.example/team/demo/-/merge_requests/1' });
+  const pool = new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }); t.after(() => pool.end());
+  const store = new Store(pool); await store.migrate(); await pool.query('TRUNCATE deliveries,jobs,targets CASCADE');
+  const value = report({ snapshot: snap, questions: initialQuestions() });
+  await store.enqueue({ kind: 'review', target: snap, deliveryId: 'thread-seed' });
+  const seed = await store.claim(); await store.saveResult(seed.id, seed.owner, value, {}, 0);
+  const publishing = await store.claim(); await store.complete(publishing.id, publishing.owner);
+  const signingKey = Buffer.alloc(32, 9), secret = 'whsec_' + signingKey.toString('base64');
+  const config = { platform: 'gitlab', instance: snap.instance, repository: snap.repository, botLogin: 'bot', webhookSecretEnv: 'HOOK_SECRET', webhookAuth: 'signing', tokenEnv: 'TOKEN', enabled: true };
+  const comments = [{ id: 'initial', surface: 'note', author: 'bot', body: renderReport(value), discussionId: 'initial-thread', url: '' }];
+  let calls = 0, lost = true; const replies = [];
+  const platform = { config, snapshot: async () => snap, owned: c => c.author === 'bot', permission: async () => 'write', comments: async () => comments, inlineComments: async () => comments,
+    deleteComment: async (n,c) => { comments.splice(comments.indexOf(c),1); },
+    reply: async (n,body,parent,discussion,newThread) => {
+      if (body.includes('codereviewbot:ack:')) { comments.push({ id: 'ack-' + comments.length, surface: 'note', author: 'bot', body, discussionId: discussion }); return; }
+      const thread = newThread ? 'follow-' + replies.length : discussion;
+      replies.push({ body, thread, newThread }); comments.push({ id: 'result-' + replies.length, surface: 'note', author: 'bot', body, discussionId: thread });
+      if (newThread && lost) { lost = false; throw Error('reply response lost'); }
+    } };
+  const questions = Array.from({ length:5 }, (_,i) => ({ ...value.questions[0], level:'advanced', question: `추가 묶음에서 조건 ${i+1}이 보장에 미치는 영향은 무엇인가요?` }));
+  const model = { run: async () => { calls++; return { questions }; } };
+  const workspaces = { prepare: async () => ({ policy:{}, context:{ sourceDir:'/source', files:{'src/pay.ts':'function pay() {\ncharge();\n}'}, baseFiles:{}, diff:{'src/pay.ts':{ oldPath:'src/pay.ts', patch:'@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines:new Set([1,2,3]), positions:{ RIGHT:{2:{newLine:2}}, LEFT:{} } }}, excluded:[], limited:false } }) };
+  let controller = new Controller(store,[platform],workspaces,model);
+  let server;
+  async function start() { server=application(controller,[config],{INTERNAL_TOKEN:'thread-internal-secret',HOOK_SECRET:secret}); await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve)); return `http://127.0.0.1:${server.address().port}`; }
+  let base=await start(); t.after(()=>server.close());
+  async function submit(id,body,discussion) {
+    const raw=JSON.stringify({object_kind:'note',project:{path_with_namespace:snap.repository},merge_request:{iid:1},user:{username:'human'},object_attributes:{id,note:body,noteable_type:'MergeRequest',discussion_id:discussion}});
+    const timestamp=String(Math.floor(Date.now()/1000)); const signature='v1,'+createHmac('sha256',signingKey).update(`${id}.${timestamp}.${raw}`).digest('base64');
+    const response=await fetch(base+'/webhooks/gitlab',{method:'POST',headers:{'content-type':'application/json','x-gitlab-event':'Note Hook','webhook-id':id,'webhook-timestamp':timestamp,'webhook-signature':signature},body:raw}); assert.equal(response.status,202);
+    await fetch(base+'/internal/tick',{method:'POST',headers:{authorization:'Bearer thread-internal-secret'}}); await controller.active;
+  }
+  await submit('more','/hey morequestion','initial-thread');
+  assert.equal(replies.length,1); assert.notEqual(replies[0].thread,'initial-thread');
+  const job=(await pool.query("SELECT id FROM jobs WHERE kind='command' AND command_result->'questions' IS NOT NULL")).rows[0];
+  await pool.query('UPDATE jobs SET due_at=now() WHERE id=$1',[job.id]);
+  await new Promise(resolve=>server.close(resolve)); controller=new Controller(new Store(pool),[platform],workspaces,model); base=await start();
+  await fetch(base+'/internal/tick',{method:'POST',headers:{authorization:'Bearer thread-internal-secret'}}); await controller.active;
+  assert.equal(replies.length,1,'lost reply reconciles without duplicating the batch'); assert.equal(calls,1);
+  await submit('reveal-extra','/hey showanswer',replies[0].thread);
+  assert.equal([...replies[1].body.matchAll(/^#### 심화\d+\./gm)].length,5); assert.doesNotMatch(replies[1].body,/^#### Q\d+\./m);
+  await submit('reveal-initial','/hey showanswer','initial-thread');
+  assert.equal([...replies[2].body.matchAll(/^#### Q\d+\./gm)].length,2); assert.doesNotMatch(replies[2].body,/^#### 심화\d+\./m);
+  assert.equal(calls,1,'reveals do not call the model');
+  const results=(await pool.query("SELECT command_result FROM jobs WHERE kind='command' AND state='completed'")).rows;
+  assert.ok(results.every(r=>!r.command_result.grades));
+});

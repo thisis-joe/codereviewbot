@@ -65,7 +65,15 @@ export class Platform {
       position: { position_type: 'text', base_sha: s.baseSha, start_sha: s.startSha, head_sha: s.headSha, old_path: value.oldPath, new_path: value.path,
         ...(value.coordinates ? { ...(value.coordinates.oldLine ? { old_line: value.coordinates.oldLine } : {}), ...(value.coordinates.newLine ? { new_line: value.coordinates.newLine } : {}) } : value.side === 'LEFT' ? { old_line: value.line } : { new_line: value.line }) } });
   }
-  async reply(number: number, body: string, parentId: string | null, discussionId: string | null): Promise<unknown> {
+  async reply(number: number, body: string, parentId: string | null, discussionId: string | null, questionThread?: Omit<InlineInput, 'body'> & { snapshot: Snapshot }): Promise<unknown> {
+    if (questionThread) {
+      if (this.config.platform === 'gitlab') return this.api.request(`${this.root}/merge_requests/${number}/discussions`, 'POST', { body });
+      // Rename-only changes have no line coordinates; file-level review comments still support replies.
+      if (!questionThread.coordinates) return this.api.request(`${this.root}/pulls/${number}/comments`, 'POST', {
+        body, commit_id: questionThread.snapshot.headSha, path: questionThread.path, subject_type: 'file',
+      });
+      return this.inline(questionThread.snapshot, { ...questionThread, body });
+    }
     if (this.config.platform === 'github' && parentId) return this.api.request(`${this.root}/pulls/${number}/comments/${encodeURIComponent(parentId)}/replies`, 'POST', { body });
     if (this.config.platform === 'gitlab' && discussionId) return this.api.request(`${this.root}/merge_requests/${number}/discussions/${encodeURIComponent(discussionId)}/notes`, 'POST', { body });
     return this.comment(number, body);

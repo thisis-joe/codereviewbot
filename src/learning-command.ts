@@ -2,6 +2,7 @@ import { GradeSchema, QuestionBatchSchema, hasChangeQuestions, type ChangeQuesti
 import { questionId, sameRevision } from './learning.js';
 import { hasQuestionSource, validateQuestions, type Model, type ReviewContext } from './review.js';
 import { renderGrades, renderQuestionBatch, renderReveal, replyMarker, COMMAND_HELP_HINT, type GradeItem } from './render.js';
+import { threadQuestions } from './question-thread.js';
 import { redact } from './redact.js';
 import type { Command } from './commands.js';
 import type { Store, Job, CommandResult } from './store.js';
@@ -87,19 +88,24 @@ function learningInput(data: Record<string, unknown>): { json: string; truncated
   const compact = { ...data, policy: excerpt(data.policy, 40000), ...(data.diff ? { diff: excerpt(data.diff, 180000) } : {}), contextNote: '자료 일부가 축약되어 있습니다. 코드 근거는 review_source 도구로 직접 확인하세요.' };
   const json = JSON.stringify(compact); return json.length <= 470000 ? { json, truncated: true } : null;
 }
-export async function handleLearning(command: Command, job: Job, platform: Platform, store: Store, workspaces: Workspaces, model: Model, all: RemoteComment[], lease: () => Promise<void>): Promise<void> {
+export async function handleLearning(command: Command, job: Job, platform: Platform, store: Store, workspaces: Workspaces, model: Model, all: RemoteComment[], lease: () => Promise<void>, trusted: RemoteComment[]): Promise<void> {
   const comment = job.body.comment!, target = job.body.target;
   const snap = await platform.snapshot(target.number, true);
   snap.title = redact(snap.title); snap.description = redact(snap.description);
   const key = commentKey(comment), notice = (text: string) => `${replyMarker(key)}\n${text}`;
   let response: CommandResult | undefined = job.command_result ?? undefined;
+  if (response && command.action === 'reveal' && response.revealThreadVersion !== 1) {
+    await lease();
+    await platform.reply(target.number, notice('해설 요청 방식이 변경됐습니다. 해설을 볼 질문 댓글의 답글로 /hey showanswer를 다시 남겨 주세요.'), comment.parentId, comment.discussionId);
+    return;
+  }
   if (response && !sameRevision(response.snapshot, snap)) {
     await lease(); await platform.reply(target.number, notice('질문 생성·채점 도중 코드 기준이 바뀌었습니다. 최신 질문의 질문 번호로 다시 요청하세요.') + sourceLink(all, comment, snap), comment.parentId, comment.discussionId); return;
   }
   if (!response) {
     const state = await store.getTarget(target), report = state?.report;
     if (report && sameRevision(report.snapshot, snap) && report.snapshot.commits) snap.commits = report.snapshot.commits;
-    let body = '', questions: ChangeQuestion[] | undefined, grades: CommandResult['grades'], start: number | undefined;
+    let body = '', questions: ChangeQuestion[] | undefined, questionThread: CommandResult['questionThread'], grades: CommandResult['grades'], start: number | undefined;
     const batches = (await store.learningBatches(snap)).filter(b => sameRevision(b.snapshot, snap));
     const current = report && hasChangeQuestions(report) && sameRevision(report.snapshot, snap) ? report.questions : [];
     const numbers = numbering(current, batches);
@@ -109,16 +115,8 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
     } else if (command.action === 'questions' && batches.length >= MAX_BATCHES) {
       body = notice('이 코드 버전의 심화 질문은 5회까지 생성할 수 있습니다. 이미 나온 질문에 답하거나 관련 코드를 더 탐색해 보세요.');
     } else if (command.action === 'reveal') {
-      // Revealing records no grade, so the answer gate still waits for real answers.
-      const problems: string[] = [];
-      const items = command.ids.length ? command.ids.flatMap(label => {
-        const q = numbers.byLabel.get(label);
-        if (!q) problems.push(`${label}: 현재 코드 버전에서 찾을 수 없습니다. 변경 이해 질문은 Q번호, 심화 질문은 심화번호를 사용하세요.`);
-        return q ? [{ q, label }] : [];
-      }) : current.map((q, i) => ({ q, label: `Q${i + 1}` }));
-      if (problems.length) body = notice([...problems.map(p => `- ${p}`), '', COMMAND_HELP_HINT].join('\n'));
-      else if (!items.length) body = notice('현재 코드 버전에 변경 이해 질문이 없습니다. 심화 질문은 `/hey showanswer 심화1`처럼 번호를 붙이세요.');
-      else body = renderReveal(items, snap, key);
+      const scope = threadQuestions(comment, trusted, snap, prior);
+      body = 'error' in scope ? notice([scope.error, '', COMMAND_HELP_HINT].join('\n')) : renderReveal(scope.items, snap, key);
     } else if (command.action === 'answer') {
       const problems: string[] = [], picks: Chosen[] = [];
       for (const a of [{ id: command.id, text: command.text }, ...(command.more ?? [])]) {
@@ -252,6 +250,10 @@ ${payload.json}`;
                 questions = validateQuestions(result.questions.map(q => ({ ...q, question: redact(q.question), options: q.options.map(o => ({ ...o, text: redact(o.text) })),
                   key: { ...q.key, explanation: redact(q.key.explanation), options: q.key.options.map(o => ({ ...o, explanation: redact(o.explanation) })) } })), context, prior);
                 start = numbers.next; body = renderQuestionBatch(questions, snap, key, start);
+                const q = questions[0]!;
+                const anchor = Object.entries(context.diff).find(([path, d]) => q.side === 'LEFT' ? d.oldPath === q.path : path === q.path);
+                if (!anchor) throw new Error('Question thread anchor is unavailable');
+                questionThread = { path: anchor[0], oldPath: anchor[1].oldPath, line: q.line, side: q.side, coordinates: anchor[1].positions?.[q.side]?.[q.line], suggestion: null };
                 if (payload.truncated) body += '\n\n입력 한도로 일부 정책·코드 자료를 축약했습니다.';
               }
             }
@@ -259,11 +261,19 @@ ${payload.json}`;
     if (!body) throw new Error('Unsupported learning command');
     await lease(); const latest = await platform.snapshot(target.number, true);
     if (!sameRevision(snap, latest)) throw new Error('Learning snapshot changed; retry against latest code');
-    response = { snapshot: snap, body: redact(body) + sourceLink(all, comment, snap), ...(questions ? { questions, start } : {}), ...(grades ? { grades } : {}) };
+    response = { snapshot: snap, body: redact(body) + sourceLink(all, comment, snap), ...(questions ? { questions, start, questionThread } : {}), ...(grades ? { grades } : {}), ...(command.action === 'reveal' ? { revealThreadVersion: 1 as const } : {}) };
     if (response.body.length > 60000) throw new Error('Learning response exceeds comment budget');
     await store.saveCommandResult(job.id, job.owner, response);
   }
   await lease(); const latest = await platform.snapshot(target.number, true);
   if (!sameRevision(response.snapshot, latest)) throw new Error('Learning snapshot changed before publication');
-  await platform.reply(target.number, response.body, comment.parentId, comment.discussionId);
+  if (response.questions?.length && !response.questionThread) {
+    // Old durable jobs can resume without a new model call; source supplies publication coordinates.
+    const { context } = await workspaces.prepare(platform, response.snapshot, job.id, null);
+    const q = response.questions[0]!;
+    const anchor = Object.entries(context.diff).find(([path, d]) => q.side === 'LEFT' ? d.oldPath === q.path : path === q.path);
+    if (!anchor) throw new Error('Question thread anchor is unavailable');
+    response = { ...response, questionThread: { path: anchor[0], oldPath: anchor[1].oldPath, line: q.line, side: q.side, coordinates: anchor[1].positions?.[q.side]?.[q.line], suggestion: null } };
+  }
+  await platform.reply(target.number, response.body, comment.parentId, comment.discussionId, response.questionThread ? { ...response.questionThread, snapshot: response.snapshot } : undefined);
 }
