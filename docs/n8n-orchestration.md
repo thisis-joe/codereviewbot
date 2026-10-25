@@ -87,3 +87,14 @@ node scripts/verify-n8n.mjs
 5. 되돌릴 때는 새 워크플로를 먼저 멈추고 실행 중인 단계를 마친 뒤 이전 Controller 이미지와 이전 n8n 워크플로를 함께 복원한다. 추가된 DB 컬럼을 삭제하지 않는다. 이미 저장된 `jobs.result`와 게시 대기 작업은 이전 코드도 처리할 수 있다. 생성 전에 멈춘 작업은 이전 코드가 준비부터 재실행할 수 있다.
 
 이 문서는 구현·로컬 검증과 운영 전환 절차를 구분한다. 실제 서버 전환 여부는 `docs/progress.md`의 검증 기록을 따른다.
+
+
+## 운영 적용 결과 · 2026-10-26
+
+edo1에는 수정 커밋 `2dcf0d9`와 `hey-controller:n8n-2dcf0d9`를 적용했다. 작업 관리 22개 노드와 복구 5개 노드의 두 워크플로가 활성화돼 있다. 기존 runner·PostgreSQL·n8n·tunnel 컨테이너, 환경 변수 값, 영속 마운트와 기존 데이터 5개 테이블의 내용 해시를 보존했다.
+
+운영 설정·두 DB·이전 워크플로 백업은 edo1의 `/home/ubuntu/hey/releases/n8n-2dcf0d9`에 제한된 권한으로 보관한다. 해당 위치의 `deploy.py rollback hey-controller:n8n-2dcf0d9`는 이전 Controller와 워크플로를 함께 복원하며 DB를 되돌리거나 추가 컬럼을 삭제하지 않는다. 복사본에서 DB 복원·마이그레이션·이전 이미지 시작과 새·이전 워크플로 등록/게시를 검증했다.
+
+전환 직후 옛 노드 `Dispatch`·`Recover`를 사용한 실행 38006·38007이 폐기된 경로를 호출해 실패했다. 기록은 삭제하거나 성공으로 변경하지 않았다. 이후 실행은 저장된 workflowData의 새 노드를 기준으로 구분했고, 새 구성의 dispatch·recovery 반복 실행과 202 wake 응답, Controller 오류 0건을 확인했다. 성공 보관을 끈 정책 때문에 `status=running`과 `deletedAt`을 함께 확인해야 한다. 실제 모델 호출이나 외부 테스트 댓글은 만들지 않았다.
+
+집계 검증: [운영 적용 증거](verification/n8n-production-2026-10-26.json).

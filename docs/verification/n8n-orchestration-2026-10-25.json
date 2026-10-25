@@ -60,7 +60,7 @@
   },
   "baseline": "0a7a84aaf76dc56344e953e67b5cec97ad893e09",
   "backend_commit": "2d79d86",
-  "deployment": "User explicitly approved transfer/deployment on 2026-10-26. Activation held until corrected candidate staging and rollback rehearsal pass.",
+  "deployment": "Deployed and verified on edo1 on 2026-10-26 after explicit user approval; corrected source 2dcf0d9. See n8n-production-2026-10-26.json.",
   "workflow_commit": "0c11c26",
   "latestRuntimeProbe": {
     "runId": "c8cda38b",
@@ -99,5 +99,6 @@
     "visibleComments": 2,
     "errors": 0,
     "limits": "Signed HTTP admission, real application/PostgreSQL/n8n; external platform and AI are fixtures. Schedules are disabled in this isolated probe and recovery uses a fixture-only trigger. Success execution data is retained here for verification only."
-  }
+  },
+  "correctedCandidate": "2dcf0d9"
 }
