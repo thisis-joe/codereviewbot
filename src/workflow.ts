@@ -48,7 +48,10 @@ export class Workflow {
   async status(id: string, owner: string): Promise<WorkflowView> {
     const view = await this.controller.store.workflowView(id, owner);
     if (view.status === 'pending' || view.status === 'running') {
-      try { await this.controller.store.heartbeat(id, owner); }
+      try {
+        if (view.status === 'pending') await this.controller.store.heartbeat(id, owner);
+        else await this.controller.store.assertLease(id, owner);
+      }
       catch {
         const current = await this.controller.store.workflowView(id, owner);
         if (current.status === 'pending' || current.status === 'running') throw new WorkflowConflict('Workflow lease expired');

@@ -40,7 +40,7 @@ async function fixture(t) {
     for (let i = 0; i < 100; i++) { const value = await status(flow); if (value.status !== 'running') return value; await new Promise(r => setTimeout(r, 5)); }
     throw new Error('phase did not finish');
   };
-  return { pool, store, get controller() { return controller; }, snap, comments, calls, platform, request, status, step,
+  return { pool, store, root, get controller() { return controller; }, snap, comments, calls, platform, request, status, step,
     restart: async () => {
       await controller.active; await new Promise(resolve => server.close(resolve));
       controller = new Controller(new Store(pool), [platform], workspaces, model);
@@ -177,4 +177,44 @@ test('recovery is separated into gate reconciliation, admitted retries and prote
   }
   assert.equal((await f.request('/claim')).body.available, false);
   assert.deepEqual(f.calls, []);
+});
+
+test('status polling cannot keep an orphaned running phase alive after a controller restart', async t => {
+  const f = await fixture(t);
+  const id = await f.store.enqueue({ kind: 'review', target: f.snap, requested: true, deliveryId: 'orphaned-running', headSha: f.snap.headSha });
+  let flow = (await f.request('/claim')).body;
+  flow = await f.step(flow, 'prepare');
+  // This is the durable state left when the process dies after a phase is admitted.
+  await f.store.beginWorkflowStep(id, flow.owner, 'generate');
+  await f.restart();
+  const lease = async () => (await f.pool.query('SELECT lease_until::text AS value FROM jobs WHERE id=$1', [id])).rows[0].value;
+  const before = await lease();
+  for (let i = 0; i < 3; i++) assert.equal((await f.status(flow)).status, 'running');
+  assert.equal(await lease(), before, 'only the executing worker may extend a running phase lease');
+  await f.pool.query("UPDATE jobs SET lease_until=now()-interval '1 second' WHERE id=$1", [id]);
+  const next = (await f.request('/claim')).body;
+  assert.notEqual(next.owner, flow.owner); assert.equal(next.step, 'generate');
+  assert.equal((await f.request(`/jobs/${id}/status`, { owner: flow.owner })).status, 409);
+  flow = await finish(f, next);
+  assert.equal(flow.status, 'completed'); assert.deepEqual(f.calls, ['initial_questions']);
+});
+
+
+test('manual retry rebuilds expired preparation artifacts for a review that exhausted crash retries without a result', async t => {
+  const f = await fixture(t);
+  const id = await f.store.enqueue({ kind: 'review', target: f.snap, requested: true, deliveryId: 'expired-artifacts', headSha: f.snap.headSha });
+  let flow = (await f.request('/claim')).body;
+  flow = await f.step(flow, 'prepare');
+  await f.store.beginWorkflowStep(id, flow.owner, 'generate');
+  await f.pool.query("UPDATE jobs SET attempts=3,lease_until=now()-interval '1 second' WHERE id=$1", [id]);
+  assert.equal((await f.request('/claim')).body.available, false);
+  assert.equal((await f.store.getJob(id)).state, 'failed');
+  assert.equal((await f.store.getJob(id)).result, null);
+  await rm(join(f.root, 'jobs', id), { recursive: true, force: true });
+  assert.equal(await f.store.retry(id), true);
+  flow = (await f.request('/claim')).body;
+  assert.equal(flow.step, 'prepare', 'a manual retry without a durable result must rebuild its inputs');
+  flow = await finish(f, flow);
+  assert.equal(flow.status, 'completed'); assert.deepEqual(f.calls, ['initial_questions']);
+  assert.equal((await f.store.getJob(id)).result.questions.length, 2);
 });

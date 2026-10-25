@@ -47,7 +47,7 @@ flowchart TB
 |---|---|
 | `POST /internal/flow/claim` | 처리 가능한 작업 1개를 선점하고 ID·실행 소유자·단계·상태 반환 |
 | `POST /internal/flow/jobs/:id/step` | `{owner, step}`의 정확한 한 단계만 비동기로 시작, 202 반환 |
-| `POST /internal/flow/jobs/:id/status` | `{owner}`로 실제 단계 상태 조회, 유효한 lease 갱신 |
+| `POST /internal/flow/jobs/:id/status` | `{owner}`로 실제 단계 상태 조회, 대기 단계의 유효한 lease 갱신 |
 | `POST /internal/flow/notifications` | 기존 알림 큐의 전송 1회를 기다린 뒤 응답 |
 | `POST /internal/flow/reconcile` | 기존 질문의 답변 완료 상태 대조 |
 | `POST /internal/flow/recover` | 기존 정책에 맞는 실패 작업만 재등록 |
@@ -60,8 +60,8 @@ flowchart TB
 ## 재시작·중복 방지·저장량
 
 - 기존 DB 작업 상태를 그대로 사용하고 `workflow_step`, `workflow_status`, `workflow_owner`, `workflow_data`를 추가한다. 기존 행·보고서·질문·답변을 삭제하거나 재생성하지 않는다.
-- 전역 작업 1개, 90초 lease, 실행 중 15초 heartbeat와 소유자 fencing을 유지한다. n8n 대기 중 상태 조회도 유효한 lease를 갱신한다. n8n/Controller가 사라지면 lease 만료 후 다음 스케줄이 재선점한다.
-- 각 단계는 최대 3회 시도한다. 성공한 단계는 재실행하지 않고 실패한 단계부터 이어간다. 생성 결과가 저장된 뒤 게시에 실패하면 모델을 다시 호출하지 않는다. 게시 응답 유실은 기존 봇 소유 댓글 마커를 대조한다.
+- 전역 작업 1개, 90초 lease, 실행 중 15초 heartbeat와 소유자 fencing을 유지한다. 다음 단계 실행을 기다리는 pending 상태에서만 n8n의 조회가 lease를 갱신한다. running 단계의 lease는 실행 프로세스의 heartbeat만 갱신하므로, Controller 재시작 후 조회가 고아 작업을 무기한 점유시키지 않는다. n8n/Controller가 사라지면 lease 만료 후 다음 스케줄이 재선점한다.
+- 각 단계는 최대 3회 시도한다. 성공한 단계는 재실행하지 않고 실패한 단계부터 이어간다. 생성 결과가 저장된 뒤 게시에 실패하면 모델을 다시 호출하지 않는다. 결과 없이 실패한 질문 작업의 명시적 수동 재시도는 준비부터 다시 시작하므로, 보존 기간이 지난 임시 자료에 의존하지 않는다. 게시 응답 유실은 기존 봇 소유 댓글 마커를 대조한다.
 - 소스 준비와 생성 결과의 중간 자료는 기존 snapshots 볼륨의 작업 폴더에 권한 600의 `flow-*.bin`으로 저장한다. 원자적 파일 교체와 DB 체크포인트가 성공한 자료만 다음 단계가 참조한다. 다음 소스 정리에서 기존 보존 정책과 함께 제거한다. DB에는 파일 참조와 작은 단계 이력만 보관한다.
 - 외부 모델 호출 직후 체크포인트 기록 전에 프로세스가 중단되면 해당 생성 호출을 다시 해야 할 수 있다. AI 호출의 정확히 1회 실행을 보장하지 않는다. 외부 댓글의 중복 방지는 별도 기존 마커·lease 검증으로 유지한다.
 - n8n 성공 실행은 기존 정책대로 보관하지 않고 오류 실행은 48시간·최대 500건만 보관한다. 운영 중 진행은 Executions에서 확인하며, 완료된 작업의 기준 기록은 PostgreSQL이다. 성공 실행의 장기 조회가 필요하면 저장량 정책을 별도로 결정한다.
