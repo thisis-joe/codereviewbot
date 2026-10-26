@@ -7,9 +7,9 @@ import { questionId } from '../dist/learning.js';
 import { report, changeQuestions, choices, answerKey } from './fixtures.mjs';
 
 test('learning commands require explicit intent and associate an answer with one question', () => {
-  assert.deepEqual(parseCommand('/hey morequestion'), { action: 'questions' });
-  assert.equal(parseCommand('/hey morequestion 지금'), null);
-  for (const removed of ['더 알아보자', '@hey 더 알아보자', '/hey questions']) assert.notDeepEqual(parseCommand(removed), { action: 'questions' });
+  assert.deepEqual(parseCommand('/hey whatelse'), { action: 'questions' });
+  assert.equal(parseCommand('/hey whatelse 지금'), null);
+  for (const removed of ['더 알아보자', '@hey 더 알아보자', '/hey questions', '/hey morequestion']) assert.notDeepEqual(parseCommand(removed), { action: 'questions' });
   assert.deepEqual(parseCommand('/hey answer Q1 B Q2. C Q3:A'), { action: 'answer', id: 'Q1', text: 'B', more: [{ id: 'Q2', text: 'C' }, { id: 'Q3', text: 'A' }] });
   assert.deepEqual(parseCommand('/hey answer Q1 B Q2와 같은 이유'), { action: 'answer', id: 'Q1', text: 'B Q2와 같은 이유' });
   assert.equal(parseCommand('/hey answer Q1 B Q2'), null);
@@ -59,7 +59,7 @@ test('published questions expose revision-bound answer IDs and visible choices w
   assert.doesNotMatch(first, /\| 명령어|더 알아보자/);
   // Questions lead; short action hints follow the full question set.
   assert.ok(first.indexOf('#### Q3.') < first.indexOf('답변 달기:'));
-  assert.match(first, /더 풀어보기: `\/hey morequestion`/);
+  assert.match(first, /더 풀어보기: `\/hey whatelse`/);
   assert.match(first, /답변 0\/3\n\n##### 기준 커밋\n\n- \[결제 재시도 처리 개선\]\(.*\)\n\n명령어 안내: `\/hey help`$/); assert.doesNotMatch(first, /완료|전체 ·|증분/);
   const marked = renderReport(report({ questions }), new Map([[ids[0], 'correct'], [ids[1], 'incorrect']]));
   assert.match(marked, /^#### Q1\. .* · ✅ 정답$/m); assert.match(marked, /^#### Q2\. .* · ❌ 오답$/m); assert.doesNotMatch(marked, /^#### Q3\. .* · /m); assert.match(marked, /답변 2\/3/);

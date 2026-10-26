@@ -13,7 +13,7 @@ When a PR/MR is merged, hey reads the final change and posts **2 basic multiple-
 1. **Merge a PR/MR.** Opening, reopening and pushing do not automatically generate questions.
 2. **Answer 2 questions.** Each has A–D options and tests a CS concept relevant to the actual change. Initial questions stay at a basic level.
 3. **Read the explanations.** Get the correct option as a sentence, an explanation, per-option notes and links to code at the relevant commit.
-4. **Go deeper when needed.** `/hey morequestion` adds 5 deeper questions about the same change.
+4. **Go deeper when needed.** `/hey whatelse` adds 5 deeper questions about the same change.
 
 Questions and replies are written in Korean. hey supports code understanding; it does not find defects automatically, edit code, approve or merge PRs.
 
@@ -34,13 +34,13 @@ This is **one illustrative question**, assuming payment retries reuse the first 
 >
 > 답변 달기: `/hey answer Q1 B`<br>
 > 정답·해설 보기: 이 질문 스레드에 답글로 `/hey showanswer`<br>
-> 더 풀어보기: `/hey morequestion`
+> 더 풀어보기: `/hey whatelse`
 
 Questions use H4 headings and blank lines. Reference commits appear as a list of **linked commit titles** rather than hashes. Follow-ups start with the first question, without a batch heading or `[심화]` difficulty tag.
 
 Explanations show the correct option's sentence, then **explanation → per-option notes → code evidence**. Notes are indented on a new line beneath each option. Each generated explanation is 1–3 sentences connecting CS principles to concrete code conditions. Your answer and the correct option letters are not displayed side by side.
 
-[Initial question example](docs/examples/initial-questions.md) · [Follow-up and explanation examples](docs/examples/morequestion-with-cs.md)
+[Initial question example](docs/examples/initial-questions.md) · [Follow-up and explanation examples](docs/examples/whatelse-with-cs.md)
 
 ## Comment commands
 
@@ -52,7 +52,7 @@ Comment on a connected PR/MR. Commands require GitHub Write or GitLab Developer 
 | Answer one question | `/hey answer Q1 B` |
 | Answer several questions | `/hey answer Q1 B Q2 A` |
 | Reveal the questions in the comment you reply to | `/hey showanswer` |
-| Get 5 follow-up questions | `/hey morequestion` |
+| Get 5 follow-up questions | `/hey whatelse` |
 | Get up to 5 CS interview questions | `/hey csinterview` |
 | Regenerate questions | `/hey tryagain` |
 | Ask about the code | `@hey 이 변경에서 멱등성이 필요한 이유가 뭔가요?` |

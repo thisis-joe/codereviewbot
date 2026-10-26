@@ -67,7 +67,7 @@ for (const provider of ['github', 'gitlab']) test(`${provider}: signed interview
   await tick(); assert.equal(replies.length, 1); assert.equal(calls.length, 1);
   assert.equal((await store.getJob(durable[0].id)).state, 'completed');
   // More than six persisted batches must remain visible to both numbering and answer lookup.
-  for (let i = 0; i < 5; i++) { await submit(`more-${i}`, '/hey morequestion'); await tick(); }
+  for (let i = 0; i < 5; i++) { await submit(`more-${i}`, '/hey whatelse'); await tick(); }
   await submit('second-interview', '/hey csinterview'); await tick();
   assert.equal(calls.length, 7); assert.equal((await store.learningBatches(snap)).length, 7);
   const second = replies.at(-1); assert.match(second.body, /^#### 면접3\./m);

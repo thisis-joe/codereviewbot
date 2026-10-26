@@ -46,7 +46,7 @@ export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10
 // Initial questions cover fundamental CS principles; advanced learning is opt-in.
 export const INITIAL_QUESTION_COUNT = 2;
 export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema.extend({ level: z.literal('basic') })).length(INITIAL_QUESTION_COUNT) });
-// Each /hey morequestion batch is fixed at five questions.
+// Each /hey whatelse batch is fixed at five questions.
 export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
 // Interview batches favor grounded questions over filling the quota.

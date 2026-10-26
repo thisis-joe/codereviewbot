@@ -32,8 +32,8 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
   anchor. Both initial questions must be basic; advanced learning is opt-in.
   Difficulty tags are never displayed.
-  Questions and choices come before concise answer/reveal/optional-morequestion hints.
-  `/hey morequestion` generates additional questions only on explicit request,
+  Questions and choices come before concise answer/reveal/optional-whatelse hints.
+  `/hey whatelse` generates additional questions only on explicit request,
   using the same question-first layout. Newly generated answer keys and grading
   explanations teach a relevant CS concept and connect it to the actual code,
   using one to three sentences per explanation. Feedback shows the correct choice
@@ -62,7 +62,7 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   terminology mistakes from equivalent expressions. `showanswer` reveals only the
   originating trusted question thread's stored key, without inference or credit.
   Interview questions do not become additional merge-gate requirements.
-- `/hey help` displays seven commands: `answer`, `showanswer`, `morequestion`, `csinterview`,
+- `/hey help` displays seven commands: `answer`, `showanswer`, `whatelse`, `csinterview`,
   `tryagain`, `@hey` and `help`. It needs no report, snapshot export or model call,
   respects existing permissions and reconciles owned markers.
 - `tryagain` regenerates questions on current code, bypassing the same-SHA cache.

@@ -18,7 +18,7 @@ export function parseCommand(body: string): Command | null {
   if (!match) { const question = text.match(/^@(?:hey|reviewbot)\s+([\s\S]+)$/i); return question ? { action: 'ask', text: question[1]!.slice(0, 4000) } : null; }
   const action = match[1]!.toLowerCase(), args = (match[2] ?? '').trim();
   if (['tryagain', 'help', 'csinterview'].includes(action) && !args) return { action } as Command;
-  if (action === 'morequestion' && !args) return { action: 'questions' };
+  if (action === 'whatelse' && !args) return { action: 'questions' };
   // The question thread determines reveal scope; selectors are intentionally unsupported.
   if (action === 'showanswer' && !args) return { action: 'reveal' };
   if (action === 'answer') {

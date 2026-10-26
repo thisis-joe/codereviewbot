@@ -38,7 +38,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
     assert.equal((await fetch(base + '/webhooks/github', { method: 'POST', headers, body: raw })).status, 202);
   };
   const tick = () => driveWorkflow(base, 'internal-test-secret');
-  await submit('100', '/hey morequestion'); await submit('100', '/hey morequestion'); await tick();
+  await submit('100', '/hey whatelse'); await submit('100', '/hey whatelse'); await tick();
   assert.equal(calls.length, 1); assert.equal(replies.length, 1);
   const saved = (await pool.query("SELECT * FROM jobs WHERE kind='command'")).rows;
   assert.equal(saved.length, 1); assert.equal(saved[0].state, 'queued'); assert.equal(saved[0].command_result.questions.length, 5);
@@ -59,7 +59,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   snap = snapshot({ headSha: 'c'.repeat(40) });
   await submit('102', `/hey answer ${id} A 같은 요청을 식별합니다`); await tick();
   assert.equal(calls.length, 3); assert.match(replies[3].body, /최신 질문/);
-  await submit('103', '/hey morequestion', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
+  await submit('103', '/hey whatelse', 'bot-loop', true); await tick(); assert.equal(replies.length, 4);
   // Each admitted human command got one received notice, and every notice was removed once its command finished.
   assert.equal(acks.length, 4); assert.equal(comments.filter(c => c.body.includes('codereviewbot:ack:')).length, 0);
 });
@@ -144,7 +144,7 @@ test('GitLab signed replies reveal their persisted initial or follow-up question
     const response=await fetch(base+'/webhooks/gitlab',{method:'POST',headers:{'content-type':'application/json','x-gitlab-event':'Note Hook','webhook-id':id,'webhook-timestamp':timestamp,'webhook-signature':signature},body:raw}); assert.equal(response.status,202);
     await driveWorkflow(base, 'thread-internal-secret');
   }
-  await submit('more','/hey morequestion','initial-thread');
+  await submit('more','/hey whatelse','initial-thread');
   assert.equal(replies.length,1); assert.notEqual(replies[0].thread,'initial-thread');
   const job=(await pool.query("SELECT id FROM jobs WHERE kind='command' AND command_result->'questions' IS NOT NULL")).rows[0];
   await pool.query('UPDATE jobs SET due_at=now() WHERE id=$1',[job.id]);

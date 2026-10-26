@@ -36,7 +36,7 @@ function learningHarness(body, overrides = {}) {
 test('help is an explicit no-argument command and returns the complete deterministic command table without a report or code access', async () => {
   assert.deepEqual(parseCommand(' /hey HELP '), { action: 'help' });
   assert.equal(parseCommand('/hey help answer'), null);
-  const expected = ['answer', 'showanswer', 'morequestion', 'csinterview', 'tryagain', 'help'];
+  const expected = ['answer', 'showanswer', 'whatelse', 'csinterview', 'tryagain', 'help'];
   const replies = [], forbidden = () => { throw new Error('help must not access report, snapshots, workspace or model'); };
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], owned: c => c.author === 'bot', snapshot: forbidden,
     reply: async (...args) => { replies.push(args); } };
@@ -70,7 +70,7 @@ test('invalid commands show only a concise error and help entry point without co
 });
 
 test('more-learning generates a source-bound technical batch and persists it before replying', async () => {
-  const h = learningHarness('/hey morequestion'); await h.run();
+  const h = learningHarness('/hey whatelse'); await h.run();
   assert.deepEqual(h.data.calls.map(c => c.phase), ['questions']);
   assert.equal(h.data.saved.questions.length, 5);
   assert.match(h.data.replies[0][1], /^#### 심화1\./m);
@@ -148,7 +148,7 @@ test('interview and supplementary limits and numbering are independent', async (
   const full = Array.from({ length: 5 }, (_, i) => ({ ...old, start: i * 2 + 1 }));
   const denied = learningHarness('/hey csinterview', { batches: full }); await denied.run();
   assert.equal(denied.data.calls.length, 0); assert.match(denied.data.replies[0][1], /CS 면접 질문은 5회/);
-  const more = learningHarness('/hey morequestion', { batches: full }); await more.run();
+  const more = learningHarness('/hey whatelse', { batches: full }); await more.run();
   assert.match(more.data.replies[0][1], /^#### 심화1\./m);
 });
 
@@ -214,7 +214,7 @@ test('only a published grade records the answered question for the merge gate', 
   const r = report(), id = questionId(r.snapshot, r.questions[0]);
   const graded = learningHarness(`/hey answer ${id} B 같은 키를 씁니다.`, { report: r, output: { verdict: 'incorrect', explanation: '설명', expectedAnswer: '키 재사용', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: 'charge 호출' }] } });
   await graded.run(); assert.deepEqual(graded.data.saved.grades, [{ id, verdict: 'partial' }]);
-  const more = learningHarness('/hey morequestion'); await more.run(); assert.equal(more.data.saved.grades, undefined);
+  const more = learningHarness('/hey whatelse'); await more.run(); assert.equal(more.data.saved.grades, undefined);
   const unknown = learningHarness('/hey answer Q-ffffffffffff B'); await unknown.run(); assert.equal(unknown.data.saved.grades, undefined);
 });
 
@@ -227,14 +227,14 @@ test('a plain reply to a single owned question is graded and unrelated comments 
 
 test('old revisions, unknown IDs, missing review data and batch limits never invoke the model', async () => {
   const r = report(), id = questionId(r.snapshot, r.questions[0]);
-  for (const h of [learningHarness(`/hey answer ${id} B`, { snap: snapshot({ headSha: 'c'.repeat(40) }) }), learningHarness('/hey answer Q-ffffffffffff B'), learningHarness('/hey morequestion', { report: null }), learningHarness('/hey morequestion', { batches: Array.from({ length: 5 }, () => ({ snapshot: snapshot(), questions: extraQuestions() })) })]) {
+  for (const h of [learningHarness(`/hey answer ${id} B`, { snap: snapshot({ headSha: 'c'.repeat(40) }) }), learningHarness('/hey answer Q-ffffffffffff B'), learningHarness('/hey whatelse', { report: null }), learningHarness('/hey whatelse', { batches: Array.from({ length: 5 }, () => ({ snapshot: snapshot(), questions: extraQuestions() })) })]) {
     await h.run(); assert.equal(h.data.calls.length, 0); assert.equal(h.data.replies.length, 1);
   }
-  const denied = learningHarness('/hey morequestion', { permission: 'none' }); await denied.run(); assert.equal(denied.data.calls.length, 0); assert.equal(denied.data.replies.length, 0);
+  const denied = learningHarness('/hey whatelse', { permission: 'none' }); await denied.run(); assert.equal(denied.data.calls.length, 0); assert.equal(denied.data.replies.length, 0);
 });
 
 test('retries reuse the durable batch and an already published marker suppresses duplicates', async () => {
-  const h = learningHarness('/hey morequestion', { replyError: true });
+  const h = learningHarness('/hey whatelse', { replyError: true });
   await assert.rejects(() => h.run(), /network lost/); assert.ok(h.data.saved);
   h.data.replyError = false;
   await h.run({ command_result: h.data.saved }); assert.equal(h.data.calls.length, 1);
@@ -266,7 +266,7 @@ test('display numbers resolve to review questions first and then continue throug
   const mixed = learningHarness('/hey answer Q1 B 심화1 B', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await mixed.run();
   assert.deepEqual(mixed.data.saved.grades.map(g => g.id), [questionId(r.snapshot, r.questions[0]), questionId(r.snapshot, extra[0])]);
   const fresh = ['pay 재시도 사이 키 저장소 장애는 어떻게 다뤄야 하나요?', 'charge 응답 코드별 재시도 정책은 어떻게 나누나요?', 'save 실패를 재현하는 테스트는 어떤 경계에서 작성하나요?', 'pay 로그에 남길 멱등 키 정보는 무엇인가요?', 'charge 호출 순서를 바꾸면 어떤 불변 조건이 깨지나요?'].map(question => ({ ...extra[0], question }));
-  const more = learningHarness('/hey morequestion', { report: r, batches: [{ snapshot: snapshot(), questions: extra }], output: { questions: fresh } }); await more.run();
+  const more = learningHarness('/hey whatelse', { report: r, batches: [{ snapshot: snapshot(), questions: extra }], output: { questions: fresh } }); await more.run();
   assert.equal(more.data.saved.start, 6); assert.match(more.data.replies[0][1], /^#### 심화6\. pay /m); assert.match(more.data.replies[0][1], /^#### 심화10\. /m);
   assert.doesNotMatch(more.data.replies[0][1], /^#### Q\d/m); assert.match(more.data.replies[0][1], /`\/hey help`/); assert.doesNotMatch(more.data.replies[0][1], /pay\\.ts:\d|\/blob\//);
   const missing = learningHarness('/hey answer Q4 B', { report: r }); await missing.run();
@@ -282,7 +282,7 @@ test('choice questions ask for an option letter before spending a grading call',
 
 test('extra learning rejects repeated questions and anchors outside the current change', async () => {
   for (const q of [report().questions[0], { ...extraQuestions()[0], path: 'unrelated.ts' }]) {
-    const h = learningHarness('/hey morequestion', { output: { questions: [q, ...extraQuestions().slice(1)] } });
+    const h = learningHarness('/hey whatelse', { output: { questions: [q, ...extraQuestions().slice(1)] } });
     await assert.rejects(() => h.run(), /중복|근거/); assert.equal(h.data.replies.length, 0);
   }
 });
@@ -310,9 +310,9 @@ test('natural GitHub answers find owned question replies under the root and ask 
 });
 
 test('a push during learning prevents storing or publishing the obsolete result', async () => {
-  const h = learningHarness('/hey morequestion'); h.data.onModel = () => { h.data.snap = snapshot({ startSha: 'c'.repeat(40) }); };
+  const h = learningHarness('/hey whatelse'); h.data.onModel = () => { h.data.snap = snapshot({ startSha: 'c'.repeat(40) }); };
   await assert.rejects(() => h.run(), /Learning snapshot changed/); assert.equal(h.data.saved, null); assert.equal(h.data.replies.length, 0);
-  const retry = learningHarness('/hey morequestion', { replyError: true }); await assert.rejects(() => retry.run(), /network/);
+  const retry = learningHarness('/hey whatelse', { replyError: true }); await assert.rejects(() => retry.run(), /network/);
   retry.data.replyError = false; retry.data.snap = snapshot({ headSha: 'c'.repeat(40) });
   await retry.run({ command_result: retry.data.saved }); assert.equal(retry.data.calls.length, 1); assert.match(retry.data.replies[1][1], /코드 기준/);
 });
@@ -321,13 +321,13 @@ test('same-revision report replacement keeps old question IDs answerable and exc
   const old = extraQuestions(), id = questionId(snapshot(), old[0]);
   const h = learningHarness(`${id}: A 같은 요청입니다.`, { history: old, output: { verdict: 'partial', explanation: '복구도 필요합니다.', expectedAnswer: '요청 식별과 복구', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } });
   await h.run(); assert.equal(h.data.calls[0].phase, 'grade');
-  const duplicate = learningHarness('/hey morequestion', { history: old }); await assert.rejects(() => duplicate.run(), /중복/);
+  const duplicate = learningHarness('/hey whatelse', { history: old }); await assert.rejects(() => duplicate.run(), /중복/);
 });
 
 test('large but valid accumulated learning context fits the runner prompt boundary', async () => {
   const options = ['A', 'B', 'C', 'D', 'E'].map(id => ({ id, text: id + 'x'.repeat(299) }));
   const questions = Array.from({ length: 50 }, (_, i) => ({ question: String(i).padStart(3, '0') + 'q'.repeat(497), path: 'src/pay.ts', line: 2, side: 'RIGHT', options }));
-  const h = learningHarness('/hey morequestion', { report: report({ questions: questions.slice(0, 10) }), batches: [0, 1, 2, 3].map(i => ({ snapshot: snapshot(), questions: questions.slice((i + 1) * 10, (i + 2) * 10) })), policy: { pathInstructions: Array.from({ length: 25 }, (_, i) => ({ path: `src/${i}`, instructions: 'p'.repeat(4000) })) }, context: { ...context(), diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -0,0 +1 @@\n+' + '\t'.repeat(139000), lines: new Set([1, 2]) } } } });
+  const h = learningHarness('/hey whatelse', { report: report({ questions: questions.slice(0, 10) }), batches: [0, 1, 2, 3].map(i => ({ snapshot: snapshot(), questions: questions.slice((i + 1) * 10, (i + 2) * 10) })), policy: { pathInstructions: Array.from({ length: 25 }, (_, i) => ({ path: `src/${i}`, instructions: 'p'.repeat(4000) })) }, context: { ...context(), diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -0,0 +1 @@\n+' + '\t'.repeat(139000), lines: new Set([1, 2]) } } } });
   await h.run(); assert.ok(h.data.calls[0].prompt.length <= 500000); assert.match(h.data.replies[0][1], /^#### 심화41\./m);
   assert.ok(h.data.calls[0].prompt.includes(questions[49].question));
 });
@@ -373,7 +373,7 @@ test('grading reserves comment room for the request link near the output boundar
 test('oversized follow-up batches keep all five questions and their choices within the comment budget', async () => {
   const path = Array(5).fill('漢'.repeat(99)).join('/');
   const questions = Array.from({ length: 5 }, (_, i) => ({ question: '&'.repeat(498) + i, path, line: 1, side: 'RIGHT', level: 'advanced', options: ['A', 'B', 'C', 'D'].map(id => ({ id, text: '&'.repeat(299) + id })), key: answerKey() }));
-  const h = learningHarness('/hey morequestion', { output: { questions }, context: { ...context(), files: { [path]: 'source' }, diff: { [path]: { oldPath: path, patch: '@@ -0,0 +1 @@\n+source', lines: new Set([1]) } } } });
+  const h = learningHarness('/hey whatelse', { output: { questions }, context: { ...context(), files: { [path]: 'source' }, diff: { [path]: { oldPath: path, patch: '@@ -0,0 +1 @@\n+source', lines: new Set([1]) } } } });
   await h.run(); const body = h.data.replies[0][1]; assert.ok(body.length <= 60000, `got ${body.length}`);
   assert.equal(h.data.saved.questions.length, 5); assert.equal([...body.matchAll(/^#### 심화\d+\. /gm)].length, 5);
   assert.equal([...body.matchAll(/^- \*\*[A-D]\.\*\* /gm)].length, 20);
@@ -425,7 +425,7 @@ test('stored CS explanations accompany both bare-option grading and answer revea
 });
 
 test('follow-ups deepen principles and exclude repeated learning goals before publishing questions', async () => {
-  const h = learningHarness('/hey morequestion'); await h.run();
+  const h = learningHarness('/hey whatelse'); await h.run();
   const body = h.data.replies[0][1];
   assert.ok(body.indexOf('#### 심화5.') < body.indexOf('답변 달기:'));
   assert.match(body, /^#### 심화1\./m);
@@ -465,7 +465,7 @@ test('answer and reveal retain stored commit titles when the live snapshot omits
 
 
 test('additional questions publish in a fresh replyable thread even when requested beneath initial questions', async () => {
-  const h = learningHarness('/hey morequestion', { comment: { discussionId: 'initial-thread' } }); await h.run();
+  const h = learningHarness('/hey whatelse', { comment: { discussionId: 'initial-thread' } }); await h.run();
   const thread = h.data.replies[0][4];
   assert.equal(thread.path, 'src/pay.ts'); assert.equal(thread.line, 2);
   assert.equal(thread.snapshot.headSha, h.data.snap.headSha);

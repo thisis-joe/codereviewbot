@@ -71,7 +71,7 @@ test('learning responses survive restart, remain target-scoped and reject expire
   const store = new Store(pool); await store.migrate(); await store.migrate();
   await pool.query('TRUNCATE deliveries, jobs, targets CASCADE');
   const target = snapshot();
-  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '/hey morequestion', surface: 'issue', parentId: null, discussionId: null } });
+  const id = await store.enqueue({ kind: 'command', target, deliveryId: 'learning', comment: { id: 'human1', author: 'joe', body: '/hey whatelse', surface: 'issue', parentId: null, discussionId: null } });
   const job = await store.claim();
   const response = { snapshot: target, body: 'saved questions', questions: report().questions };
   assert.equal(typeof store.saveCommandResult, 'function', 'learning needs durable responses before external effects');
