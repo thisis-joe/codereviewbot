@@ -49,6 +49,11 @@ export const InitialQuestionsSchema = z.strictObject({ questions: z.array(Change
 // Each /hey morequestion batch is fixed at five questions.
 export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
+// Interview batches favor grounded questions over filling the quota.
+export const CsInterviewBatchSchema = z.strictObject({
+  questions: z.array(ChangeQuestionSchema).max(QUESTION_BATCH_SIZE),
+  unavailableReason: z.string().trim().min(1).max(1000).nullable(),
+}).refine(v => (v.questions.length === QUESTION_BATCH_SIZE) === (v.unavailableReason === null), 'A shortfall reason is required exactly when fewer than five interview questions are available');
 export const GradeSchema = z.strictObject({
   verdict: z.enum(['correct', 'partial', 'incorrect', 'unverifiable']),
   explanation: explanationText(2000), expectedAnswer: explanationText(2000),

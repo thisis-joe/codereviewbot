@@ -9,7 +9,7 @@ import { WorkflowConflict, type WorkflowStep, type WorkflowData, type WorkflowVi
 import { retryableFailure, recoveryAttempts } from './model-failure.js';
 
 export function targetKey(t: Target): string { return createHash('sha256').update(JSON.stringify([t.platform, t.instance, t.repository, t.number])).digest('hex'); }
-export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; questionThread?: Omit<InlineInput, 'body'>; revealThreadVersion?: 1; start?: number; answered?: string; grades?: { id: string; verdict: Verdict }[] }
+export interface CommandResult { snapshot: Snapshot; body: string; questions?: ChangeQuestion[]; batchKind?: 'csinterview'; questionThread?: Omit<InlineInput, 'body'>; revealThreadVersion?: 1; start?: number; answered?: string; grades?: { id: string; verdict: Verdict }[] }
 export interface Job { id: string; target_key: string; kind: 'review' | 'ci' | 'command'; body: Event & { force?: boolean }; state: string; owner: string; attempts: number; result: Report | null; diff: Record<string, DiffMetadata> | null; max_inline: number; command_result?: CommandResult | null; workflow_step?: WorkflowStep | null; workflow_status?: 'pending' | 'running' | null; workflow_owner?: string | null; workflow_data?: WorkflowData; due_at?: Date }
 export class Store {
   constructor(readonly pool: Pool) {}
@@ -139,7 +139,7 @@ export class Store {
     if (!saved.rowCount) { await this.assertLease(id, owner); throw new Error('Command result is already immutable'); }
   }
   async learningBatches(t: Snapshot): Promise<CommandResult[]> {
-    const rows = await this.pool.query("SELECT command_result FROM jobs WHERE target_key=$1 AND kind='command' AND command_result->'questions' IS NOT NULL AND command_result->'snapshot'->>'headSha'=$2 AND command_result->'snapshot'->>'baseSha'=$3 AND command_result->'snapshot'->>'startSha'=$4 ORDER BY created_at LIMIT 6", [targetKey(t), t.headSha, t.baseSha, t.startSha]);
+    const rows = await this.pool.query("SELECT command_result FROM jobs WHERE target_key=$1 AND kind='command' AND command_result->'questions' IS NOT NULL AND command_result->'snapshot'->>'headSha'=$2 AND command_result->'snapshot'->>'baseSha'=$3 AND command_result->'snapshot'->>'startSha'=$4 ORDER BY created_at,id", [targetKey(t), t.headSha, t.baseSha, t.startSha]);
     return rows.rows.map(row => row.command_result);
   }
   async questionHistory(t: Snapshot): Promise<ChangeQuestion[]> {

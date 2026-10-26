@@ -62,12 +62,12 @@ else process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', i
   });
 }
 
-test('isolated runner HTTP accepts the initial question phase', { timeout: 15000 }, async t => {
+for (const phase of ['initial_questions', 'csinterview']) test(`isolated runner HTTP accepts the ${phase} phase`, { timeout: 15000 }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'crb-initial-http-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const id = '88888888-8888-4888-8888-888888888888';
   await mkdir(join(root, 'jobs', id, 'source'), { recursive: true });
-  const binary = join(root, 'fake-codex'), value = { questions: questions(2) };
+  const binary = join(root, 'fake-codex'), value = { questions: questions(2), ...(phase === 'csinterview' ? { unavailableReason: '두 주제를 확인했습니다.' } : {}) };
   await writeFile(binary, `#!/usr/bin/env node
 import fs from 'node:fs';
 const args = process.argv.slice(2);
@@ -101,7 +101,7 @@ fs.writeFileSync(args[args.indexOf('-o') + 1], ${JSON.stringify(JSON.stringify(v
   const response = await fetch(`http://127.0.0.1:${port}/run`, {
     method: 'POST', signal: AbortSignal.timeout(5000),
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ phase: 'initial_questions', prompt: 'Ask about the pinned code change.', workspaceId: id, timeoutMs: 5000 }),
+    body: JSON.stringify({ phase, prompt: 'Ask about the pinned code change.', workspaceId: id, timeoutMs: 5000 }),
   });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), value);

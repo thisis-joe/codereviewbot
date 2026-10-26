@@ -45,9 +45,10 @@ const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '
 /** Latest grade per question ID; null marks an answer graded before verdicts were recorded. */
 export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
-  ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화 질문: 심화1 B', '/hey answer Q1 B'],
+  ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화1 B · 면접1 B', '/hey answer Q1 B'],
   ['/hey showanswer', '정답 보기', '질문 댓글에 답글로 남기면 그 댓글의 질문만 정답·해설 공개<br>번호 지정 없이 사용 · 답변 완료로 처리하지 않음', '/hey showanswer'],
   ['/hey morequestion', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey morequestion'],
+  ['/hey csinterview', 'CS 면접', '변경에서 찾은 CS 개념으로 면접 대비 객관식 최대 5개<br>면접1·면접2…로 번호 부여', '/hey csinterview'],
   ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],
   ['@hey', '코드 질문', '관련 코드를 확인해 질문에 답변', '@hey 키를 재사용하는 이유는?'],
   ['/hey help', '명령어 안내', '사용 가능한 명령과 예시 확인', '/hey help'],
@@ -143,11 +144,11 @@ const ackText: Record<AckState, string> = {
 /** Posted when a command arrives; deleted once the command finishes, or turned into a failure or closed notice. */
 export function renderAck(id: string, state: AckState = 'received'): string { return [ackMarker(id), ackText[state]].join('\n'); }
 // Each follow-up batch is published as a separate replyable question thread.
-export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
-  const labels = questions.map((_, i) => `심화${start + i}`);
-  const help = [`답변 달기: \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
-    '정답·해설 보기: 이 스레드에 답글로 `/hey showanswer`', '더 풀어보기: `/hey morequestion`'];
-  return [replyMarker(commentId), questionRevisionMarker(s), ...renderQuestions(questions, s, start, new Map(), '심화'), '', '---', '',
+export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1, prefix: '심화' | '면접' = '심화'): string {
+  const labels = questions.map((_, i) => `${prefix}${start + i}`);
+  const help = [`답변 달기: \`/hey answer ${labels[0]} B${labels[1] ? ` ${labels[1]} C` : ''}\``,
+    '정답·해설 보기: 이 스레드에 답글로 `/hey showanswer`', `더 풀어보기: \`/hey ${prefix === '면접' ? 'csinterview' : 'morequestion'}\``];
+  return [replyMarker(commentId), questionRevisionMarker(s), ...renderQuestions(questions, s, start, new Map(), prefix), '', '---', '',
     ...lines(help), '', ...commitLines(s), '', COMMAND_HELP_HINT].join('\n');
 }
 export interface GradeItem { q: ChangeQuestion; grade: Grade; label: string; picked?: string }

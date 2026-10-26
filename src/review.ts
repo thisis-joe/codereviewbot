@@ -6,7 +6,7 @@ export interface DiffPosition { oldLine?: number; newLine?: number }
 export interface DiffMetadata { oldPath: string; positions?: Record<'LEFT' | 'RIGHT', Record<number, DiffPosition>> }
 export interface DiffFile extends DiffMetadata { patch: string; lines: Set<number>; oldLines?: Set<number> }
 export interface ReviewContext { files: Record<string, string>; baseFiles?: Record<string, string>; diff: Record<string, DiffFile>; excluded: string[]; limited: boolean; sourceDir: string; changesSincePrevious?: { fromHeadSha: string; files: Record<string, { oldPath: string; patch: string }> } }
-export type ModelPhase = 'review' | 'verify' | 'answer' | 'initial_questions' | 'questions' | 'grade';
+export type ModelPhase = 'review' | 'verify' | 'answer' | 'initial_questions' | 'questions' | 'csinterview' | 'grade';
 export interface Model { run(phase: ModelPhase, prompt: string, workspaceId: string, timeoutMs?: number): Promise<unknown> }
 export function parsePatch(patch: string, side: 'LEFT' | 'RIGHT' = 'RIGHT'): Set<number> {
   const result = new Set<number>(); let line = 0, active = false;

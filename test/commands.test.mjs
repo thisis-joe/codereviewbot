@@ -36,7 +36,7 @@ function learningHarness(body, overrides = {}) {
 test('help is an explicit no-argument command and returns the complete deterministic command table without a report or code access', async () => {
   assert.deepEqual(parseCommand(' /hey HELP '), { action: 'help' });
   assert.equal(parseCommand('/hey help answer'), null);
-  const expected = ['answer', 'showanswer', 'morequestion', 'tryagain', 'help'];
+  const expected = ['answer', 'showanswer', 'morequestion', 'csinterview', 'tryagain', 'help'];
   const replies = [], forbidden = () => { throw new Error('help must not access report, snapshots, workspace or model'); };
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], owned: c => c.author === 'bot', snapshot: forbidden,
     reply: async (...args) => { replies.push(args); } };
@@ -50,7 +50,7 @@ test('help is an explicit no-argument command and returns the complete determini
   assert.match(body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
   for (const command of expected) assert.match(body, new RegExp(`^\\| \`/hey ${command}\` \\| [^|]+ \\| [^|]+ \\| \`/hey ${command}[^|]*\` \\|$`, 'm'));
   assert.match(body, /^\| `@hey` \| 코드 질문 \| .* \| `@hey .+` \|$/m);
-  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 6);
+  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 7);
   assert.match(body, /최신 변경.*질문.*생성/);
   assert.doesNotMatch(body, /\/hey (?:review|full|pause|resume|explain|dismiss|learn|approve|reject)\b/);
   assert.equal(replies[0][2], 'root'); assert.equal(replies[0][3], 'discussion');
@@ -76,6 +76,102 @@ test('more-learning generates a source-bound technical batch and persists it bef
   assert.match(h.data.replies[0][1], /^#### 심화1\./m);
   assert.equal(new Set([...h.data.replies[0][1].matchAll(/codereviewbot:question:(Q-[a-f0-9]{12})/g)].map(m => m[1])).size, 5);
   assert.equal(h.data.saved.snapshot.headSha, 'b'.repeat(40));
+});
+
+test('csinterview parses explicit intent and generates a separate source-bound interview batch', async () => {
+  assert.deepEqual(parseCommand('/hey csinterview'), { action: 'csinterview' });
+  assert.equal(parseCommand('/hey csinterview 지금'), null);
+  const h = learningHarness('/hey csinterview', { output: { questions: extraQuestions(), unavailableReason: null } });
+  await h.run();
+  assert.deepEqual(h.data.calls.map(c => c.phase), ['csinterview']);
+  assert.equal(h.data.saved.batchKind, 'csinterview');
+  assert.equal(h.data.saved.questions.length, 5);
+  assert.match(h.data.replies[0][1], /^#### 면접1\./m);
+  assert.match(h.data.replies[0][1], /`\/hey answer 면접1 B 면접2 C`/);
+  assert.match(h.data.replies[0][1], /이 스레드에 답글로 `\/hey showanswer`/);
+  assert.match(h.data.replies[0][1], /더 풀어보기: `\/hey csinterview`/);
+  assert.ok(!h.data.replies[0][1].includes(answerKey().explanation));
+  assert.equal(h.data.saved.questionThread.path, 'src/pay.ts');
+  const prompt = h.data.calls[0].prompt;
+  assert.match(prompt, /CS 용어/); assert.match(prompt, /한국어.*영어/);
+  assert.match(prompt, /저장소를 열지 않아도/);
+  assert.match(prompt, /정확히 하나만 정답/);
+  assert.match(prompt, /적게 반환/);
+});
+
+test('interview answers keep their namespace alongside initial and supplementary questions', async () => {
+  const r = report(), extra = extraQuestions(), interview = extra.map(q => ({ ...q, question: `면접 상황: ${q.question}` }));
+  for (const ref of ['면접1', '면접 01', '면접1.']) assert.deepEqual(parseCommand(`/hey answer ${ref} B`), { action: 'answer', id: '면접1', text: 'B' });
+  const batches = [{ snapshot: snapshot(), questions: extra, start: 1 }, { snapshot: snapshot(), questions: interview, start: 1, batchKind: 'csinterview' }];
+  const h = learningHarness('/hey answer Q1 B 심화1 A 면접1 B', { report: r, batches }); await h.run();
+  assert.equal(h.data.calls.length, 0);
+  assert.deepEqual(h.data.saved.grades, [
+    { id: questionId(r.snapshot, r.questions[0]), verdict: 'correct' },
+    { id: questionId(r.snapshot, extra[0]), verdict: 'incorrect' },
+    { id: questionId(r.snapshot, interview[0]), verdict: 'correct' },
+  ]);
+  assert.match(h.data.replies[0][1], /^### 면접1 · ✅ 정답$/m);
+});
+
+test('interview reasoning grades terminology without penalizing equivalent expressions', async () => {
+  const questions = extraQuestions(), snap = snapshot();
+  const output = { verdict: 'partial', explanation: '멱등성과 원자성은 서로 다른 개념입니다.', expectedAnswer: '멱등성(idempotency)은 동일 요청 반복의 효과가 같은 성질입니다.', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '요청 식별' }] };
+  const h = learningHarness('/hey answer 면접1 B 멱등성과 원자성은 같은 개념입니다.', { report: null, batches: [{ snapshot: snap, questions, batchKind: 'csinterview', start: 1 }], output });
+  await h.run(); assert.equal(h.data.calls[0].phase, 'grade');
+  assert.match(h.data.calls[0].prompt, /유사 개념.*혼동/);
+  assert.match(h.data.calls[0].prompt, /동의어.*표현/);
+  assert.deepEqual(h.data.saved.grades, [{ id: questionId(snap, questions[0]), verdict: 'partial' }]);
+  assert.match(h.data.replies[0][1], /멱등성과 원자성은 서로 다른 개념/);
+});
+
+test('interview batches support fewer questions, explain empty output and work without an initial report', async () => {
+  const output = { questions: extraQuestions().slice(0, 1), unavailableReason: '확인 가능한 CS 주제가 하나입니다.' };
+  const h = learningHarness('/hey csinterview', { report: null, output }); await h.run();
+  assert.equal(h.data.saved.questions.length, 1);
+  assert.match(h.data.replies[0][1], /`\/hey answer 면접1 B`/);
+  assert.doesNotMatch(h.data.replies[0][1], /면접1 B 면접1 C/);
+  assert.match(h.data.replies[0][1], /1문항만 출제/);
+  const empty = learningHarness('/hey csinterview', { report: null, output: { questions: [], unavailableReason: '기술적 메커니즘을 확인할 수 없습니다.' } }); await empty.run();
+  assert.equal(empty.data.saved.questions, undefined);
+  assert.equal(empty.data.saved.questionThread, undefined);
+  assert.match(empty.data.replies[0][1], /기술적 메커니즘/);
+  const noSource = learningHarness('/hey csinterview', { report: null, context: { ...context(), files: {}, diff: {} } }); await noSource.run();
+  assert.equal(noSource.data.calls.length, 0); assert.match(noSource.data.replies[0][1], /코드 근거가 없어 CS 면접/);
+});
+
+test('interview and supplementary limits and numbering are independent', async () => {
+  const output = { questions: extraQuestions().slice(0, 1), unavailableReason: '확인한 주제가 하나입니다.' };
+  const interview = extraQuestions().map(q => ({ ...q, question: `과거 면접: ${q.question}` }));
+  const old = { snapshot: snapshot(), questions: interview.slice(0, 2), batchKind: 'csinterview', start: 1 };
+  const h = learningHarness('/hey csinterview', { batches: [old, ...Array.from({ length: 5 }, () => ({ snapshot: snapshot(), questions: [], start: 1 }))], output }); await h.run();
+  assert.equal(h.data.saved.start, 3); assert.match(h.data.replies[0][1], /^#### 면접3\./m);
+  const full = Array.from({ length: 5 }, (_, i) => ({ ...old, start: i * 2 + 1 }));
+  const denied = learningHarness('/hey csinterview', { batches: full }); await denied.run();
+  assert.equal(denied.data.calls.length, 0); assert.match(denied.data.replies[0][1], /CS 면접 질문은 5회/);
+  const more = learningHarness('/hey morequestion', { batches: full }); await more.run();
+  assert.match(more.data.replies[0][1], /^#### 심화1\./m);
+});
+
+test('interview generation rejects duplicates, invalid anchors and malformed answer keys', async () => {
+  for (const q of [report().questions[0], { ...extraQuestions()[0], path: 'unrelated.ts' }, { ...extraQuestions()[0], key: { ...answerKey(), answer: 'E' } }]) {
+    const h = learningHarness('/hey csinterview', { output: { questions: [q], unavailableReason: '범위 제한' } });
+    await assert.rejects(() => h.run()); assert.equal(h.data.saved, null); assert.equal(h.data.replies.length, 0);
+  }
+  const denied = learningHarness('/hey csinterview', { permission: 'none' }); await denied.run();
+  assert.equal(denied.data.calls.length, 0); assert.equal(denied.data.saved, null);
+});
+
+test('interview retries reuse the durable key and refuse a changed revision', async () => {
+  const h = learningHarness('/hey csinterview', { output: { questions: extraQuestions(), unavailableReason: null }, replyError: true });
+  await assert.rejects(() => h.run(), /network/);
+  h.data.replyError = false; await h.run({ command_result: h.data.saved });
+  assert.equal(h.data.calls.length, 1); assert.equal(h.data.saved.batchKind, 'csinterview');
+  h.data.snap = snapshot({ baseSha: 'c'.repeat(40) });
+  await h.run({ command_result: h.data.saved });
+  assert.match(h.data.replies.at(-1)[1], /코드 기준/); assert.equal(h.data.calls.length, 1);
+  const during = learningHarness('/hey csinterview', { output: { questions: extraQuestions(), unavailableReason: null } });
+  during.data.onModel = () => { during.data.snap = snapshot({ headSha: 'c'.repeat(40) }); };
+  await assert.rejects(() => during.run(), /Learning snapshot changed/); assert.equal(during.data.saved, null);
 });
 
 test('a bare option letter is graded from the stored key without a model call and stays in the originating thread', async () => {
