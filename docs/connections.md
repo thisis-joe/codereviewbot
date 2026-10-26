@@ -64,6 +64,9 @@ GMS_RESPONSES_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses
 호출 전체의 제한 시간, 최대 64회 요청, 회당 16개 도구 호출, 응답·대화 크기 제한을 적용한다.
 인증 실패·사용량 제한·시간 초과는 GMS 실패로 보고하며 다른 엔진으로 자동 전환하지 않는다.
 
+GMS 호출 한도는 키 단위이고 운영과 개발이 같은 키를 쓴다. 그래서 GMS 요청마다 `{"service":"gms-usage","event":"request",...}` 한 줄을, 실행이 끝나면 요청 수·도구 호출 수·결과를 담은 `"event":"run"` 한 줄을 남긴다. 프롬프트와 응답은 기록하지 않는다.
+`origin`은 `GMS_USAGE_ENV`로 정한다. Compose 실행기는 기본값이 `production`이고 실행기 로그로 확인한다. 검증 스크립트처럼 로컬에서 `Gms`를 직접 실행하면 `development`로 기록하고, 표준 출력이 남지 않으므로 `.local/gms-usage.jsonl`(또는 `GMS_USAGE_LOG`)에도 추가한다.
+
 ### Claude 실행 제한
 
 Claude Code CLI는 `-p` 비대화 모드로 실행한다. 내장 도구(`--tools ""`)와 사용자 설정·슬래시 명령·세션 저장을 끄고,
