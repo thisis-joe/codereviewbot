@@ -55,7 +55,7 @@ const writing = `[질문과 보기]
 
 [근거 위치]
 
-각 문항의 path·line·side에는 이번 변경이 이 개념에 기대는 지점으로 실제로 확인한 위치를 적습니다. path는 diff의 경로, line은 해당 side에서 읽을 수 있는 유효한 줄입니다. 삭제한 줄은 LEFT의 변경 전 코드를, 이름이 바뀐 파일은 oldPath와 새 경로를 확인하세요.`;
+각 문항의 path·line·side에는 이번 변경이 이 개념에 기대는 지점으로 실제로 확인한 위치를 적습니다. path는 diff의 경로이고, line은 그 path의 diff 패치 hunk에 나타나는 줄(추가·삭제·문맥 줄)이어야 합니다. hunk 밖의 줄은 거부됩니다. 개념이 기대는 코드가 hunk 밖에 있으면, 그 코드를 호출하거나 사용하는 hunk 안의 가장 가까운 줄을 적으세요. 삭제한 줄은 LEFT의 변경 전 코드를, 이름이 바뀐 파일은 oldPath와 새 경로를 확인하세요.`;
 
 const level = 'level은 개념 자체의 메커니즘을 묻는 문항이면 basic, 실패·동시 실행·규모 조건이나 두 개념의 상호작용을 판단하는 문항이면 advanced입니다.';
 const security = `[보안]
