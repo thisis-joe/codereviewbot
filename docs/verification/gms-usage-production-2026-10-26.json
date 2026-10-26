@@ -1,0 +1,32 @@
+{
+  "task": "S15P31E102-138",
+  "date": "2026-10-26",
+  "scope": "Runner-only replacement on edo1 to log every GMS request with its origin before any call-reduction change",
+  "source": "d7dc5fcb84016ca9b3ff17ff87ec850fb3143014",
+  "changedModules": ["dist/gms.js"],
+  "addedRunnerEnvironment": ["GMS_USAGE_ENV=production"],
+  "images": {
+    "priorRunner": "hey-runner:csinterview-25312d1 (sha256:08cdf889cc3ce8ecbec4525ed490640ec679c1fa32f4ab78696869885b2c3b07)",
+    "candidateRunner": "hey-runner:gms-usage-d7dc5fc",
+    "controller": "hey-controller:csinterview-25312d1 (unchanged, restarted)"
+  },
+  "moduleCheck": "candidate differs from prior runner only in dist/gms.js; sha256 be7f80385ecd25f26a3fff4df8104d4fd1fbf55c22444f9d5ea8673cc3352baa in the running container",
+  "localTests": { "unit": "191/191", "integration": "71/71 (disposable PostgreSQL)" },
+  "stage": {
+    "externalNetwork": "disabled",
+    "fakeGmsCalls": 2,
+    "runnerResponse": "422 invalid_output (expected from the fake schema-invalid output)",
+    "usageLines": ["request round 1", "request round 2", "run requests=2 toolCalls=1 outcome=invalid_output"],
+    "origin": "production",
+    "promptLogged": false
+  },
+  "production": {
+    "runner": "healthy, GMS_USAGE_ENV=production, MODEL_PROVIDER=gms",
+    "controller": "healthy, controller->runner RPC ok",
+    "jobsBeforeAndAfter": { "completed": 141, "failed": 20, "superseded": 13, "activeOrQueued": 0 },
+    "jobHistoryHashUnchangedAcrossCutover": true,
+    "publicIngress": { "POST /webhooks/gitlab unauthenticated": 401, "GET /healthz": 404 }
+  },
+  "notVerified": "No real GMS call has run on the new runner yet; the first real command will produce the first production usage lines.",
+  "rollback": "cd /home/ubuntu/hey/releases/gms-usage-d7dc5fc && python3 deploy.py rollback (restores prior runner image and environment; DB untouched)"
+}
