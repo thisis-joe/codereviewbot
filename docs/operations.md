@@ -17,6 +17,18 @@ Mac 정리 및 복구 주의사항은 [마이그레이션 운영 기록](hey-edo
 
 같은 날 `25312d1`로 Controller·Runner를 함께 교체해 `/hey csinterview`와 `/hey whatelse`를 적용했다. 기존 `/hey morequestion`은 더 이상 인식하지 않는다. DB·워크플로·n8n·터널은 변경하지 않았다. [운영 적용 증거](verification/csinterview-production-2026-10-26.json)를 참고하고, 되돌릴 때는 `/home/ubuntu/hey/releases/csinterview-25312d1`에서 `python3 deploy.py rollback`을 실행한다.
 
+## GMS 호출량 기준값 수집 (S15P31E102-138)
+
+2026-10-26 Runner만 `d7dc5fc`의 `gms.js`로 교체하고 `GMS_USAGE_ENV=production`을 추가했다. Controller는 이미지 변경 없이 재시작만 했고, DB·n8n·터널은 변경하지 않았다. 이제 GMS 요청마다 `gms-usage` 로그가 남는다. 형식은 [연결 설정](connections.md#gms-responses-api-직접-호출-기본-엔진)을 참고한다. [운영 적용 증거](verification/gms-usage-production-2026-10-26.json)가 있고, 되돌릴 때는 `/home/ubuntu/hey/releases/gms-usage-d7dc5fc`에서 `python3 deploy.py rollback`을 실행한다.
+
+호출 절감 개선을 배포하기 전에 기준값을 모은다. 목표는 phase별 실행 10회 이상, 약 1주일이다. 운영 호출은 Runner 로그로, 개발 호출은 로컬 `.local/gms-usage.jsonl`로 확인한다.
+
+```bash
+ssh -o ClearAllForwardings=yes edo1 'docker logs hey-edo1-runner-1 2>/dev/null | grep "^{\"service\":\"gms-usage\""' > .local/gms-usage-production.jsonl
+```
+
+Runner 로그는 컨테이너를 다시 만들면 사라지고, 서비스당 약 10MB까지만 순환 보관된다. 그래서 다음 Runner 교체 전에 반드시 위 명령으로 내려받아 둔다. 요청 수는 `"event":"request"` 줄 수이고, 실행당 요청 수와 결과는 `"event":"run"` 줄의 `requests`·`outcome`이다.
+
 ## hey 이름 전환
 
 - 새 안내와 댓글은 `hey`, `/hey`, `@hey`를 사용한다. 기존 `/reviewbot`·`@reviewbot`도 계속 처리한다.
