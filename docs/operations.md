@@ -15,6 +15,8 @@ Mac 정리 및 복구 주의사항은 [마이그레이션 운영 기록](hey-edo
 
 2026-10-26 edo1에 수정 소스 `2dcf0d9`를 적용했다. 두 워크플로가 활성 상태이며 데이터·인증·모델 설정을 보존했다. [운영 적용 증거](verification/n8n-production-2026-10-26.json)와 [복구 방법](n8n-orchestration.md#운영-적용-결과--2026-10-26)을 참고한다.
 
+같은 날 `25312d1`로 Controller·Runner를 함께 교체해 `/hey csinterview`와 `/hey whatelse`를 적용했다. 기존 `/hey morequestion`은 더 이상 인식하지 않는다. DB·워크플로·n8n·터널은 변경하지 않았다. [운영 적용 증거](verification/csinterview-production-2026-10-26.json)를 참고하고, 되돌릴 때는 `/home/ubuntu/hey/releases/csinterview-25312d1`에서 `python3 deploy.py rollback`을 실행한다.
+
 ## hey 이름 전환
 
 - 새 안내와 댓글은 `hey`, `/hey`, `@hey`를 사용한다. 기존 `/reviewbot`·`@reviewbot`도 계속 처리한다.
