@@ -53,7 +53,8 @@ Comment on a connected PR/MR. Commands require GitHub Write or GitLab Developer 
 | Answer several questions | `/hey answer Q1 B Q2 A` |
 | Reveal the questions in the comment you reply to | `/hey showanswer` |
 | Get 5 follow-up questions | `/hey whatelse` |
-| Get up to 5 CS interview questions | `/hey csinterview` |
+| Get 2 core CS interview questions | `/hey csinterview` |
+| Dig into the latest interview questions | `/hey morecs` |
 | Regenerate questions | `/hey tryagain` |
 | Ask about the code | `@hey 이 변경에서 멱등성이 필요한 이유가 뭔가요?` |
 
@@ -71,14 +72,23 @@ Follow-up numbers continue within the same code version: `심화1–5`, then `�
 
 ### CS interview preparation
 
-`/hey csinterview` finds CS topics in the actual change and asks four-choice questions about transferable principles, assumptions and distinctions between related concepts. Questions include the necessary conditions and do not require memorizing repository-specific names or constants. Explanations use precise Korean terms, relevant English names or abbreviations, definitions and limits.
+`/hey csinterview` picks the **two most core CS concepts the change actually relies on** and asks one four-choice interview question per concept. It ranks must-know fundamentals (for example, the anomalies each isolation level prevents, idempotency and retries, race conditions) by fundamentality > relevance > cost of not knowing > transferability. Questions go one layer below the definition (why the guarantee holds, when it breaks, what it costs) and are built so that both someone who lacks the concept and someone who can only recite its definition get them wrong. Name-or-definition picking and look-up details such as vendor flags, exact numbers, APIs or repository rules are excluded.
 
-- Each batch contains up to 5 questions. Insufficient evidence produces fewer questions or a notice with a reason. Initial questions are not a prerequisite.
-- Interview questions have their own `면접1`, `면접2` numbers. Answer with `/hey answer 면접1 B 면접2 C`. Optional reasoning receives feedback on terminology and conceptual confusion; equivalent Korean/English expressions alone are not penalized.
-- Reply to the interview question thread with `/hey showanswer` to reveal that batch's stored answers and explanations, without inference or answer credit.
-- Numbering and the limit of 5 generated batches per PR/MR code version are independent of supplementary questions. Interview questions do not add merge-gate requirements.
+`/hey morecs` anchors on the **latest interview batch** of the same code version (first the two csinterview questions, then the previous morecs batch) and asks up to 4 questions.
 
-The [interview question and explanation example](docs/examples/csinterview.md) uses fixtures without model calls. Generation instructions and structural validation do not guarantee semantic correctness.
+- The default is 3 follow-ups + 1 new interview question; if no uncovered core concept meets the bar, it asks 4 follow-ups.
+- Every interview question in the anchor batch gets at least one follow-up. Anchors that would turn niche are skipped; if fewer than 4 questions pass, it returns fewer with a reason instead of padding.
+- Follow-ups are numbered `꼬리1`, `꼬리2`…; a new interview question continues the `면접N` sequence. Each follow-up shows the question it continues, for example `↳ 면접2에서 이어짐`.
+- Without any interview questions yet, it points to `/hey csinterview`.
+
+Shared rules:
+
+- Mix labels when answering: `/hey answer 꼬리2 B 면접3 C`. A choice alone is graded from the stored key; a wrong choice first shows which concept that option confused. Added reasoning gets feedback naming the missed concept.
+- Explanations teach a newcomer in up to five sentences: the concept name (Korean and English) and definition, the mechanism, the conclusion under the stated conditions and when it changes. Wrong-option notes bold up to two key phrases of the confused concept.
+- Reply to the question thread with `/hey showanswer` to reveal that batch's stored answers only, without inference or answer credit.
+- csinterview and morecs each allow up to 5 generated batches per code version and avoid every earlier question of that version. Interview and follow-up questions do not add merge-gate requirements.
+
+The [interview example](docs/examples/csinterview.md) and [follow-up example](docs/examples/morecs.md) use fixtures without model calls. Real-model checks are recorded under [docs/verification](docs/verification/). Generation instructions and structural validation do not guarantee semantic correctness.
 
 ## Try it locally
 
@@ -101,6 +111,7 @@ Open the generated files below. The demo uses fixtures and makes no model calls.
 | `.local/demo-inline.md` | A question attached to a code line |
 | `.local/demo-learning.md` | 5 follow-ups and a graded explanation |
 | `.local/demo-csinterview.md` | CS interview questions and thread-scoped answer reveal |
+| `.local/demo-morecs.md` | A follow-up batch, mixed-label grading and thread-scoped reveal |
 | `.local/demo-help.md` | Full command help |
 
 ## Install and connect
