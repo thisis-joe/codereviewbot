@@ -1,0 +1,1154 @@
+{
+  "provider": "gms",
+  "model": "gpt-6.1-sol",
+  "route": "local app -> ssh edo1 -> hey-edo1-runner-1 (runner key stays on edo1) -> gms.ssafy.io",
+  "approvedScope": "selected sources and patches of c3a1367, 2dcf0d9, fee3cb6, 252d5c8; no credentials, production DB or real comments",
+  "summary": {
+    "modelCalls": 78,
+    "passed": 67,
+    "failedByCode": {
+      "timeout": 6,
+      "unavailable": 5
+    },
+    "locationRejectedAfterModel": "round3 s3 ×1, round5 s2 ×3 (job failed), round5 s4 ×4 (one job failed); 0 after 0920508",
+    "morecsSeconds": {
+      "min": 95.4,
+      "max": 208.3
+    },
+    "csinterviewSeconds": {
+      "min": 64.7,
+      "max": 108.2
+    },
+    "externalCommentWrites": 0,
+    "productionDataWrites": 0,
+    "allCleaned": true
+  },
+  "runs": [
+    {
+      "round": 1,
+      "sample": "s1",
+      "codeUnderTest": "f5fa8b3",
+      "title": "GMS Responses API 어댑터",
+      "revision": "c3a1367",
+      "calls": [
+        {
+          "phase": "before-csinterview",
+          "status": "passed",
+          "seconds": 78.4
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 80.5
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 109.4
+        },
+        {
+          "phase": "morecs",
+          "status": "failed",
+          "seconds": 120.0,
+          "failure": "timeout"
+        },
+        {
+          "phase": "morecs",
+          "status": "failed",
+          "seconds": 120.0,
+          "failure": "timeout"
+        },
+        {
+          "phase": "morecs",
+          "status": "failed",
+          "seconds": 120.0,
+          "failure": "timeout"
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "failed",
+          "modelCalls": 3,
+          "attempts": 3
+        }
+      ],
+      "beforeSkipped": false,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:06.255Z"
+    },
+    {
+      "round": 2,
+      "sample": "s1",
+      "codeUnderTest": "dd6dc37",
+      "title": "GMS Responses API 어댑터",
+      "revision": "c3a1367",
+      "calls": [
+        {
+          "phase": "before-csinterview",
+          "status": "passed",
+          "seconds": 72.0
+        },
+        {
+          "phase": "csinterview",
+          "status": "failed",
+          "seconds": 28.9,
+          "failure": "unavailable"
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 71.8
+        },
+        {
+          "phase": "morecs",
+          "status": "failed",
+          "seconds": 19.8,
+          "failure": "unavailable"
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 129.5
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 150.4
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 116.1
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 2,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 2,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": false,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:04.199Z"
+    },
+    {
+      "round": 2,
+      "sample": "s2",
+      "codeUnderTest": "dd6dc37",
+      "title": "고아 단계 복구와 임대",
+      "revision": "2dcf0d9",
+      "calls": [
+        {
+          "phase": "before-csinterview",
+          "status": "passed",
+          "seconds": 84.5
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 71.6
+        },
+        {
+          "phase": "morecs",
+          "status": "failed",
+          "seconds": 37.0,
+          "failure": "unavailable"
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 116.2
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 123.6
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 133.7
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 2,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": false,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:04.474Z"
+    },
+    {
+      "round": 2,
+      "sample": "s3",
+      "codeUnderTest": "dd6dc37",
+      "title": "실패한 질문 생성의 재시도 한도",
+      "revision": "fee3cb6",
+      "calls": [
+        {
+          "phase": "before-csinterview",
+          "status": "passed",
+          "seconds": 76.8
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 92.4
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 133.1
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 123.9
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 134.6
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": false,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:04.740Z"
+    },
+    {
+      "round": 2,
+      "sample": "s4",
+      "codeUnderTest": "dd6dc37",
+      "title": "정답 공개 범위를 질문 스레드로 제한",
+      "revision": "252d5c8",
+      "calls": [
+        {
+          "phase": "before-csinterview",
+          "status": "failed",
+          "seconds": 120.0,
+          "failure": "timeout"
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 67.0
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 121.0
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 114.3
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 199.7
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": false,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:04.978Z"
+    },
+    {
+      "round": 3,
+      "sample": "s1",
+      "codeUnderTest": "dcd697b",
+      "title": "GMS Responses API 어댑터",
+      "revision": "c3a1367",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "failed",
+          "seconds": 5.3,
+          "failure": "unavailable"
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 76.6
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 153.2
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 107.8
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 141.1
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 2,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:05.230Z"
+    },
+    {
+      "round": 3,
+      "sample": "s2",
+      "codeUnderTest": "dcd697b",
+      "title": "고아 단계 복구와 임대",
+      "revision": "2dcf0d9",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 108.2
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 114.1
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 136.4
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 136.4
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:05.478Z"
+    },
+    {
+      "round": 3,
+      "sample": "s3",
+      "codeUnderTest": "dcd697b",
+      "title": "실패한 질문 생성의 재시도 한도",
+      "revision": "fee3cb6",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 91.1
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 95.4
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 151.9
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 126.5
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 146.2
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 2,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:05.729Z"
+    },
+    {
+      "round": 3,
+      "sample": "s4",
+      "codeUnderTest": "dcd697b",
+      "title": "정답 공개 범위를 질문 스레드로 제한",
+      "revision": "252d5c8",
+      "calls": [
+        {
+          "phase": "before-csinterview",
+          "status": "failed",
+          "seconds": 27.0,
+          "failure": "unavailable"
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 77.6
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 126.7
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 130.0
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 147.8
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": false,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:05.980Z"
+    },
+    {
+      "round": 4,
+      "sample": "s4",
+      "codeUnderTest": "dcd697b",
+      "title": "정답 공개 범위를 질문 스레드로 제한",
+      "revision": "252d5c8",
+      "calls": [
+        {
+          "phase": "before-csinterview",
+          "status": "passed",
+          "seconds": 77.1
+        }
+      ],
+      "actions": [],
+      "beforeSkipped": false,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:14:03.930Z"
+    },
+    {
+      "round": 5,
+      "sample": "s1",
+      "codeUnderTest": "9ff18c8",
+      "title": "GMS Responses API 어댑터",
+      "revision": "c3a1367",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "failed",
+          "seconds": 120.0,
+          "failure": "timeout"
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 94.2
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 117.8
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 191.4
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 126.4
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 2,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:48:41.204Z"
+    },
+    {
+      "round": 5,
+      "sample": "s2",
+      "codeUnderTest": "9ff18c8",
+      "title": "고아 단계 복구와 임대",
+      "revision": "2dcf0d9",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 107.9
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 118.7
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 151.0
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 107.8
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "failed",
+          "modelCalls": 3,
+          "attempts": 3
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:48:41.425Z"
+    },
+    {
+      "round": 5,
+      "sample": "s3",
+      "codeUnderTest": "9ff18c8",
+      "title": "실패한 질문 생성의 재시도 한도",
+      "revision": "fee3cb6",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 99.0
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 141.1
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 132.8
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 154.2
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:48:41.650Z"
+    },
+    {
+      "round": 5,
+      "sample": "s4",
+      "codeUnderTest": "9ff18c8",
+      "title": "정답 공개 범위를 질문 스레드로 제한",
+      "revision": "252d5c8",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 81.6
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 208.3
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 105.7
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 152.8
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 160.5
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 139.4
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 167.0
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 2,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "failed",
+          "modelCalls": 3,
+          "attempts": 3
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:48:41.870Z"
+    },
+    {
+      "round": 6,
+      "sample": "s2",
+      "codeUnderTest": "0920508",
+      "title": "고아 단계 복구와 임대",
+      "revision": "2dcf0d9",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "failed",
+          "seconds": 120.0,
+          "failure": "timeout"
+        },
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 64.7
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 122.8
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 165.8
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 124.9
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 2,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:59:07.648Z"
+    },
+    {
+      "round": 6,
+      "sample": "s4",
+      "codeUnderTest": "0920508",
+      "title": "정답 공개 범위를 질문 스레드로 제한",
+      "revision": "252d5c8",
+      "calls": [
+        {
+          "phase": "csinterview",
+          "status": "passed",
+          "seconds": 83.4
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 135.0
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 185.3
+        },
+        {
+          "phase": "morecs",
+          "status": "passed",
+          "seconds": 189.8
+        }
+      ],
+      "actions": [
+        {
+          "name": "after-csinterview",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-1",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-2",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3",
+          "state": "completed",
+          "modelCalls": 1,
+          "attempts": 1
+        },
+        {
+          "name": "mixed-answer",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        },
+        {
+          "name": "morecs-3-reveal",
+          "state": "completed",
+          "modelCalls": 0,
+          "attempts": 1
+        }
+      ],
+      "beforeSkipped": true,
+      "externalCommentWrites": 0,
+      "productionDataWrites": 0,
+      "cleanedAt": "2026-10-26T14:59:07.899Z"
+    }
+  ]
+}
