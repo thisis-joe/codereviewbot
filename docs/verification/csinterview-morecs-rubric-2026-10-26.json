@@ -1,0 +1,25 @@
+{
+  "fixedAt": "2026-10-26, before any real-model generation for this evaluation",
+  "scope": "/hey csinterview (2 questions) and /hey morecs (up to 4) real GMS outputs",
+  "scale": "1-5 per question; 5, 3 and 1 are anchored below, 4 and 2 sit between",
+  "dimensions": {
+    "coreDepth": { "5": "A must-know fundamental the change truly relies on, asked one layer below the definition (why it holds, when it breaks, cost, interplay)", "3": "A fundamental, but the question stops at 'what is the right approach?'", "1": "Unrelated to the change or a surface fact" },
+    "nonNiche": { "5": "Textbook fundamental; nothing to look up", "3": "Vendor/API wording appears but the answer does not depend on it", "1": "Decided by a vendor flag, exact number, API behaviour, repository rule or rare edge case" },
+    "knowledgeApplication": { "5": "Both a candidate lacking the concept and one who only knows its definition pick a wrong option", "3": "Filters only one of the two", "1": "Solvable by name/definition matching or elimination of strawmen" },
+    "uniqueAnswer": { "5": "The stated conditions determine exactly one option", "3": "Needs one unstated but reasonable assumption", "1": "Two or more options are defensible" },
+    "distractors": { "5": "All three wrong options are real, common misconceptions", "3": "One strawman", "1": "Two or more strawmen" },
+    "learningValue": { "5": "Explanation teaches name (Korean+English), definition/mechanism, application and when the conclusion changes; wrong-option notes name the confused concept", "3": "Teaches part of this", "1": "Restates the code or the answer" },
+    "grounding": { "5": "Anchor location is where the change relies on the concept; facts and assumptions are separated correctly", "3": "Location right, link weak", "1": "Wrong location or wrong facts" }
+  },
+  "morecsDimensions": {
+    "anchorFit": { "5": "One layer below the anchor's concept and solvable without the anchor's answer", "3": "Loosely connected", "1": "Re-asks the anchor or unrelated" },
+    "newQuestionJustified": { "5": "New interview question covers an uncovered core concept that beats the remaining follow-ups; or 4+0 was the right call", "3": "Core but a follow-up would have taught more", "1": "Duplicate or niche" },
+    "noDrift": { "5": "Later rounds stay at general-principle scope", "3": "Slight narrowing", "1": "Descends into look-up detail" }
+  },
+  "binaryChecks": {
+    "bareDefinition": "Question is answered by picking a name or definition",
+    "ambiguous": "More than one option defensible under the stated conditions"
+  },
+  "targets": { "averageAtLeast4": ["coreDepth", "nonNiche", "learningValue"], "bareDefinition": 0, "ambiguous": 0 },
+  "procedure": "Each sample: csinterview with the previous prompt (25312d1, 5 questions) as 'before', the new csinterview as 'after', then 3 chained /hey morecs. Score every after/morecs question; score before questions on the same dimensions for comparison. Prompt changes are allowed at most 3 times and each is logged with its reason."
+}
