@@ -53,6 +53,7 @@ Comment on a connected PR/MR. Commands require GitHub Write or GitLab Developer 
 | Answer several questions | `/hey answer Q1 B Q2 A` |
 | Reveal the questions in the comment you reply to | `/hey showanswer` |
 | Get 5 follow-up questions | `/hey morequestion` |
+| Get up to 5 CS interview questions | `/hey csinterview` |
 | Regenerate questions | `/hey tryagain` |
 | Ask about the code | `@hey 이 변경에서 멱등성이 필요한 이유가 뭔가요?` |
 
@@ -67,6 +68,17 @@ Comment on a connected PR/MR. Commands require GitHub Write or GitLab Developer 
 - On GitLab, use the question comment's reply field. Ordinary GitHub PR comments have no child replies, so use a **question thread attached to code**. The 5 follow-ups share a separate code thread; an initial inline thread reveals only the one question shown there.
 
 Follow-up numbers continue within the same code version: `심화1–5`, then `심화6–10`. Each PR/MR allows up to 5 follow-up requests per code version. Earlier question and answer history is preserved.
+
+### CS interview preparation
+
+`/hey csinterview` finds CS topics in the actual change and asks four-choice questions about transferable principles, assumptions and distinctions between related concepts. Questions include the necessary conditions and do not require memorizing repository-specific names or constants. Explanations use precise Korean terms, relevant English names or abbreviations, definitions and limits.
+
+- Each batch contains up to 5 questions. Insufficient evidence produces fewer questions or a notice with a reason. Initial questions are not a prerequisite.
+- Interview questions have their own `면접1`, `면접2` numbers. Answer with `/hey answer 면접1 B 면접2 C`. Optional reasoning receives feedback on terminology and conceptual confusion; equivalent Korean/English expressions alone are not penalized.
+- Reply to the interview question thread with `/hey showanswer` to reveal that batch's stored answers and explanations, without inference or answer credit.
+- Numbering and the limit of 5 generated batches per PR/MR code version are independent of supplementary questions. Interview questions do not add merge-gate requirements.
+
+The [interview question and explanation example](docs/examples/csinterview.md) uses fixtures without model calls. Generation instructions and structural validation do not guarantee semantic correctness.
 
 ## Try it locally
 
@@ -88,6 +100,7 @@ Open the generated files below. The demo uses fixtures and makes no model calls.
 | `.local/demo-report.md` | Initial question comment |
 | `.local/demo-inline.md` | A question attached to a code line |
 | `.local/demo-learning.md` | 5 follow-ups and a graded explanation |
+| `.local/demo-csinterview.md` | CS interview questions and thread-scoped answer reveal |
 | `.local/demo-help.md` | Full command help |
 
 ## Install and connect

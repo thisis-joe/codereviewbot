@@ -47,7 +47,22 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 - Schema version 2 results display only a commit, generation state, answer progress,
   code-linked questions and one `/hey help` entry point. Old sections 1–3, review
   verdicts, repeated command examples and automatic finding comments disappear.
-- `/hey help` displays six commands: `answer`, `showanswer`, `morequestion`,
+- `/hey csinterview` derives transferable CS interview topics from the pinned
+  change, emphasizing precise terminology, definitions and scope. Questions contain
+  enough context to solve without repository-specific knowledge. One `csinterview`
+  call (120,000 ms per attempt) returns up to five four-choice questions with fixed
+  keys and valid changed-source anchors. A shortfall requires a nonempty reason;
+  zero questions becomes a notice, not an empty question thread. Initial questions
+  are not required. Prompt guidance is not a semantic correctness guarantee.
+  Interview numbers (`면접1…`) and the five-generated-batch limit are separate
+  from supplementary numbers (`심화1…`) and their limit. Existing stored batches
+  without `batchKind` remain supplementary; interview batches store
+  `batchKind: "csinterview"`. Neither numbering stream is truncated by the other.
+  `answer` accepts mixed Q/심화/면접 labels; reasoned answers distinguish conceptual
+  terminology mistakes from equivalent expressions. `showanswer` reveals only the
+  originating trusted question thread's stored key, without inference or credit.
+  Interview questions do not become additional merge-gate requirements.
+- `/hey help` displays seven commands: `answer`, `showanswer`, `morequestion`, `csinterview`,
   `tryagain`, `@hey` and `help`. It needs no report, snapshot export or model call,
   respects existing permissions and reconciles owned markers.
 - `tryagain` regenerates questions on current code, bypassing the same-SHA cache.

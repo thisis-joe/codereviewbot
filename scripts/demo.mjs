@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { InitialQuestionsSchema, QuestionBatchSchema, GradeSchema } from '../dist/contracts.js';
-import { renderReport, renderQuestionThread, renderQuestionBatch, renderGrade, renderCommandHelp } from '../dist/render.js';
+import { InitialQuestionsSchema, QuestionBatchSchema, CsInterviewBatchSchema, GradeSchema } from '../dist/contracts.js';
+import { renderReport, renderQuestionThread, renderQuestionBatch, renderGrade, renderReveal, renderCommandHelp } from '../dist/render.js';
 import { questionId } from '../dist/learning.js';
 import { report, choices } from '../test/fixtures.mjs';
 
@@ -42,6 +42,17 @@ const deeper = QuestionBatchSchema.parse({ questions: [
     '실패를 주입한 뒤 키 재사용과 최종 부작용을 확인해야 중복 없는 복구 동작을 검증할 수 있습니다.',
     ['키와 최종 부작용은 요구한 동작을 직접 관찰합니다.', '로그 줄 수만으로 승인과 저장을 검증할 수 없습니다.', '속도만으로 멱등성을 검증할 수 없습니다.', '새 승인 ID는 중복 승인 가능성을 뜻합니다.']),
 ] }).questions;
+const interviewBatch = CsInterviewBatchSchema.parse({ questions: [
+  question('동일한 결제 요청이 재전송되어 두 번 도착했지만 최종 결제 효과는 한 번 요청했을 때와 같다면, 이를 설명하는 성질은 무엇인가요?', 2, 'basic',
+    ['원자성(atomicity): 연산들을 전부 반영하거나 전부 반영하지 않는 성질입니다.', '멱등성(idempotency): 동일 요청을 반복해도 최종 효과가 같은 성질입니다.', '격리성(isolation): 동시에 실행하는 트랜잭션의 상호 간섭을 제어하는 성질입니다.', '내구성(durability): 커밋된 변경을 장애 후에도 보존하는 성질입니다.'], 'B',
+    '멱등성(idempotency)은 동일 요청을 반복해도 최종 효과가 한 번 실행했을 때와 같다는 성질입니다. 이 예시에서는 같은 키로 기존 승인을 식별하여 중복 결제를 막습니다.',
+    ['원자성은 연산 묶음의 전체 반영 여부를 다루며 요청 반복에 따른 중복 효과를 막는다는 뜻은 아닙니다.', '동일 요청의 반복에도 결제 효과가 같다는 조건이 멱등성에 해당합니다.', '격리성은 동시 실행의 간섭에 관한 성질이며 순차적으로 재전송된 요청의 중복 효과까지 보장하지 않습니다.', '내구성은 커밋된 변경의 보존을 다루며 같은 요청의 중복 처리를 막는 성질은 아닙니다.']),
+  question('외부 서비스에 보낸 요청이 타임아웃(timeout)됐을 때, 서버의 처리 결과에 대한 설명으로 옳은 것은 무엇인가요?', 2, 'basic',
+    ['서버가 요청을 받지 못했으므로 재전송해도 중복 처리는 발생하지 않습니다.', '서버가 요청을 받았더라도 클라이언트의 대기가 끝나면 서버의 처리는 취소됩니다.', '응답을 받지 못했어도 서버는 처리를 완료했을 수 있으므로 재시도 시 중복 처리를 고려해야 합니다.', '서버가 처리를 완료했다면 응답도 도착하므로 타임아웃은 처리 미완료를 뜻합니다.'], 'C',
+    '타임아웃(timeout)은 정해진 시간 안에 응답을 받지 못했다는 관찰이며 서버의 처리 실패를 확정하지 않습니다. 이 예시의 외부 승인은 완료됐어도 응답 전달이 실패할 수 있으므로 같은 요청을 식별하는 복구 전략이 필요합니다.',
+    ['응답을 받지 못했다는 사실만으로 요청이 서버에 도착하지 않았다고 판단할 수 없습니다.', '클라이언트의 대기 종료만으로 서버 작업의 취소가 보장되지는 않습니다.', '서버 처리와 응답 전달은 구분해야 하므로 중복 부작용을 고려한 재시도가 필요합니다.', '서버가 처리를 완료한 뒤에도 응답이 유실되거나 늦게 도착할 수 있습니다.']),
+], unavailableReason: '이 고정 예시에서는 두 가지 학습 목표만 보여 줍니다.' });
+const interview = interviewBatch.questions;
 const value = report({ schemaVersion: '2', questions: initial, findings: [], checks: [], recommendedTests: [], limitations: [] });
 const grade = GradeSchema.parse({ verdict: 'correct', explanation: '같은 키로 기존 요청을 식별한다는 답이 맞습니다.', expectedAnswer: initial[0].key.explanation,
   optionExplanations: initial[0].key.options, evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '같은 멱등 키를 charge에 전달하는 예시 흐름' }] });
@@ -53,4 +64,5 @@ await writeFile('.local/demo-report.md', visible(renderReport(value, new Map([[q
 await writeFile('.local/demo-inline.md', visible(renderQuestionThread(initial[0], value.snapshot, 1)) + '\n');
 await writeFile('.local/demo-help.md', visible(renderCommandHelp('issue-demo-help')) + '\n');
 await writeFile('.local/demo-learning.md', disclaimer + visible(renderQuestionBatch(deeper, value.snapshot, 'issue-demo-more')) + '\n\n---\n\n' + visible(renderGrade(initial[0], value.snapshot, grade, 'issue-demo-answer', 'Q1', 'B')) + '\n');
-console.log('Created .local/demo-report.md, .local/demo-inline.md, .local/demo-learning.md and .local/demo-help.md (fixtures, no model calls).');
+await writeFile('.local/demo-csinterview.md', disclaimer + visible(renderQuestionBatch(interview, value.snapshot, 'issue-demo-interview', 1, '면접')) + `\n\n${interview.length}문항만 출제했습니다. ${interviewBatch.unavailableReason}` + '\n\n---\n\n' + visible(renderReveal(interview.map((q, i) => ({ q, label: `면접${i + 1}` })), value.snapshot, 'issue-demo-reveal')) + '\n');
+console.log('Created .local/demo-report.md, .local/demo-inline.md, .local/demo-learning.md, .local/demo-csinterview.md and .local/demo-help.md (fixtures, no model calls).');
