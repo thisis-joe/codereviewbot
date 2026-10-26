@@ -29,7 +29,7 @@ function harness(body, overrides = {}) {
   const store = { getTarget: async () => ({ report: data.report }), learningBatches: async () => data.batches, questionHistory: async () => [], saveCommandResult: async (_id, _owner, value) => { data.saved = value; } };
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', owned: c => c.author === 'bot',
     comments: async () => data.remote.map(c => ({ surface: job.body.comment.surface, ...c })), inlineComments: async () => [], snapshot: async () => ({ ...data.snap }), reply: async (...args) => { data.replies.push(args); } };
-  const model = { run: async (phase, prompt) => { data.calls.push({ phase, prompt }); return data.output; } };
+  const model = { run: async (phase, prompt, _id, budget) => { data.calls.push({ phase, prompt, budget }); return data.output; } };
   const controller = new Controller(store, [], { prepare: async () => ({ context: context(), policy: {} }) }, model);
   return { data, run: async () => controller.command(job, platform, async () => {}) };
 }
@@ -54,6 +54,7 @@ test('3+1: follow-ups on the csinterview pair come first, then the new interview
   const output = { questions: [fresh('새 면접: 해시 충돌은 중복 판정에 어떤 영향을 주나요?'), follow('면접2', '꼬리: 보상 동작도 실패하면 무엇이 필요한가요?'), follow('면접1', '꼬리: 같은 키의 동시 요청은 어떻게 막나요?'), follow('면접2', '꼬리: 2단계 커밋의 비용은 무엇인가요?')], unavailableReason: null };
   const h = harness('/hey morecs', { batches: [firstInterview()], output }); await h.run();
   assert.deepEqual(h.data.calls.map(c => c.phase), ['morecs']);
+  assert.equal(h.data.calls[0].budget, 240000);
   assert.equal(h.data.saved.batchKind, 'morecs'); assert.equal(h.data.saved.start, undefined);
   assert.deepEqual(h.data.saved.labels, ['꼬리1', '꼬리2', '꼬리3', '면접3']);
   assert.deepEqual(h.data.saved.questions.map(x => [x.kind, x.anchor]), [['followup', '면접1'], ['followup', '면접2'], ['followup', '면접2'], ['interview', null]]);

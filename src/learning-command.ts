@@ -12,6 +12,8 @@ import type { Workspaces } from './workspace.js';
 import { commentKey, type Comment } from './webhooks.js';
 
 const MAX_BATCHES = 5;
+// Four teaching questions with source reads ran past 120 s on GMS (109 s, then three 120 s timeouts on a four-question anchor).
+const MORECS_BUDGET_MS = 240000;
 function readable(q: Pick<ChangeQuestion, 'path' | 'line' | 'side'>, context: ReviewContext): boolean {
   const files = q.side === 'LEFT' ? context.baseFiles : context.files;
   return Boolean(files && Object.hasOwn(files, q.path) && q.line > 0 && q.line <= files[q.path]!.split('\n').length);
@@ -283,7 +285,7 @@ ${context.sourceDir}에 고정된 변경 전후 코드와 관련 호출부·타�
 
 출제 자료(JSON 데이터):
 ${payload.json}`;
-                const result: { questions: ChangeQuestion[]; unavailableReason: string | null } = kind === 'morecs' ? MoreCsBatchSchema.parse(await model.run('morecs', prompt, job.id, 120000))
+                const result: { questions: ChangeQuestion[]; unavailableReason: string | null } = kind === 'morecs' ? MoreCsBatchSchema.parse(await model.run('morecs', prompt, job.id, MORECS_BUDGET_MS))
                   : kind === 'csinterview' ? CsInterviewBatchSchema.parse(await model.run('csinterview', prompt, job.id, 120000))
                   : { ...QuestionBatchSchema.parse(await model.run('questions', prompt, job.id, 120000)), unavailableReason: null };
                 const unavailableReason = result.unavailableReason;
