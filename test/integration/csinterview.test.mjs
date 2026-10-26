@@ -36,7 +36,7 @@ for (const provider of ['github', 'gitlab']) test(`${provider}: signed interview
     return { questions: Array.from({ length: count }, (_, i) => ({ ...initialQuestions()[0], level: 'advanced',
       question: `호출 ${calls.length}의 조건 ${i + 1}에서 멱등성(idempotency)의 보장은 무엇인가요?`,
       key: { ...initialQuestions()[0].key, explanation: '멱등성(idempotency)은 반복 호출의 효과가 같은 성질입니다. 이 코드는 동일 요청을 식별합니다.' } })),
-      ...(phase === 'csinterview' ? { unavailableReason: '관련 근거로 두 문항을 출제했습니다.' } : {}) };
+      ...(phase === 'csinterview' ? { unavailableReason: null } : {}) };
   } };
   let controller = new Controller(store, [platform], workspaces, model), server;
   async function start() {

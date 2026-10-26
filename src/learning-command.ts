@@ -38,6 +38,9 @@ function numbering(current: ChangeQuestion[], batches: CommandResult[]): { byLab
   }
   return { byLabel, next, nextInterview };
 }
+function labelOf(byLabel: Map<string, ChangeQuestion>, snap: Snapshot, q: ChangeQuestion): string | undefined {
+  return [...byLabel].find(([, v]) => questionId(snap, v) === questionId(snap, q))?.[0];
+}
 function picked(answer: string, q: ChangeQuestion): string | undefined {
   const letter = answer.trim().match(/^\**([A-Za-z])(?![A-Za-z0-9])/)?.[1]?.toUpperCase();
   return (q.options ?? []).some(o => o.id === letter) ? letter : undefined;
@@ -47,9 +50,10 @@ type Chosen = { q: ChangeQuestion; label: string; text: string; picked?: string 
 function reasoned(p: Chosen): boolean {
   return p.text.trim().replace(/^\**[A-Za-z]\**/, '').replace(/^[\s.,:)\]~!]*(?:번|입니다|이요|요|예요|이에요)?[\s.,!~]*$/, '').length > 0;
 }
+// A wrong pick leads with the stored note on that option, which names the concept the developer confused.
 function keyGrade(p: Chosen): Grade {
-  const key = p.q.key!;
-  return { verdict: p.picked === key.answer ? 'correct' : 'incorrect', explanation: '', expectedAnswer: key.explanation, optionExplanations: key.options,
+  const key = p.q.key!, note = key.options.find(o => o.id === p.picked)?.explanation;
+  return { verdict: p.picked === key.answer ? 'correct' : 'incorrect', explanation: p.picked !== key.answer && note ? `선택한 ${p.picked}: ${note}` : '', expectedAnswer: key.explanation, optionExplanations: key.options,
     evidence: [{ path: p.q.path, line: p.q.line, side: p.q.side, reason: '질문이 가리키는 변경 위치' }] };
 }
 // The stored key decides right or wrong; the model can only judge whether the reasoning behind a right choice holds up.
@@ -72,7 +76,7 @@ async function gradeAll(picks: Chosen[], snap: Snapshot, job: Job, platform: Pla
     if (!payload) return `${p.label} 채점 입력이 한도를 초과해 판정을 보류합니다. 질문과 답변 범위를 나누어 주세요.`;
     truncated ||= payload.truncated;
     await lease();
-    const prompt = instruction(context) + `다음 질문에 대한 개발자의 답변을 고정된 코드와 비교해 채점하세요. verdict는 correct(정답), partial(부분 정답), incorrect(오답), unverifiable(판정 보류)입니다. 설계·트레이드오프 문제는 타당한 대안을 인정하고 표현이나 모범 문장 일치로 채점하지 마세요. 답변의 맞는 점·누락·오해를 explanation에, 관련 CS 개념의 이름과 정의·핵심 원리, 이번 코드에 적용되는 방식과 권장 답변을 expectedAnswer에 차례대로 설명하세요. 일반 CS 원리와 이 코드에서 확인한 사실을 구분하고 정답 보기를 반복하는 데 그치지 마세요. explanation, expectedAnswer와 각 optionExplanations는 각각 1~3문장으로, 실제 조건과 동작이 드러나도록 명확히 쓰세요. 개발자는 보기 하나를 고르고 이유를 덧붙일 수 있습니다. question.key가 있으면 출제 때 확정한 정답입니다. 선택한 보기가 key.answer와 같으면 correct, 이유에 오해가 있으면 partial이고, 다르면 incorrect입니다. 해설은 key를 바탕으로 개발자의 이유에 맞춰 보완하세요. key가 없으면 선택한 보기로 판정하되 이유에 오해가 있으면 partial로 짚으세요. 모든 보기에 대해 맞거나 틀린 이유를 optionExplanations로 하나씩 설명하세요. 보기가 없는 이전 질문이면 optionExplanations=[]입니다. 코드나 외부 계약으로 결론을 확정할 수 없으면 정답·오답을 강제하지 말고 unverifiable로 한계와 확인할 것을 설명하세요. 확정 채점에는 실제로 확인한 path·line·side·reason을 evidence에 최소 하나 연결하세요.\n` + payload.json;
+    const prompt = instruction(context) + `다음 질문에 대한 개발자의 답변을 고정된 코드와 비교해 채점하세요. verdict는 correct(정답), partial(부분 정답), incorrect(오답), unverifiable(판정 보류)입니다. 설계·트레이드오프 문제는 타당한 대안을 인정하고 표현이나 모범 문장 일치로 채점하지 마세요. 답변의 맞는 점·누락·오해를 explanation에, 관련 CS 개념의 이름과 정의·핵심 원리, 이번 코드에 적용되는 방식과 권장 답변을 expectedAnswer에 차례대로 설명하세요. 오답이나 부분 정답이면 explanation에서 개발자가 놓치거나 혼동한 개념의 이름(한국어와 영어)과 그 핵심을 밝히고, 그 차이가 결론을 어떻게 바꾸는지 설명하세요. 일반 CS 원리와 이 코드에서 확인한 사실을 구분하고 정답 보기를 반복하는 데 그치지 마세요. explanation, expectedAnswer와 각 optionExplanations는 각각 1~3문장으로, 실제 조건과 동작이 드러나도록 명확히 쓰세요. 개발자는 보기 하나를 고르고 이유를 덧붙일 수 있습니다. question.key가 있으면 출제 때 확정한 정답입니다. 선택한 보기가 key.answer와 같으면 correct, 이유에 오해가 있으면 partial이고, 다르면 incorrect입니다. 해설은 key를 바탕으로 개발자의 이유에 맞춰 보완하세요. key가 없으면 선택한 보기로 판정하되 이유에 오해가 있으면 partial로 짚으세요. 모든 보기에 대해 맞거나 틀린 이유를 optionExplanations로 하나씩 설명하세요. 보기가 없는 이전 질문이면 optionExplanations=[]입니다. 코드나 외부 계약으로 결론을 확정할 수 없으면 정답·오답을 강제하지 말고 unverifiable로 한계와 확인할 것을 설명하세요. 확정 채점에는 실제로 확인한 path·line·side·reason을 evidence에 최소 하나 연결하세요.\n` + payload.json;
     const grade = GradeSchema.parse(await model.run('grade', prompt, job.id, 120000));
     const ids = (p.q.options ?? []).map(o => o.id), actual = grade.optionExplanations.map(o => o.id);
     if (ids.length !== actual.length || new Set(actual).size !== actual.length || ids.some(id => !actual.includes(id))) throw new Error('모든 보기의 해설이 필요합니다.');
@@ -129,7 +133,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
       for (const a of [{ id: command.id, text: command.text }, ...(command.more ?? [])]) {
         const q = /^(?:Q|심화|면접)\d+$/.test(a.id) ? numbers.byLabel.get(a.id) : prior.find(p => questionId(snap, p) === a.id);
         if (!q) { problems.push(`${a.id}: 현재 코드 버전에서 찾을 수 없습니다. 변경 이해 질문은 Q번호, 심화 질문은 심화번호, CS 면접 질문은 면접번호를 사용하세요.`); continue; }
-        const label = [...numbers.byLabel].find(([, v]) => questionId(snap, v) === questionId(snap, q))?.[0] ?? questionId(snap, q);
+        const label = labelOf(numbers.byLabel, snap, q) ?? questionId(snap, q);
         if (picks.some(p => questionId(snap, p.q) === questionId(snap, q))) { problems.push(`${label}: 한 명령에서 같은 질문에 두 번 답했습니다.`); continue; }
         const choice = picked(a.text, q);
         if ((q.options ?? []).length && !choice) { problems.push(`${label}: 보기 ${q.options.map(o => o.id).join('·')} 중 하나로 답하세요.`); continue; }
@@ -148,7 +152,9 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
       const prepared = await workspaces.prepare(platform, snap, job.id, null), context = prepared.context;
             if (!hasQuestionSource(context)) body = notice(`이번 변경의 읽을 수 있는 코드 근거가 없어 ${interview ? 'CS 면접' : '심화'} 질문을 생성하지 못했습니다.`);
             else {
-              const payload = learningInput({ snapshot: snap, priorQuestions: prior.map(q => q.question), diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), policy: prepared.policy });
+              // Interview prompts reason about earlier questions by their visible labels.
+              const priorQuestions = interview ? prior.map(q => ({ label: labelOf(numbers.byLabel, snap, q) ?? null, question: q.question })) : prior.map(q => q.question);
+              const payload = learningInput({ snapshot: snap, priorQuestions, diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), policy: prepared.policy });
               if (!payload) body = notice('질문 이력이 입력 한도를 초과해 추가 생성을 보류합니다. 이미 나온 질문에 답하거나 변경 범위를 나누어 주세요.');
               else {
                 const prompt = interview ? csInterviewPrompt(context.sourceDir, payload.json) : `당신은 PR/MR의 변경을 바탕으로 기술 이해를 넓히는 한국어 질문 출제자입니다.

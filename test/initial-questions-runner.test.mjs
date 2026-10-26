@@ -67,7 +67,7 @@ for (const phase of ['initial_questions', 'csinterview']) test(`isolated runner 
   t.after(() => rm(root, { recursive: true, force: true }));
   const id = '88888888-8888-4888-8888-888888888888';
   await mkdir(join(root, 'jobs', id, 'source'), { recursive: true });
-  const binary = join(root, 'fake-codex'), value = { questions: questions(2), ...(phase === 'csinterview' ? { unavailableReason: '두 주제를 확인했습니다.' } : {}) };
+  const binary = join(root, 'fake-codex'), value = { questions: questions(2), ...(phase === 'csinterview' ? { unavailableReason: null } : {}) };
   await writeFile(binary, `#!/usr/bin/env node
 import fs from 'node:fs';
 const args = process.argv.slice(2);

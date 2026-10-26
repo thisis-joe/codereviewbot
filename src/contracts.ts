@@ -29,12 +29,14 @@ export const optionIds = ['A', 'B', 'C', 'D'] as const;
 const inOrder = (v: { id: string }[]) => v.map(o => o.id).join('') === optionIds.join('');
 // The answer key is fixed when the question is written so grading stays consistent; only grading and /hey showanswer publish it.
 const sentences = new Intl.Segmenter('ko', { granularity: 'sentence' });
-const explanationText = (max: number) => z.string().trim().min(1).max(max)
-  .refine(value => [...sentences.segment(value)].filter(s => s.segment.trim()).length <= 3, 'Explain in one to three sentences');
+const explanationText = (max: number, most = 3) => z.string().trim().min(1).max(max)
+  .refine(value => [...sentences.segment(value)].filter(s => s.segment.trim()).length <= most, `Explain in one to ${most} sentences`);
 export const AnswerKeySchema = z.strictObject({
   answer: z.enum(optionIds), explanation: explanationText(1500),
   options: z.array(z.strictObject({ id: z.enum(optionIds), explanation: explanationText(500) })).length(4).refine(inOrder, 'Explain options A–D in order'),
 });
+// Interview keys teach a newcomer, so their overall explanation may run to five sentences.
+export const InterviewKeySchema = AnswerKeySchema.extend({ explanation: explanationText(2000, 5) });
 export const ChangeQuestionSchema = z.strictObject({
   question: z.string().trim().min(1).max(500), path: Path, line: z.int().positive(),
   side: z.enum(['LEFT', 'RIGHT']).default('RIGHT'), level: z.enum(['basic', 'advanced']),
@@ -49,11 +51,14 @@ export const InitialQuestionsSchema = z.strictObject({ questions: z.array(Change
 // Each /hey whatelse batch is fixed at five questions.
 export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
-// Interview batches favor grounded questions over filling the quota.
+// Interview batches favor the most core concepts over filling the quota.
+export const CS_INTERVIEW_COUNT = 2;
+const InterviewQuestionSchema = ChangeQuestionSchema.extend({ key: InterviewKeySchema });
+const shortfallReason = z.string().trim().min(1).max(1000).nullable();
 export const CsInterviewBatchSchema = z.strictObject({
-  questions: z.array(ChangeQuestionSchema).max(QUESTION_BATCH_SIZE),
-  unavailableReason: z.string().trim().min(1).max(1000).nullable(),
-}).refine(v => (v.questions.length === QUESTION_BATCH_SIZE) === (v.unavailableReason === null), 'A shortfall reason is required exactly when fewer than five interview questions are available');
+  questions: z.array(InterviewQuestionSchema).max(CS_INTERVIEW_COUNT),
+  unavailableReason: shortfallReason,
+}).refine(v => (v.questions.length === CS_INTERVIEW_COUNT) === (v.unavailableReason === null), 'A shortfall reason is required exactly when fewer than two interview questions are available');
 export const GradeSchema = z.strictObject({
   verdict: z.enum(['correct', 'partial', 'incorrect', 'unverifiable']),
   explanation: explanationText(2000), expectedAnswer: explanationText(2000),

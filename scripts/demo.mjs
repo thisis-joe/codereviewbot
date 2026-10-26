@@ -42,16 +42,17 @@ const deeper = QuestionBatchSchema.parse({ questions: [
     '실패를 주입한 뒤 키 재사용과 최종 부작용을 확인해야 중복 없는 복구 동작을 검증할 수 있습니다.',
     ['키와 최종 부작용은 요구한 동작을 직접 관찰합니다.', '로그 줄 수만으로 승인과 저장을 검증할 수 없습니다.', '속도만으로 멱등성을 검증할 수 없습니다.', '새 승인 ID는 중복 승인 가능성을 뜻합니다.']),
 ] }).questions;
+// Interview questions follow the csinterview bar: a definition alone cannot pick the answer, and wrong-option notes name the confused concept.
 const interviewBatch = CsInterviewBatchSchema.parse({ questions: [
-  question('동일한 결제 요청이 재전송되어 두 번 도착했지만 최종 결제 효과는 한 번 요청했을 때와 같다면, 이를 설명하는 성질은 무엇인가요?', 2, 'basic',
-    ['원자성(atomicity): 연산들을 전부 반영하거나 전부 반영하지 않는 성질입니다.', '멱등성(idempotency): 동일 요청을 반복해도 최종 효과가 같은 성질입니다.', '격리성(isolation): 동시에 실행하는 트랜잭션의 상호 간섭을 제어하는 성질입니다.', '내구성(durability): 커밋된 변경을 장애 후에도 보존하는 성질입니다.'], 'B',
-    '멱등성(idempotency)은 동일 요청을 반복해도 최종 효과가 한 번 실행했을 때와 같다는 성질입니다. 이 예시에서는 같은 키로 기존 승인을 식별하여 중복 결제를 막습니다.',
-    ['원자성은 연산 묶음의 전체 반영 여부를 다루며 요청 반복에 따른 중복 효과를 막는다는 뜻은 아닙니다.', '동일 요청의 반복에도 결제 효과가 같다는 조건이 멱등성에 해당합니다.', '격리성은 동시 실행의 간섭에 관한 성질이며 순차적으로 재전송된 요청의 중복 효과까지 보장하지 않습니다.', '내구성은 커밋된 변경의 보존을 다루며 같은 요청의 중복 처리를 막는 성질은 아닙니다.']),
-  question('외부 서비스에 보낸 요청이 타임아웃(timeout)됐을 때, 서버의 처리 결과에 대한 설명으로 옳은 것은 무엇인가요?', 2, 'basic',
-    ['서버가 요청을 받지 못했으므로 재전송해도 중복 처리는 발생하지 않습니다.', '서버가 요청을 받았더라도 클라이언트의 대기가 끝나면 서버의 처리는 취소됩니다.', '응답을 받지 못했어도 서버는 처리를 완료했을 수 있으므로 재시도 시 중복 처리를 고려해야 합니다.', '서버가 처리를 완료했다면 응답도 도착하므로 타임아웃은 처리 미완료를 뜻합니다.'], 'C',
-    '타임아웃(timeout)은 정해진 시간 안에 응답을 받지 못했다는 관찰이며 서버의 처리 실패를 확정하지 않습니다. 이 예시의 외부 승인은 완료됐어도 응답 전달이 실패할 수 있으므로 같은 요청을 식별하는 복구 전략이 필요합니다.',
-    ['응답을 받지 못했다는 사실만으로 요청이 서버에 도착하지 않았다고 판단할 수 없습니다.', '클라이언트의 대기 종료만으로 서버 작업의 취소가 보장되지는 않습니다.', '서버 처리와 응답 전달은 구분해야 하므로 중복 부작용을 고려한 재시도가 필요합니다.', '서버가 처리를 완료한 뒤에도 응답이 유실되거나 늦게 도착할 수 있습니다.']),
-], unavailableReason: '이 고정 예시에서는 두 가지 학습 목표만 보여 줍니다.' });
+  question('결제 함수가 외부 승인 API를 호출합니다. 승인 API는 같은 멱등 키(idempotency key)로 다시 들어온 요청에는 새 승인 없이 처음 결과를 돌려줍니다. 결제 함수는 재시도 루프에서 HTTP 요청을 보낼 때마다 새 UUID를 멱등 키로 만들어 붙입니다. 첫 요청이 승인된 뒤 응답 전에 타임아웃되었다면, 재시도 결과로 옳은 것은 무엇인가요?', 2, 'advanced',
+    ['멱등 키를 붙였으므로 재시도해도 승인은 한 번만 일어납니다.', '타임아웃은 첫 요청이 실패했다는 뜻이므로 재시도가 첫 승인이 됩니다.', '재시도는 다른 키를 가지므로 서버가 새 요청으로 보고 승인이 두 번 일어날 수 있습니다.', '서버가 같은 금액과 카드 정보로 중복을 알아채므로 승인은 한 번만 일어납니다.'], 'C',
+    '멱등성(idempotency)은 같은 연산을 여러 번 적용해도 결과가 한 번 적용한 것과 같은 성질이며, 멱등 키는 서버가 같은 논리적 연산을 알아보게 하는 식별자입니다. 서버는 키로만 중복을 판단하므로 재시도마다 새 키를 만들면 서로 다른 연산으로 보입니다. 타임아웃은 응답을 받지 못했다는 관찰일 뿐 처리 실패가 아니므로, 첫 승인이 이미 일어났다면 재시도가 두 번째 승인이 됩니다. 키를 결제 시도마다 한 번 만들어 저장하고 모든 재시도에 재사용하면 결론이 바뀝니다. 이 예시의 pay가 첫 요청의 키를 재시도에 그대로 전달하는 지점이 이 보장에 기댑니다.',
+    ['멱등성의 정의만 적용하고 멱등 키의 범위를 놓쳤습니다. 서버는 **키가 같은 요청만 같은 연산으로 판단**하므로 요청마다 새 키를 붙이면 멱등성이 성립하지 않습니다.', '타임아웃과 실패를 혼동했습니다. 타임아웃은 **응답을 받지 못했다는 관찰**일 뿐이며, 서버는 처리를 끝냈을 수 있습니다.', '재시도마다 키가 달라 서버가 같은 결제임을 알 수 없고, 첫 승인이 이미 처리되었을 수 있으므로 승인이 두 번 일어날 수 있습니다.', '내용 기반 중복 제거를 가정했습니다. 이 서버는 **멱등 키로만 중복을 판단**하며, 같은 금액의 정당한 결제도 반복될 수 있습니다.']),
+  question('결제 함수가 하나의 DB 트랜잭션 안에서 외부 승인 API를 호출한 뒤 주문 행을 삽입하고 커밋합니다. 삽입 후 커밋 직전에 DB 연결이 끊겨 트랜잭션이 롤백되었다고 가정합니다. 이때 시스템 상태로 옳은 것은 무엇인가요?', 2, 'basic',
+    ['트랜잭션이 롤백되었으므로 외부 승인도 함께 취소됩니다.', '주문 행은 남지 않지만 외부 승인은 유지되어, 승인은 있고 주문은 없는 상태가 됩니다.', '주문 행은 삽입 시점에 디스크에 기록되었으므로 재시작 후 복구됩니다.', '외부 호출을 트랜잭션 안에 두었으므로 DB가 2단계 커밋으로 승인과 주문을 함께 커밋하거나 함께 취소합니다.'], 'B',
+    '원자성(atomicity)은 한 트랜잭션 안의 DB 변경이 전부 반영되거나 전혀 반영되지 않는 성질입니다. DB는 자신이 관리하는 데이터의 변경만 기록하고 되돌리므로, 트랜잭션 안에서 호출한 외부 API의 부작용은 롤백 범위 밖에 있습니다. 따라서 커밋 직전에 롤백되면 주문 행은 사라지지만 외부 승인은 남아 승인과 주문이 어긋납니다. 외부 서비스가 같은 커밋 조정에 참여하거나 취소 같은 보상 동작을 따로 설계하면 결론이 바뀝니다. 이 예시에서 승인 뒤 주문 저장이 실패할 수 있는 지점이 이 경계에 기댑니다.',
+    ['원자성의 범위를 과대평가했습니다. 롤백은 **DB가 기록한 변경만 되돌리며**, 외부 API가 이미 만든 부작용은 취소하지 않습니다.', 'DB 변경은 롤백되고 외부 승인은 롤백 범위 밖에 남으므로 승인과 주문이 어긋난 상태가 됩니다.', '내구성(durability)을 잘못 적용했습니다. 내구성은 **커밋된 변경만** 장애 뒤에도 보존하며, 커밋되지 않은 변경은 복구 대상이 아닙니다.', '분산 트랜잭션이 저절로 일어난다고 가정했습니다. 2단계 커밋(two-phase commit)은 **모든 참여자가 같은 프로토콜을 지원할 때만** 가능하며, 일반 HTTP 호출은 참여하지 않습니다.']),
+], unavailableReason: null });
 const interview = interviewBatch.questions;
 const value = report({ schemaVersion: '2', questions: initial, findings: [], checks: [], recommendedTests: [], limitations: [] });
 const grade = GradeSchema.parse({ verdict: 'correct', explanation: '같은 키로 기존 요청을 식별한다는 답이 맞습니다.', expectedAnswer: initial[0].key.explanation,
@@ -64,5 +65,5 @@ await writeFile('.local/demo-report.md', visible(renderReport(value, new Map([[q
 await writeFile('.local/demo-inline.md', visible(renderQuestionThread(initial[0], value.snapshot, 1)) + '\n');
 await writeFile('.local/demo-help.md', visible(renderCommandHelp('issue-demo-help')) + '\n');
 await writeFile('.local/demo-learning.md', disclaimer + visible(renderQuestionBatch(deeper, value.snapshot, 'issue-demo-more')) + '\n\n---\n\n' + visible(renderGrade(initial[0], value.snapshot, grade, 'issue-demo-answer', 'Q1', 'B')) + '\n');
-await writeFile('.local/demo-csinterview.md', disclaimer + visible(renderQuestionBatch(interview, value.snapshot, 'issue-demo-interview', 1, '면접')) + `\n\n${interview.length}문항만 출제했습니다. ${interviewBatch.unavailableReason}` + '\n\n---\n\n' + visible(renderReveal(interview.map((q, i) => ({ q, label: `면접${i + 1}` })), value.snapshot, 'issue-demo-reveal')) + '\n');
+await writeFile('.local/demo-csinterview.md', disclaimer + visible(renderQuestionBatch(interview, value.snapshot, 'issue-demo-interview', 1, '면접')) + '\n\n---\n\n' + visible(renderReveal(interview.map((q, i) => ({ q, label: `면접${i + 1}` })), value.snapshot, 'issue-demo-reveal')) + '\n');
 console.log('Created .local/demo-report.md, .local/demo-inline.md, .local/demo-learning.md, .local/demo-csinterview.md and .local/demo-help.md (fixtures, no model calls).');
