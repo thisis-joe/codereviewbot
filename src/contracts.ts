@@ -59,6 +59,17 @@ export const CsInterviewBatchSchema = z.strictObject({
   questions: z.array(InterviewQuestionSchema).max(CS_INTERVIEW_COUNT),
   unavailableReason: shortfallReason,
 }).refine(v => (v.questions.length === CS_INTERVIEW_COUNT) === (v.unavailableReason === null), 'A shortfall reason is required exactly when fewer than two interview questions are available');
+// /hey morecs digs one layer below the latest interview batch: follow-ups name the label they continue,
+// and at most one new interview question joins them when an uncovered core concept qualifies.
+export const MORECS_COUNT = 4;
+export const followUpKinds = ['followup', 'interview'] as const;
+const MoreCsQuestionSchema = InterviewQuestionSchema.extend({ kind: z.enum(followUpKinds), anchor: z.string().trim().min(1).max(20).nullable() });
+export const MoreCsBatchSchema = z.strictObject({
+  questions: z.array(MoreCsQuestionSchema).max(MORECS_COUNT),
+  unavailableReason: shortfallReason,
+}).refine(v => v.questions.every(q => (q.kind === 'followup') === (q.anchor !== null)), 'Follow-ups name their anchor; new interview questions have none')
+  .refine(v => v.questions.filter(q => q.kind === 'interview').length <= 1, 'At most one new interview question')
+  .refine(v => v.questions.length === MORECS_COUNT || v.unavailableReason !== null, 'A shortfall reason is required when fewer than four questions are available');
 export const GradeSchema = z.strictObject({
   verdict: z.enum(['correct', 'partial', 'incorrect', 'unverifiable']),
   explanation: explanationText(2000), expectedAnswer: explanationText(2000),
@@ -83,7 +94,9 @@ export type Candidate = z.infer<typeof CandidateSchema>;
 export type Analysis = z.infer<typeof AnalysisSchema>;
 export type Check = z.infer<typeof CheckSchema>;
 // Questions stored before answer keys and levels existed lack both, so readers must treat them as optional.
-export type ChangeQuestion = Omit<z.infer<typeof ChangeQuestionSchema>, 'level' | 'key'> & Partial<Pick<z.infer<typeof ChangeQuestionSchema>, 'level' | 'key'>>;
+// Only /hey morecs questions carry kind and the label of the question a follow-up continues.
+export type ChangeQuestion = Omit<z.infer<typeof ChangeQuestionSchema>, 'level' | 'key'> & Partial<Pick<z.infer<typeof ChangeQuestionSchema>, 'level' | 'key'>>
+  & { kind?: typeof followUpKinds[number]; anchor?: string | null };
 export type Verdict = Grade['verdict'];
 export function withoutKeys<T extends { questions?: ChangeQuestion[] } | null | undefined>(value: T): T {
   return value && value.questions ? { ...value, questions: value.questions.map(({ key: _, ...q }) => q) } : value;

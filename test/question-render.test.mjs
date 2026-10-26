@@ -44,7 +44,7 @@ test('help balances columns using unbroken command names and short description l
   assert.match(body, /<br>/);
   assert.doesNotMatch(body, /style=|width=/);
   const rows = body.split('\n').filter(line => line.startsWith('| <code>'));
-  assert.equal(rows.length, 7);
+  assert.equal(rows.length, 8);
   for (const row of rows) {
     const cells = row.split('|').slice(1, -1);
     assert.equal(cells.length, 4);

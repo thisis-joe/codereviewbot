@@ -62,12 +62,14 @@ else process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', i
   });
 }
 
-for (const phase of ['initial_questions', 'csinterview']) test(`isolated runner HTTP accepts the ${phase} phase`, { timeout: 15000 }, async t => {
+for (const phase of ['initial_questions', 'csinterview', 'morecs']) test(`isolated runner HTTP accepts the ${phase} phase`, { timeout: 15000 }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'crb-initial-http-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const id = '88888888-8888-4888-8888-888888888888';
   await mkdir(join(root, 'jobs', id, 'source'), { recursive: true });
-  const binary = join(root, 'fake-codex'), value = { questions: questions(2), ...(phase === 'csinterview' ? { unavailableReason: null } : {}) };
+  const outputs = { initial_questions: { questions: questions(2) }, csinterview: { questions: questions(2), unavailableReason: null },
+    morecs: { questions: questions(2).map(q => ({ ...q, kind: 'followup', anchor: '면접1' })), unavailableReason: '면접1만 더 파고들 근거가 있습니다.' } };
+  const binary = join(root, 'fake-codex'), value = outputs[phase];
   await writeFile(binary, `#!/usr/bin/env node
 import fs from 'node:fs';
 const args = process.argv.slice(2);

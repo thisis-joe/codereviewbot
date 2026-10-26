@@ -54,7 +54,7 @@ for (const provider of ['github', 'gitlab']) test(`${provider} signed help comma
   assert.equal(acks[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
   const body = replies[0].body.replaceAll('&nbsp;', ' ').replace(/<\/?code>/g, '`');
   assert.match(body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
-  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 7);
+  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 8);
   assert.equal(replies[0].discussion, provider === 'gitlab' ? 'help-discussion' : null);
   const state = await store.getTarget(target); assert.equal(state.report, null);
   assert.equal((await pool.query("SELECT state FROM jobs WHERE kind='review'")).rows[0].state, 'queued');

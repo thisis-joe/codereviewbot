@@ -36,7 +36,7 @@ function learningHarness(body, overrides = {}) {
 test('help is an explicit no-argument command and returns the complete deterministic command table without a report or code access', async () => {
   assert.deepEqual(parseCommand(' /hey HELP '), { action: 'help' });
   assert.equal(parseCommand('/hey help answer'), null);
-  const expected = ['answer', 'showanswer', 'whatelse', 'csinterview', 'tryagain', 'help'];
+  const expected = ['answer', 'showanswer', 'whatelse', 'csinterview', 'morecs', 'tryagain', 'help'];
   const replies = [], forbidden = () => { throw new Error('help must not access report, snapshots, workspace or model'); };
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], owned: c => c.author === 'bot', snapshot: forbidden,
     reply: async (...args) => { replies.push(args); } };
@@ -50,7 +50,7 @@ test('help is an explicit no-argument command and returns the complete determini
   assert.match(body, /^\| 명령어 \| 뜻 \| 설명 \| 사용 예시 \|$/m);
   for (const command of expected) assert.match(body, new RegExp(`^\\| \`/hey ${command}\` \\| [^|]+ \\| [^|]+ \\| \`/hey ${command}[^|]*\` \\|$`, 'm'));
   assert.match(body, /^\| `@hey` \| 코드 질문 \| .* \| `@hey .+` \|$/m);
-  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 7);
+  assert.equal([...body.matchAll(/^\| (?:`\/hey|`@hey)/gm)].length, 8);
   assert.match(body, /최신 변경.*질문.*생성/);
   assert.doesNotMatch(body, /\/hey (?:review|full|pause|resume|explain|dismiss|learn|approve|reject)\b/);
   assert.equal(replies[0][2], 'root'); assert.equal(replies[0][3], 'discussion');

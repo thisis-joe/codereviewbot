@@ -1,5 +1,5 @@
-import { GradeSchema, QuestionBatchSchema, CsInterviewBatchSchema, hasChangeQuestions, type ChangeQuestion, type Grade, type Snapshot } from './contracts.js';
-import { csInterviewPrompt } from './csinterview.js';
+import { GradeSchema, QuestionBatchSchema, CsInterviewBatchSchema, MoreCsBatchSchema, CS_INTERVIEW_COUNT, MORECS_COUNT, QUESTION_BATCH_SIZE, hasChangeQuestions, type ChangeQuestion, type Grade, type Snapshot } from './contracts.js';
+import { csInterviewPrompt, moreCsPrompt } from './csinterview.js';
 import { questionId, sameRevision } from './learning.js';
 import { hasQuestionSource, validateQuestions, type Model, type ReviewContext } from './review.js';
 import { renderGrades, renderQuestionBatch, renderReveal, replyMarker, plain, COMMAND_HELP_HINT, type GradeItem } from './render.js';
@@ -27,16 +27,33 @@ function sourceLink(all: RemoteComment[], comment: Comment, s: Snapshot): string
   return '';
 }
 // Each kind keeps its own revision-wide sequence; old batches without a kind remain 심화.
-function numbering(current: ChangeQuestion[], batches: CommandResult[]): { byLabel: Map<string, ChangeQuestion>; next: number; nextInterview: number } {
-  const byLabel = new Map<string, ChangeQuestion>(current.map((q, i) => [`Q${i + 1}`, q])); let next = 1, nextInterview = 1;
+// morecs batches mix 꼬리 and 면접 questions, so they store their labels instead of a start number.
+interface Numbers { byLabel: Map<string, ChangeQuestion>; batchLabels: string[][]; next: number; nextInterview: number; nextFollowUp: number }
+function numbering(current: ChangeQuestion[], batches: CommandResult[]): Numbers {
+  const byLabel = new Map<string, ChangeQuestion>(current.map((q, i) => [`Q${i + 1}`, q])), batchLabels: string[][] = [];
+  const after = { 심화: 1, 면접: 1, 꼬리: 1 } as Record<string, number>;
   for (const b of batches) {
-    const interview = b.batchKind === 'csinterview', prefix = interview ? '면접' : '심화';
-    const start = b.start ?? (interview ? nextInterview : next), questions = b.questions ?? [];
-    questions.forEach((q, i) => { if (!byLabel.has(`${prefix}${start + i}`)) byLabel.set(`${prefix}${start + i}`, q); });
-    if (interview) nextInterview = Math.max(nextInterview, start + questions.length);
-    else next = Math.max(next, start + questions.length);
+    const questions = b.questions ?? [], prefix = b.batchKind === 'csinterview' ? '면접' : '심화';
+    const start = b.start ?? after[prefix]!;
+    const labels = b.labels?.length === questions.length ? b.labels : questions.map((_, i) => `${prefix}${start + i}`);
+    questions.forEach((q, i) => {
+      if (!byLabel.has(labels[i]!)) byLabel.set(labels[i]!, q);
+      const [, kind, n] = labels[i]!.match(/^(심화|면접|꼬리)(\d+)$/) ?? [];
+      if (kind) after[kind] = Math.max(after[kind]!, Number(n) + 1);
+    });
+    batchLabels.push(labels);
   }
-  return { byLabel, next, nextInterview };
+  return { byLabel, batchLabels, next: after['심화']!, nextInterview: after['면접']!, nextFollowUp: after['꼬리']! };
+}
+const interviewKinds: CommandResult['batchKind'][] = ['csinterview', 'morecs'];
+/** Follow-ups must continue a question of the anchor batch, and every 면접 question there needs one unless the model explains why not. */
+function followUps(questions: ChangeQuestion[], anchorLabels: string[], reason: string | null): { ordered: ChangeQuestion[]; uncovered: string[] } {
+  if (questions.some(q => q.kind === 'followup' ? !anchorLabels.includes(q.anchor ?? '') : q.anchor !== null)) throw new Error('꼬리 질문은 직전 면접 묶음의 문항을 이어야 합니다.');
+  const uncovered = anchorLabels.filter(l => l.startsWith('면접') && !questions.some(q => q.anchor === l));
+  if (uncovered.length && !reason) throw new Error('직전 묶음의 면접 질문마다 꼬리 질문이 필요합니다.');
+  // Follow-ups come first in anchor order, then the new interview question.
+  const rank = (q: ChangeQuestion) => q.kind === 'interview' ? anchorLabels.length : anchorLabels.indexOf(q.anchor!);
+  return { ordered: questions.map((q, i) => ({ q, i })).sort((a, b) => rank(a.q) - rank(b.q) || a.i - b.i).map(x => x.q), uncovered };
 }
 function labelOf(byLabel: Map<string, ChangeQuestion>, snap: Snapshot, q: ChangeQuestion): string | undefined {
   return [...byLabel].find(([, v]) => questionId(snap, v) === questionId(snap, q))?.[0];
@@ -113,26 +130,31 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
   if (!response) {
     const state = await store.getTarget(target), report = state?.report;
     if (report && sameRevision(report.snapshot, snap) && report.snapshot.commits) snap.commits = report.snapshot.commits;
-    let body = '', questions: ChangeQuestion[] | undefined, questionThread: CommandResult['questionThread'], grades: CommandResult['grades'], start: number | undefined;
+    let body = '', questions: ChangeQuestion[] | undefined, questionThread: CommandResult['questionThread'], grades: CommandResult['grades'], start: number | undefined, labels: string[] | undefined;
     const batches = (await store.learningBatches(snap)).filter(b => sameRevision(b.snapshot, snap));
     const current = report && hasChangeQuestions(report) && sameRevision(report.snapshot, snap) ? report.questions : [];
     const numbers = numbering(current, batches);
     const prior = [...new Map([...current, ...await store.questionHistory(snap), ...batches.flatMap(b => b.questions ?? [])].map(q => [questionId(snap, q), q])).values()];
-    const interview = command.action === 'csinterview';
+    const kind = command.action === 'csinterview' || command.action === 'morecs' ? command.action : undefined, interview = kind !== undefined;
+    const name = kind === 'morecs' ? '꼬리' : interview ? 'CS 면접' : '심화';
+    // morecs continues the latest interview-family batch on this revision, whichever command produced it.
+    const anchorBatch = batches.map((b, i) => ({ questions: b.questions ?? [], labels: numbers.batchLabels[i]!, kind: b.batchKind })).filter(b => interviewKinds.includes(b.kind) && b.questions.length).at(-1);
     if (!prior.length && !interview) {
       body = notice(['현재 코드 기준의 학습 질문이 준비되지 않았습니다. 최신 질문 생성이 완료된 후 질문 번호로 답하세요.', '', COMMAND_HELP_HINT].join('\n'));
-    } else if (command.action === 'questions' && batches.filter(b => b.batchKind !== 'csinterview').length >= MAX_BATCHES) {
+    } else if (command.action === 'questions' && batches.filter(b => !b.batchKind).length >= MAX_BATCHES) {
       body = notice('이 코드 버전의 심화 질문은 5회까지 생성할 수 있습니다. 이미 나온 질문에 답하거나 관련 코드를 더 탐색해 보세요.');
-    } else if (interview && batches.filter(b => b.batchKind === 'csinterview').length >= MAX_BATCHES) {
-      body = notice('이 코드 버전의 CS 면접 질문은 5회까지 생성할 수 있습니다. 이미 나온 질문에 답하거나 관련 코드를 더 탐색해 보세요.');
+    } else if (kind && batches.filter(b => b.batchKind === kind).length >= MAX_BATCHES) {
+      body = notice(`이 코드 버전의 ${name} 질문은 5회까지 생성할 수 있습니다. 이미 나온 질문에 답하거나 관련 코드를 더 탐색해 보세요.`);
+    } else if (kind === 'morecs' && !anchorBatch) {
+      body = notice(['이 코드 버전에는 아직 CS 면접 질문이 없습니다. 먼저 `/hey csinterview`로 면접 질문을 받은 뒤 꼬리 질문을 요청하세요.', '', COMMAND_HELP_HINT].join('\n'));
     } else if (command.action === 'reveal') {
       const scope = threadQuestions(comment, trusted, snap, prior);
       body = 'error' in scope ? notice([scope.error, '', COMMAND_HELP_HINT].join('\n')) : renderReveal(scope.items, snap, key);
     } else if (command.action === 'answer') {
       const problems: string[] = [], picks: Chosen[] = [];
       for (const a of [{ id: command.id, text: command.text }, ...(command.more ?? [])]) {
-        const q = /^(?:Q|심화|면접)\d+$/.test(a.id) ? numbers.byLabel.get(a.id) : prior.find(p => questionId(snap, p) === a.id);
-        if (!q) { problems.push(`${a.id}: 현재 코드 버전에서 찾을 수 없습니다. 변경 이해 질문은 Q번호, 심화 질문은 심화번호, CS 면접 질문은 면접번호를 사용하세요.`); continue; }
+        const q = /^(?:Q|심화|면접|꼬리)\d+$/.test(a.id) ? numbers.byLabel.get(a.id) : prior.find(p => questionId(snap, p) === a.id);
+        if (!q) { problems.push(`${a.id}: 현재 코드 버전에서 찾을 수 없습니다. 변경 이해 질문은 Q번호, 심화 질문은 심화번호, CS 면접 질문은 면접번호, 꼬리 질문은 꼬리번호를 사용하세요.`); continue; }
         const label = labelOf(numbers.byLabel, snap, q) ?? questionId(snap, q);
         if (picks.some(p => questionId(snap, p.q) === questionId(snap, q))) { problems.push(`${label}: 한 명령에서 같은 질문에 두 번 답했습니다.`); continue; }
         const choice = picked(a.text, q);
@@ -150,14 +172,16 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
       }
     } else if (command.action === 'questions' || interview) {
       const prepared = await workspaces.prepare(platform, snap, job.id, null), context = prepared.context;
-            if (!hasQuestionSource(context)) body = notice(`이번 변경의 읽을 수 있는 코드 근거가 없어 ${interview ? 'CS 면접' : '심화'} 질문을 생성하지 못했습니다.`);
+            if (!hasQuestionSource(context)) body = notice(`이번 변경의 읽을 수 있는 코드 근거가 없어 ${name} 질문을 생성하지 못했습니다.`);
             else {
               // Interview prompts reason about earlier questions by their visible labels.
               const priorQuestions = interview ? prior.map(q => ({ label: labelOf(numbers.byLabel, snap, q) ?? null, question: q.question })) : prior.map(q => q.question);
-              const payload = learningInput({ snapshot: snap, priorQuestions, diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), policy: prepared.policy });
+              const anchorInput = kind === 'morecs' ? { anchorBatch: anchorBatch!.questions.map((q, i) => ({ label: anchorBatch!.labels[i], kind: anchorBatch!.labels[i]!.startsWith('꼬리') ? 'followup' : 'interview',
+                anchor: q.anchor ?? null, question: q.question, options: q.options, answer: q.key?.answer ?? null, explanation: q.key?.explanation ?? null })) } : {};
+              const payload = learningInput({ snapshot: snap, ...anchorInput, priorQuestions, diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), policy: prepared.policy });
               if (!payload) body = notice('질문 이력이 입력 한도를 초과해 추가 생성을 보류합니다. 이미 나온 질문에 답하거나 변경 범위를 나누어 주세요.');
               else {
-                const prompt = interview ? csInterviewPrompt(context.sourceDir, payload.json) : `당신은 PR/MR의 변경을 바탕으로 기술 이해를 넓히는 한국어 질문 출제자입니다.
+                const prompt = kind === 'morecs' ? moreCsPrompt(context.sourceDir, payload.json) : kind === 'csinterview' ? csInterviewPrompt(context.sourceDir, payload.json) : `당신은 PR/MR의 변경을 바탕으로 기술 이해를 넓히는 한국어 질문 출제자입니다.
 
 이미 출제된 질문에서 한 단계 더 나아가는 객관식 질문을 정확히 5개 작성하세요. 모든 문항의 level은 advanced입니다.
 
@@ -259,15 +283,23 @@ ${context.sourceDir}에 고정된 변경 전후 코드와 관련 호출부·타�
 
 출제 자료(JSON 데이터):
 ${payload.json}`;
-                const result = interview ? CsInterviewBatchSchema.parse(await model.run('csinterview', prompt, job.id, 120000))
+                const result: { questions: ChangeQuestion[]; unavailableReason: string | null } = kind === 'morecs' ? MoreCsBatchSchema.parse(await model.run('morecs', prompt, job.id, 120000))
+                  : kind === 'csinterview' ? CsInterviewBatchSchema.parse(await model.run('csinterview', prompt, job.id, 120000))
                   : { ...QuestionBatchSchema.parse(await model.run('questions', prompt, job.id, 120000)), unavailableReason: null };
                 const unavailableReason = result.unavailableReason;
-                if (!result.questions.length) body = notice(`CS 면접 질문을 생성하지 못했습니다. ${plain(redact(unavailableReason!))}`);
+                if (!result.questions.length) body = notice(`${name} 질문을 생성하지 못했습니다. ${plain(redact(unavailableReason!))}`);
                 else {
-                  questions = validateQuestions(result.questions.map(q => ({ ...q, question: redact(q.question), options: q.options.map(o => ({ ...o, text: redact(o.text) })),
-                    key: { ...q.key, explanation: redact(q.key.explanation), options: q.key.options.map(o => ({ ...o, explanation: redact(o.explanation) })) } })), context, prior);
-                  start = interview ? numbers.nextInterview : numbers.next; body = renderQuestionBatch(questions, snap, key, start, interview ? '면접' : '심화');
-                  if (unavailableReason) body += `\n\n${questions.length}문항만 출제했습니다. ${plain(redact(unavailableReason))}`;
+                  const shaped = kind === 'morecs' ? followUps(result.questions, anchorBatch!.labels, unavailableReason) : { ordered: result.questions, uncovered: [] };
+                  questions = validateQuestions(shaped.ordered.map(q => ({ ...q, question: redact(q.question), options: q.options.map(o => ({ ...o, text: redact(o.text) })),
+                    key: { ...q.key!, explanation: redact(q.key!.explanation), options: q.key!.options.map(o => ({ ...o, explanation: redact(o.explanation) })) } })), context, prior);
+                  if (kind === 'morecs') {
+                    let followUp = numbers.nextFollowUp;
+                    labels = questions.map(q => q.kind === 'interview' ? `면접${numbers.nextInterview}` : `꼬리${followUp++}`);
+                    body = renderQuestionBatch(questions, snap, key, 1, '면접', labels);
+                  } else { start = interview ? numbers.nextInterview : numbers.next; body = renderQuestionBatch(questions, snap, key, start, interview ? '면접' : '심화'); }
+                  const target = kind === 'morecs' ? MORECS_COUNT : kind === 'csinterview' ? CS_INTERVIEW_COUNT : QUESTION_BATCH_SIZE;
+                  if (unavailableReason && questions.length < target) body += `\n\n${questions.length}문항만 출제했습니다. ${plain(redact(unavailableReason))}`;
+                  else if (unavailableReason && shaped.uncovered.length) body += `\n\n${shaped.uncovered.join('·')}에는 꼬리 질문을 달지 않았습니다. ${plain(redact(unavailableReason))}`;
                   const q = questions[0]!;
                   const anchor = Object.entries(context.diff).find(([path, d]) => q.side === 'LEFT' ? d.oldPath === q.path : path === q.path);
                   if (!anchor) throw new Error('Question thread anchor is unavailable');
@@ -280,7 +312,7 @@ ${payload.json}`;
     if (!body) throw new Error('Unsupported learning command');
     await lease(); const latest = await platform.snapshot(target.number, true);
     if (!sameRevision(snap, latest)) throw new Error('Learning snapshot changed; retry against latest code');
-    response = { snapshot: snap, body: redact(body) + sourceLink(all, comment, snap), ...(questions ? { questions, start, questionThread, ...(interview ? { batchKind: 'csinterview' as const } : {}) } : {}), ...(grades ? { grades } : {}), ...(command.action === 'reveal' ? { revealThreadVersion: 1 as const } : {}) };
+    response = { snapshot: snap, body: redact(body) + sourceLink(all, comment, snap), ...(questions ? { questions, ...(labels ? { labels } : { start }), questionThread, ...(kind ? { batchKind: kind } : {}) } : {}), ...(grades ? { grades } : {}), ...(command.action === 'reveal' ? { revealThreadVersion: 1 as const } : {}) };
     if (response.body.length > 60000) throw new Error('Learning response exceeds comment budget');
     await store.saveCommandResult(job.id, job.owner, response);
   }
