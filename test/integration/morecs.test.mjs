@@ -5,7 +5,7 @@ import pg from 'pg';
 import { Store } from '../../dist/store.js';
 import { Controller } from '../../dist/controller.js';
 import { application } from '../../dist/application.js';
-import { snapshot, initialQuestions } from '../fixtures.mjs';
+import { snapshot, initialQuestions, checked } from '../fixtures.mjs';
 import { driveWorkflow } from '../workflow-driver.mjs';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
@@ -28,7 +28,7 @@ for (const provider of ['github', 'gitlab']) test(`${provider}: chained morecs b
   const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {},
     diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
   const base = initialQuestions()[0];
-  const question = (text, extra = {}) => ({ ...base, level: 'advanced', question: text, key: { ...base.key, explanation: '멱등성(idempotency)은 반복 적용의 효과가 같은 성질입니다.' }, ...extra });
+  const question = (text, extra = {}) => checked({ ...base, level: 'advanced', question: text, key: { ...base.key, explanation: '멱등성(idempotency)은 반복 적용의 효과가 같은 성질입니다.' }, ...extra });
   const model = { run: async (phase, prompt) => {
     calls.push({ phase, prompt }); const n = calls.length;
     if (phase === 'csinterview') return { questions: [question(`면접 ${n}-1?`), question(`면접 ${n}-2?`)], unavailableReason: null };

@@ -9,7 +9,7 @@ import { createServer } from 'node:net';
 import * as contracts from '../dist/contracts.js';
 import { Codex } from '../dist/codex.js';
 import { ClaudeCode } from '../dist/claude.js';
-import { changeQuestions } from './fixtures.mjs';
+import { changeQuestions, checked } from './fixtures.mjs';
 
 const questions = count => Array.from({ length: count }, (_, i) => ({
   ...changeQuestions()[i % 3], question: `변경된 처리 조건 ${i + 1}은 무엇인가요?`,
@@ -67,8 +67,8 @@ for (const phase of ['initial_questions', 'csinterview', 'morecs']) test(`isolat
   t.after(() => rm(root, { recursive: true, force: true }));
   const id = '88888888-8888-4888-8888-888888888888';
   await mkdir(join(root, 'jobs', id, 'source'), { recursive: true });
-  const outputs = { initial_questions: { questions: questions(2) }, csinterview: { questions: questions(2), unavailableReason: null },
-    morecs: { questions: questions(2).map(q => ({ ...q, kind: 'followup', anchor: '면접1' })), unavailableReason: '면접1만 더 파고들 근거가 있습니다.' } };
+  const outputs = { initial_questions: { questions: questions(2) }, csinterview: { questions: questions(2).map(checked), unavailableReason: null },
+    morecs: { questions: questions(2).map(q => checked({ ...q, kind: 'followup', anchor: '면접1' })), unavailableReason: '면접1만 더 파고들 근거가 있습니다.' } };
   const binary = join(root, 'fake-codex'), value = outputs[phase];
   await writeFile(binary, `#!/usr/bin/env node
 import fs from 'node:fs';

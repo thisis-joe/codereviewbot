@@ -53,7 +53,14 @@ export const QUESTION_BATCH_SIZE = 5;
 export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
 // Interview batches favor the most core concepts over filling the quota.
 export const CS_INTERVIEW_COUNT = 2;
-const InterviewQuestionSchema = ChangeQuestionSchema.extend({ key: InterviewKeySchema });
+// Each interview question carries the model's own giveaway check; the controller drops questions that fail it
+// (definition-only pick equals the key, a quote not taken from the stem, or a declared giveaway) instead of failing the batch.
+export const QuestionCheckSchema = z.strictObject({
+  definitionOnlyPick: z.enum(optionIds), definitionOnlyReason: z.string().trim().min(1).max(300),
+  stemQuote: z.string().trim().min(1).max(300), giveaway: z.boolean(),
+});
+export type QuestionCheck = z.infer<typeof QuestionCheckSchema>;
+const InterviewQuestionSchema = ChangeQuestionSchema.extend({ key: InterviewKeySchema, check: QuestionCheckSchema });
 const shortfallReason = z.string().trim().min(1).max(1000).nullable();
 export const CsInterviewBatchSchema = z.strictObject({
   questions: z.array(InterviewQuestionSchema).max(CS_INTERVIEW_COUNT),

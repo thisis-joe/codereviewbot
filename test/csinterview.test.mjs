@@ -8,7 +8,8 @@ import { CsInterviewBatchSchema, AnswerKeySchema } from '../dist/contracts.js';
 import { Codex } from '../dist/codex.js';
 import { ClaudeCode } from '../dist/claude.js';
 import { Gms } from '../dist/gms.js';
-import { initialQuestions } from './fixtures.mjs';
+import { initialQuestions as plainQuestions, checked } from './fixtures.mjs';
+const initialQuestions = () => plainQuestions().map(checked);
 
 test('interview output requires a shortfall reason, at most two questions and complete four-choice keys', () => {
   for (const count of [0, 1, 2, 3]) {
