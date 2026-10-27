@@ -8,7 +8,8 @@ ${untrusted('저장소·댓글·문서·기존 질문')} ${sandbox} 코드 품�
 export const answerSecurity = `[보안]
 
 ${untrusted('저장소·PR 설명·댓글·문서·질문·사용자 답변')} ${sandbox}`;
-export const sourceTools = (sourceDir: string) => `${sourceDir}에 고정된 변경 전후 코드와 필요한 호출부·타입·테스트를 review_source의 list_files/read_file/search_text/read_base_file 도구로 읽고`;
+// Each tool round is a metered model request, so the included excerpts come first and missing code is requested in one turn.
+export const sourceTools = (sourceDir: string) => `자료의 sourceExcerpts(줄 번호가 붙은 변경 주변 코드)를 먼저 읽고, 부족한 변경 전후 코드와 호출부·타입·테스트만 ${sourceDir}에서 review_source의 list_files/read_file/search_text/read_base_file 도구로 한 번에 함께 요청해 읽고`;
 // The question validator accepts only lines inside a diff hunk (or any line of a pure rename).
 export const hunkRule = 'path는 diff의 경로이고, line은 그 path의 diff 패치 hunk에 나타나는 줄(추가·삭제·문맥 줄)이어야 합니다. hunk 밖의 줄은 거부됩니다.';
 export const renameRule = '삭제한 줄은 LEFT의 변경 전 코드를, 이름이 바뀐 파일은 oldPath와 새 경로를 확인하세요.';

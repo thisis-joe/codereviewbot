@@ -3,7 +3,7 @@ import { csInterviewPrompt, moreCsPrompt } from './csinterview.js';
 import { whatElsePrompt } from './whatelse.js';
 import { answerSecurity, boldRule, sourceTools } from './prompt-blocks.js';
 import { questionId, sameRevision } from './learning.js';
-import { hasQuestionSource, validateQuestions, type Model, type ReviewContext } from './review.js';
+import { anchorExcerpts, hasQuestionSource, sourceExcerpts, validateQuestions, type Model, type ReviewContext } from './review.js';
 import { renderGrades, renderQuestionBatch, renderReveal, replyMarker, plain, COMMAND_HELP_HINT, type GradeItem } from './render.js';
 import { threadQuestions } from './question-thread.js';
 import { redact } from './redact.js';
@@ -150,7 +150,7 @@ async function gradeAll(picks: Chosen[], snap: Snapshot, job: Job, platform: Pla
       if (p.q.key) { items.push({ ...p, grade: keyGrade(p) }); continue; }
       return `${p.label} 질문의 코드 근거를 현재 검토 자료에서 읽을 수 없어 채점을 보류합니다. 최신 질문를 다시 요청하세요.`;
     }
-    const payload = learningInput({ snapshot: snap, question: p.q, developerAnswer: redact(p.text), diff: patches(context), policy: prepared.policy });
+    const payload = learningInput({ snapshot: snap, question: p.q, developerAnswer: redact(p.text), diff: patches(context), sourceExcerpts: anchorExcerpts(p.q, context), policy: prepared.policy });
     if (!payload) return `${p.label} 채점 입력이 한도를 초과해 판정을 보류합니다. 질문과 답변 범위를 나누어 주세요.`;
     truncated ||= payload.truncated;
     await lease();
@@ -177,7 +177,8 @@ export function learningInput(data: Record<string, unknown>): { json: string; tr
     return { text, truncated: text.length < raw.length };
   };
   // Keep all prior question text and the complete chosen question/answer; source tools retain full code.
-  const compact = { ...data, policy: excerpt(data.policy, 40000), ...(data.diff ? { diff: excerpt(data.diff, 180000) } : {}), contextNote: '자료 일부가 축약되어 있습니다. 코드 근거는 review_source 도구로 직접 확인하세요.' };
+  // Excerpts are a convenience copy of snapshot code, so they are the first thing dropped.
+  const compact = { ...data, sourceExcerpts: [], policy: excerpt(data.policy, 40000), ...(data.diff ? { diff: excerpt(data.diff, 180000) } : {}), contextNote: '자료 일부가 축약되어 있습니다. 코드 근거는 review_source 도구로 직접 확인하세요.' };
   const json = JSON.stringify(compact); return json.length <= 470000 ? { json, truncated: true } : null;
 }
 export async function handleLearning(command: Command, job: Job, platform: Platform, store: Store, workspaces: Workspaces, model: Model, all: RemoteComment[], lease: () => Promise<void>, trusted: RemoteComment[]): Promise<void> {
@@ -245,7 +246,7 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
               const priorQuestions = interview ? prior.map(q => ({ label: labelOf(numbers.byLabel, snap, q) ?? null, question: q.question })) : prior.map(q => q.question);
               const anchorInput = kind === 'morecs' ? { anchorBatch: anchorBatch!.questions.map((q, i) => ({ label: anchorBatch!.labels[i], kind: anchorBatch!.labels[i]!.startsWith('꼬리') ? 'followup' : 'interview',
                 anchor: q.anchor ?? null, question: q.question, options: q.options, answer: q.key?.answer ?? null, explanation: q.key?.explanation ?? null })) } : {};
-              const payload = learningInput({ snapshot: snap, ...anchorInput, priorQuestions, diff: patches(context), policy: prepared.policy });
+              const payload = learningInput({ snapshot: snap, ...anchorInput, priorQuestions, diff: patches(context), sourceExcerpts: sourceExcerpts(context), policy: prepared.policy });
               if (!payload) body = notice('질문 이력이 입력 한도를 초과해 추가 생성을 보류합니다. 이미 나온 질문에 답하거나 변경 범위를 나누어 주세요.');
               else {
                 const prompt = kind === 'morecs' ? moreCsPrompt(context.sourceDir, payload.json) : kind === 'csinterview' ? csInterviewPrompt(context.sourceDir, payload.json) : whatElsePrompt(context.sourceDir, payload.json);

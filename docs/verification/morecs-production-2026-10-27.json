@@ -1,0 +1,125 @@
+{
+  "release": "morecs-dfe1209",
+  "date": "2026-10-27",
+  "host": "edo1",
+  "releaseDir": "/home/ubuntu/hey/releases/morecs-dfe1209",
+  "source": {
+    "commit": "dfe1209557356900be40556420c20ad3f44e9299",
+    "pr": "https://github.com/thisis-joe/codereviewbot/pull/23",
+    "contents": "csinterview core-concept rewrite (2 questions), /hey morecs, teaching keys with bold spans, enforced giveaway check, morecs 240 s budget, and main up to #22 (GMS usage logging)"
+  },
+  "approval": "User asked to merge and deploy (2026-10-27); compiled code bundle transferred to existing edo1 only",
+  "images": {
+    "prior": {
+      "controller": "hey-controller:csinterview-25312d1 (sha256:6fcc1be0…)",
+      "runner": "hey-runner:gms-usage-d7dc5fc (sha256:a81d16e4…)"
+    },
+    "candidate": {
+      "controller": "hey-controller:morecs-dfe1209",
+      "runner": "hey-runner:morecs-dfe1209"
+    },
+    "compatibleRollbackController": {
+      "tag": "hey-controller:morecs-compatible-prior-dfe1209",
+      "imageId": "sha256:de63641e5faca4eedc7b3fcce37f8e668d686f4c53d5aaadfcc4653eda1cf42b",
+      "onlyChange": "dist/store.js learningBatches skips batchKind=morecs"
+    }
+  },
+  "method": "Overlay of /app/dist and /app/migrations on the exact prior images (35 runtime modules hash-checked); no dependency, migration, n8n workflow, PostgreSQL or tunnel change",
+  "prepare": {
+    "passed": true,
+    "configAndDatabaseBackup": true,
+    "gmsUsageLinesSavedBeforeReplacement": 0,
+    "firstAttempt": "stopped in prepare: bundle files were 0600 so the image user could not read the overlay; partial release and unusable image removed before retry, production untouched"
+  },
+  "stage": {
+    "passed": true,
+    "restoredProductionCopy": true,
+    "externalNetwork": "disabled",
+    "forward": {
+      "passed": true,
+      "authenticatedRunnerRpc": true,
+      "morecsWithoutInterview": "points to csinterview",
+      "csinterviewQuestions": 2,
+      "morecsLabels": [
+        "꼬리1",
+        "꼬리2",
+        "꼬리3",
+        "면접3"
+      ],
+      "mixedAnswer": "correct,correct",
+      "threadReveal": true,
+      "checkNotStored": true,
+      "modelGatewayCalls": [
+        "csinterview",
+        "morecs"
+      ],
+      "externalPosts": 0
+    },
+    "rollbackCompatibility": {
+      "passed": true,
+      "morecsRowsHidden": true,
+      "interviewAnswer": "correct",
+      "whatelseAnswer": "correct",
+      "morecsCommand": "rejected as unknown",
+      "followUpAnswer": "rejected as unknown",
+      "modelCalls": 0,
+      "historyRetained": true
+    }
+  },
+  "activation": {
+    "pairedReplacement": "runner then controller after drain",
+    "gmsUsageLinesSavedAtCutover": 0
+  },
+  "verification": {
+    "controllerHealth": "healthy",
+    "controllerModulesMatch": true,
+    "controllerHostConfigSame": "same settings; only Binds list order differs, identical as a set and identical runtime mounts",
+    "controllerEnvSame": true,
+    "controllerNetworksSame": true,
+    "runnerHealth": "healthy",
+    "runnerModulesMatch": true,
+    "runnerHostConfigSame": "same settings; only Binds list order differs, identical as a set and identical runtime mounts",
+    "runnerEnvSame": true,
+    "runnerNetworksSame": true,
+    "runnerUsageEnv": true,
+    "historySinceCutover": "unchanged",
+    "activeOrQueued": "0",
+    "n8nErrorsUnchanged": true,
+    "controllerErrors": 0
+  },
+  "history": {
+    "before": {
+      "targets": 49,
+      "jobs": 174,
+      "deliveries": 214,
+      "mattermost_notifications": 267,
+      "bot_comment_history": 38
+    },
+    "atCutover": {
+      "targets": 49,
+      "jobs": 174,
+      "deliveries": 214,
+      "mattermost_notifications": 267,
+      "bot_comment_history": 38
+    },
+    "hashesEqualBeforeAndAtCutover": true
+  },
+  "publicIngress": {
+    "/webhooks/gitlab (GitLab-shaped, bad token)": 401,
+    "/webhooks/github (GitHub-shaped, bad signature)": 401,
+    "/healthz": 404,
+    "/internal/flow/claim": 404,
+    "note": "Generic JSON requests without platform headers get 404 at the edge; the tunnel forwards only ^/webhooks/(github|gitlab)$"
+  },
+  "liveMrTest": {
+    "status": "user-reported",
+    "detail": "The user posted the /hey commands on their own MR and reported that it works. This session did not observe the comments or jobs (its read-only watcher was stopped at the user's request before any command completed), so no live command output is recorded here."
+  },
+  "rollback": {
+    "command": "cd /home/ubuntu/hey/releases/morecs-dfe1209 && python3 deploy.py rollback",
+    "effect": "compatible prior controller + exact prior runner; data kept; /hey morecs unavailable",
+    "currentValidity": "Superseded: change-fa9b7c8 (PR #24, another session) was activated on top of this pair shortly after; its rollback returns to this pair first. This release's rollback refuses while compose.json differs from its candidate."
+  },
+  "externalCommentWrites": 0,
+  "productionDataWrites": "none beyond normal service operation"
+}

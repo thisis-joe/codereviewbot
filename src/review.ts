@@ -38,6 +38,34 @@ function questionSourcePath(q: Pick<ChangeQuestion, 'path' | 'line' | 'side'>, c
   // A pure rename has readable source and an explicit path change but no text hunk.
   return diff && path && source && Object.hasOwn(source, path) && q.line > 0 && q.line <= source[path]!.split('\n').length && (lines?.has(q.line) || (diff.oldPath !== q.path && !diff.patch.trim())) ? path : null;
 }
+export interface SourceExcerpt { path: string; side: 'LEFT' | 'RIGHT'; start: number; end: number; text: string }
+function excerpt(path: string, side: 'LEFT' | 'RIGHT', source: string, start: number, end: number): SourceExcerpt {
+  const lines = source.split('\n'); start = Math.max(1, start); end = Math.min(end, lines.length);
+  return { path, side, start, end, text: lines.slice(start - 1, end).map((text, i) => `${start + i}\t${text.slice(0, 500)}`).join('\n') };
+}
+/** Changed lines with their surroundings, so a model starts from code it would otherwise fetch one metered request at a time. */
+export function sourceExcerpts(context: ReviewContext, budget = 60000, radius = 20): SourceExcerpt[] {
+  const result: SourceExcerpt[] = []; let used = 0;
+  for (const [path, diff] of Object.entries(context.diff)) {
+    const source = context.files[path]; if (source === undefined) continue;
+    const ranges: [number, number][] = [];
+    for (const line of [...diff.lines].sort((a, b) => a - b)) {
+      const last = ranges.at(-1);
+      if (last && line - radius <= last[1] + 1) last[1] = line + radius; else ranges.push([line - radius, line + radius]);
+    }
+    for (const [start, end] of ranges) {
+      const item = excerpt(path, 'RIGHT', source, start, end), size = Buffer.byteLength(item.text);
+      if (used + size > budget) return result;
+      result.push(item); used += size;
+    }
+  }
+  return result;
+}
+/** Code around a question's anchor; LEFT anchors already name the base path, as grading's readability check does. */
+export function anchorExcerpts(q: Pick<ChangeQuestion, 'path' | 'line' | 'side'>, context: ReviewContext, radius = 30): SourceExcerpt[] {
+  const source = (q.side === 'LEFT' ? context.baseFiles : context.files)?.[q.path];
+  return source === undefined ? [] : [excerpt(q.path, q.side, source, q.line - radius, q.line + radius)];
+}
 export function hasQuestionSource(context: ReviewContext): boolean {
   return Object.entries(context.diff).some(([path, diff]) => (['LEFT', 'RIGHT'] as const).some(side =>
     questionSourcePath({ path, side, line: (side === 'LEFT' ? diff.oldLines : diff.lines)?.values().next().value ?? 1 }, context)));
@@ -56,7 +84,7 @@ export function validateQuestions(questions: ChangeQuestion[], context: ReviewCo
 export function buildQuestionPrompt(s: Snapshot, policy: Policy, context: ReviewContext, guidelines: string[], issues: string[], previous: Report | null = null): string {
   const data = JSON.stringify({ snapshot: s, policy, guidelines, linkedIssues: issues,
     changesSincePrevious: context.changesSincePrevious ?? null, previousQuestions: previous?.questions.map(q => q.question) ?? [],
-    diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), excluded: context.excluded });
+    diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), sourceExcerpts: sourceExcerpts(context), excluded: context.excluded });
   return `당신은 이 저장소의 시니어 엔지니어입니다. 동료가 이 PR/MR을 승인하기 전에 변경을 제대로 이해했는지 확인하는 4지선다 질문 2개를 냅니다. 이 질문은 머지 전 관문입니다. 답하지 못하는 리뷰어라면 아직 승인하면 안 되는 내용을 물으세요. 문항은 평가이자 학습 자료이므로, 틀린 사람도 해설을 읽고 이 변경을 이해할 수 있어야 합니다.
 
 [임무]

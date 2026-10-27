@@ -78,7 +78,7 @@ test('shared prompt blocks leave the csinterview and morecs prompts byte-identic
   const { csInterviewPrompt, moreCsPrompt } = await import('../dist/csinterview.js');
   const { createHash } = await import('node:crypto');
   const hash = value => createHash('sha256').update(value).digest('hex');
-  // Hashes of codex/csinterview's prompts at 7582a76; update them only with an intended change to the CS interview bar.
-  assert.equal(hash(csInterviewPrompt('/snapshot/source', '{"x":1}')), '15d0ae9a276ec74812e95b94d59392347d4e9a6c59050759686f87ef6cbbf603');
-  assert.equal(hash(moreCsPrompt('/snapshot/source', '{"x":1}')), '4d11433a887a3f03377354320cc84c29e3dba44820eeb63d585bd9c15a061cfa');
+  // Hashes after S15P31E102-138 changed only the shared source-reading line (excerpts first, missing code in one turn); update them only with an intended prompt change.
+  assert.equal(hash(csInterviewPrompt('/snapshot/source', '{"x":1}')), 'c82b371901ec83a5893b2a991633af37c4a35ecae94b3e2373a4536653d38591');
+  assert.equal(hash(moreCsPrompt('/snapshot/source', '{"x":1}')), '8e7f71fb826cee7eb01004bf10fc7c6ea5c384288d88f579631ee62587cc4e17');
 });
