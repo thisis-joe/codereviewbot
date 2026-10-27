@@ -14,7 +14,7 @@ export const hunkRule = 'path는 diff의 경로이고, line은 그 path의 diff 
 export const renameRule = '삭제한 줄은 LEFT의 변경 전 코드를, 이름이 바뀐 파일은 oldPath와 새 경로를 확인하세요.';
 export const grounding = '작성자의 목적은 PR 설명이나 연결 자료에 명시되어 있고 구현과 일치할 때만 쓰고, 그렇지 않으면 코드로 확인되는 효과를 쓰세요. 작성자의 의도를 추측하지 마세요. 외부 상태에 따라 결론이 달라지면 필요한 가정을 밝히고, 항상·모두·오직 같은 단정은 확인한 범위에서만 쓰세요. 내부에서 생성하는 예외와 외부에서 전파되는 예외를 구분하세요. 구현되지 않은 기능이나 가상의 실패를 현재 동작이나 결함처럼 쓰지 마세요.';
 // Real outputs restated the deciding rule in the stem and used options that contradicted it, so the answer fell out without reading code.
-export const stemRule = '질문에는 무엇이 바뀌었는지와 판단에 필요한 상황·조건을 쓰되, 묻는 결론(그 결과·보장·한계)이나 정답을 가르는 규칙은 쓰지 마세요. 질문 문장만 읽고 정답을 고를 수 있으면 다시 쓰세요. 오답도 질문의 전제를 받아들인 상태에서 그럴듯해야 하며, 전제를 부정하거나 상식만으로 지워지는 보기는 쓰지 마세요. 판단 목표를 쓸 때는 지켜야 할 결과만 짧게 쓰고 확인할 성질을 나열하지 마세요. 나열한 성질을 모두 담은 보기만 남기 때문입니다. 오답도 모두 그 목표를 지킨다고 주장하는 서로 다른 방법이어야 합니다.';
+export const stemRule = '질문에는 무엇이 바뀌었는지와 판단에 필요한 상황·조건을 쓰되, 묻는 결론(그 결과·보장·한계)이나 정답을 가르는 규칙은 쓰지 마세요. 질문 문장만 읽고 정답을 고를 수 있으면 다시 쓰세요. 오답도 질문의 전제를 받아들인 상태에서 그럴듯해야 하며, 전제를 부정하거나 상식만으로 지워지는 보기는 쓰지 마세요. 판단 목표를 쓸 때는 지켜야 할 결과만 짧게 쓰고 확인할 성질을 나열하지 마세요. 나열한 성질을 모두 담은 보기만 남기 때문입니다. 오답도 모두 그 목표를 지킨다고 주장하는 서로 다른 방법이어야 합니다. 다 쓴 뒤에는 코드를 모르는 사람이 질문 문장의 단서만으로 오답 셋을 지울 수 있는지 확인하고, 지울 수 있으면 그 단서를 빼거나 오답도 그 단서와 맞게 고치세요. 나쁜 질문: "중복 승인을 막기 위해 재시도에 같은 키를 쓰도록 바뀐 이유는 무엇인가요?" — 결론(같은 키, 중복 방지)을 질문이 이미 말합니다. 좋은 질문: "charge 응답이 타임아웃되어 pay가 재시도하면 외부 승인은 어떻게 되나요?" — 재시도가 키를 어떻게 넘기는지 코드를 읽어야 답이 나옵니다.';
 // Rendered by emphasized(): markers are split before escaping, so only these spans become bold.
 export const boldRule = '굵게 표시는 해설마다 최대 2곳, 짧은 핵심 구절에만 **핵심 구절**처럼 별표 두 개로 감싸 씁니다. 다른 마크다운·HTML·색상 표시는 쓰지 마세요.';
 /** Answer keys for Q and 심화 questions explain the change to a reviewer; 면접·꼬리 keys teach the concept instead. */
