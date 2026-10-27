@@ -1,0 +1,36 @@
+{
+  "task": "S15P31E102-138",
+  "date": "2026-10-27",
+  "source": "6afd0d18a4b2423a2119a0b50824a900d9c68cd8",
+  "pullRequest": "https://github.com/thisis-joe/codereviewbot/pull/25",
+  "scope": "Paired controller/runner replacement: code excerpts in every prompt, 10-request cap with tool refusal on the last request, development-only result cache and daily development budget",
+  "changedModules": ["dist/controller.js", "dist/gms.js", "dist/learning-command.js", "dist/prompt-blocks.js", "dist/review.js"],
+  "images": {
+    "prior": { "controller": "hey-controller:change-fa9b7c8 (sha256:1c59110b819b97dc634ebde4b31e1cdf25d4f33298be632c6d6f224f75ceffd8)", "runner": "hey-runner:change-fa9b7c8 (sha256:43fef76cb6860220761a9f81f7354ec999c0a6b69bedfa4cdde4848140c7e725)" },
+    "candidate": { "controller": "hey-controller:gms-reduce-6afd0d1", "runner": "hey-runner:gms-reduce-6afd0d1" },
+    "rollbackController": "hey-controller:gms-reduce-prior-6afd0d1 (exact prior controller)"
+  },
+  "localTests": { "unit": "197/197", "integration": "71/71 (disposable PostgreSQL)", "ci": "PR #25 checks passed" },
+  "liveModelCheck": "skipped at the user's request; requests per run are measured from production gms-usage logs after the release",
+  "firstPrepareAttempt": "stopped at the module-hash check because macOS tar added 36 AppleDouble ._*.js files; production untouched; the failed release directory and its candidate controller tag were removed and the bundle was repacked without extended attributes",
+  "stage": {
+    "externalNetwork": "disabled",
+    "restoredProductionCopy": true,
+    "flows": ["/hey csinterview", "/hey morecs", "/hey whatelse (short batch with reason)", "keyed reasoned grade", "/hey showanswer", "@hey answer", "mixed 꼬리/면접 grades"],
+    "modelGatewayCalls": { "csinterview": 1, "morecs": 1, "questions": 1, "grade": 1, "answer": 1 },
+    "excerptsAndMeteredInstructionsInEveryRequest": true,
+    "rollbackControllerReadsCandidateRows": true
+  },
+  "production": {
+    "activatedAt": "2026-10-27T02:06:24Z",
+    "health": { "controller": "healthy", "runner": "healthy", "controllerToRunnerRpc": "ok" },
+    "runningModulesMatchManifest": true,
+    "runnerEnvironment": "GMS_USAGE_ENV=production (cache and budget disabled)",
+    "jobHistoryUnchangedAcrossCutover": true,
+    "n8nErrorsUnchanged": [47357, 38006, 38007],
+    "publicIngress": { "POST /webhooks/gitlab unauthenticated": 401, "GET /healthz": 404 },
+    "usageLinesArchivedAtCutover": 9
+  },
+  "notVerified": "No real GMS call has run on the new release yet; the first production commands will show whether requests per run fall from 3-4 toward 1-2.",
+  "rollback": "cd /home/ubuntu/hey/releases/gms-reduce-6afd0d1 && python3 deploy.py rollback (exact prior change-fa9b7c8 pair; DB untouched)"
+}
