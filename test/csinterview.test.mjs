@@ -72,3 +72,12 @@ test('GMS interview calls use the new output schema and retain stored terminolog
   const model = new Gms(root, `http://127.0.0.1:${server.address().port}`, 'test-key', 'test-model');
   assert.deepEqual(await model.run('csinterview', 'CS 용어를 정확하게 사용하세요.', id, 5000), output);
 });
+
+test('shared prompt blocks leave the csinterview and morecs prompts byte-identical', async () => {
+  const { csInterviewPrompt, moreCsPrompt } = await import('../dist/csinterview.js');
+  const { createHash } = await import('node:crypto');
+  const hash = value => createHash('sha256').update(value).digest('hex');
+  // Hashes of f15ff38's prompts; update them only with an intended change to the CS interview bar.
+  assert.equal(hash(csInterviewPrompt('/snapshot/source', '{"x":1}')), '4ff2542cafdc68c026b9bbc0b960ad767cdcf3177390789f1fa712852996ddcf');
+  assert.equal(hash(moreCsPrompt('/snapshot/source', '{"x":1}')), '173d18d1916f4e3071f6093395fd705ed6e589d7cc9d1483408b6c44113ef720');
+});
