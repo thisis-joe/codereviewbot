@@ -71,13 +71,16 @@ export const MoreCsBatchSchema = z.strictObject({
 }).refine(v => v.questions.every(q => (q.kind === 'followup') === (q.anchor !== null)), 'Follow-ups name their anchor; new interview questions have none')
   .refine(v => v.questions.filter(q => q.kind === 'interview').length <= 1, 'At most one new interview question')
   .refine(v => v.questions.length === MORECS_COUNT || v.unavailableReason !== null, 'A shortfall reason is required when fewer than four questions are available');
+// explanation is the feedback on the developer's reasoning. A keyed question shows its stored explanation and option notes,
+// so the model leaves expectedAnswer null; questions saved before keys existed still get them from the model.
+// An older runner's fully written grade also parses and is overridden by the key.
 export const GradeSchema = z.strictObject({
   verdict: z.enum(['correct', 'partial', 'incorrect', 'unverifiable']),
-  explanation: explanationText(2000), expectedAnswer: explanationText(2000),
+  explanation: explanationText(2000), expectedAnswer: explanationText(2000).nullable(),
   optionExplanations: z.array(z.strictObject({ id: z.enum(['A', 'B', 'C', 'D', 'E']), explanation: explanationText(800) })).max(5),
   evidence: z.array(EvidenceSchema).max(6),
 });
-export type Grade = z.infer<typeof GradeSchema>;
+export type Grade = z.infer<typeof GradeSchema> & { expectedAnswer: string };
 export const AnalysisSchema = z.strictObject({
   summary: text,
   findings: z.array(CandidateSchema).max(40), checks: z.array(CheckSchema).max(30),

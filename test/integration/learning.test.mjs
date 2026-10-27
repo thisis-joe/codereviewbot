@@ -49,7 +49,8 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
   const id = replies[0].body.match(/codereviewbot:question:(Q-[a-f0-9]{12})/)[1];
   await submit('101', `/hey answer ${id} A 같은 요청을 식별합니다`); await tick();
   assert.equal(calls[1].phase, 'grade'); assert.equal(replies.length, 2); assert.match(replies[1].body, /정답/);
-  assert.match(replies[1].body, /- \*\*A\.\*\* 중복 요청 식별\n\n  > 같은 논리 요청을 식별합니다/); assert.match(replies[1].body, /\*\*B\.\*\* 호출마다 새 승인/);
+  // The stored key's notes are shown, not the grader's own wording, so the grade matches /hey showanswer.
+  assert.match(replies[1].body, /- \*\*A\.\*\* 중복 요청 식별\n\n  > A 해설/); assert.doesNotMatch(replies[1].body, /같은 논리 요청을 식별합니다/); assert.match(replies[1].body, /\*\*B\.\*\* 호출마다 새 승인/);
   assert.equal(replies[1].parent, null); assert.equal((await store.learningBatches(snapshot())).length, 1);
   // Same numeric ID in the other GitHub comment resource is a different command.
   await submit('100', `/hey answer ${id} A 같은 요청을 식별합니다`, 'review-collision', false, 'review'); await tick();

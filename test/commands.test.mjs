@@ -207,13 +207,28 @@ test('a wrong bare letter leads with the stored note that names the confused con
 
 test('reasoning goes to the model with the key, but the key alone decides right or wrong', async () => {
   const r = report(), id = questionId(r.snapshot, r.questions[0]);
-  const output = verdict => ({ verdict, explanation: '이유 평가', expectedAnswer: '같은 키', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] });
+  const output = verdict => ({ verdict, explanation: '이유 평가', expectedAnswer: null, optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] });
   for (const [answer, model, expected] of [['B 같은 키를 재사용합니다', 'incorrect', 'partial'], ['B 같은 키', 'unverifiable', 'correct'], ['A 새 키가 안전합니다', 'correct', 'incorrect'], ['B 같은 키', 'partial', 'partial']]) {
     const h = learningHarness(`/hey answer ${id} ${answer}`, { report: r, output: output(model) }); await h.run();
     assert.equal(h.data.calls[0].phase, 'grade'); assert.match(h.data.calls[0].prompt, /정답은 B입니다/);
-    assert.match(h.data.calls[0].prompt, /CS 개념.*정의/); assert.match(h.data.calls[0].prompt, /코드에 적용/);
     assert.deepEqual(h.data.saved.grades, [{ id, verdict: expected }]); assert.match(h.data.replies[0][1], /##### 답변 평가\n\n이유 평가/);
   }
+});
+
+test('change-question grading judges change understanding and leaves explanations to the stored key', async () => {
+  const r = report(), id = questionId(r.snapshot, r.questions[0]);
+  const h = learningHarness(`/hey answer Q1 B 같은 키를 씁니다`, { report: r, output: { verdict: 'partial', explanation: 'B는 맞지만 이유가 다릅니다.', expectedAnswer: null, optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } }); await h.run();
+  const prompt = h.data.calls[0].prompt;
+  assert.match(prompt, /PR\/MR 변경을 이해했는지/); assert.match(prompt, /동작\(코드가 실제로 하는 일\), 이유\(왜 바꿨는지\), 영향/);
+  assert.match(prompt, /정답은 맞지만 이유가 다릅니다/); assert.match(prompt, /expectedAnswer=null, optionExplanations=\[\]/);
+  assert.match(prompt, /나쁜 피드백[\s\S]*좋은 피드백/); assert.doesNotMatch(prompt, /한국어와 영어/);
+  assert.deepEqual(JSON.parse(prompt.split('채점 자료(JSON 데이터):\n')[1]).diff['src/pay.ts'].oldPath, 'src/pay.ts');
+  assert.deepEqual(h.data.saved.grades, [{ id, verdict: 'partial' }]);
+  // An older runner may still return its own explanation and notes; the key replaces them so grading matches /hey showanswer.
+  const legacy = learningHarness(`/hey answer Q1 B 같은 키를 씁니다`, { report: r, output: { verdict: 'correct', explanation: '맞습니다.', expectedAnswer: '모델이 새로 쓴 해설', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } }); await legacy.run();
+  const body = legacy.data.replies[0][1];
+  assert.match(body, /##### 해설\n\n정답은 B입니다\\\./); assert.doesNotMatch(body, /모델이 새로 쓴 해설/);
+  for (const o of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`  > ${o} 보기 해설$`, 'm'));
 });
 
 test('several answers in one command are graded together in one reply', async () => {
@@ -270,6 +285,9 @@ test('unverifiable answers remain ungraded and incomplete choice explanations ca
   r.questions[0].options = choices('새 키', '같은 키');
   const choice = learningHarness(`/hey answer ${questionId(r.snapshot, r.questions[0])} B 같은 요청`, { report: r, output: { verdict: 'correct', explanation: '맞음', expectedAnswer: '동일 키', optionExplanations: [{ id: 'B', explanation: '동일 요청' }], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } });
   await assert.rejects(() => choice.run(), /보기/); assert.equal(choice.data.replies.length, 0);
+  // A question saved before answer keys existed has nothing stored to show, so the model must still explain it.
+  const unexplained = learningHarness(`/hey answer ${questionId(r.snapshot, r.questions[0])} B 같은 요청`, { report: r, output: { verdict: 'correct', explanation: '맞음', expectedAnswer: null, optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } });
+  await assert.rejects(() => unexplained.run(), /해설/); assert.equal(unexplained.data.replies.length, 0);
 });
 
 test('whatelse publishes fewer than five questions with the model reason and later batches continue the numbering', async () => {
@@ -285,6 +303,19 @@ test('whatelse publishes fewer than five questions with the model reason and lat
   }
   const none = learningHarness('/hey whatelse', { output: { questions: [], unavailableReason: '변경이 설정 한 줄뿐입니다.' } }); await none.run();
   assert.match(none.data.replies[0][1], /심화 질문을 생성하지 못했습니다\. 변경이 설정 한 줄뿐입니다/); assert.equal(none.data.saved.questions, undefined);
+});
+
+test('a keyed grade shows exactly the explanation and option notes that /hey showanswer shows, bold included', async () => {
+  const r = report(), q = r.questions[0];
+  q.key = { ...q.key, explanation: '변경 전에는 **새 키를 만들어** 중복될 수 있었고, 이제 `첫 키`를 재사용합니다.', options: q.key.options.map(o => ({ ...o, explanation: `${o.id}는 **${o.id} 오독**입니다. <b>태그</b>와 [링크](x)는 글자입니다.` })) };
+  const graded = learningHarness('/hey answer Q1 A 새 키가 안전합니다', { report: r, output: { verdict: 'incorrect', explanation: 'A는 **동작**을 잘못 읽었습니다.', expectedAnswer: null, optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } }); await graded.run();
+  const revealed = learningHarness('/hey showanswer', { report: r, remote: [{ id: 'root', author: 'bot', body: renderReport(r) }], comment: { parentId: 'root' } }); await revealed.run();
+  const section = (body, head) => body.slice(body.indexOf(`##### ${head}`), body.indexOf('##### 코드 근거'));
+  const grade = graded.data.replies[0][1], reveal = revealed.data.replies[0][1];
+  const q1 = reveal.slice(reveal.indexOf('#### Q1.'), reveal.indexOf('#### Q2.'));
+  assert.equal(section(grade, '해설'), section(q1, '해설'));
+  assert.match(grade, /<b>새 키를 만들어<\/b>/); assert.match(grade, /&lt;b&gt;태그&lt;\/b&gt;/); assert.doesNotMatch(grade, /\*\*[가-힣]/);
+  assert.match(grade, /##### 답변 평가\n\nA는 <b>동작<\/b>을 잘못 읽었습니다\\\./);
 });
 
 
