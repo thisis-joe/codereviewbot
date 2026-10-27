@@ -406,5 +406,107 @@
     "unverified": null
    }
   }
+ },
+ "final": {
+  "before": {
+   "questions": 21,
+   "importance": 3.57,
+   "grounded": 4.86,
+   "understanding": 3.43,
+   "uniqueAnswer": 4.9,
+   "misreadings": 3.14,
+   "explanationClarifies": 3.67,
+   "nonNiche": 4.14,
+   "overall": 3.96,
+   "padded": 3,
+   "lookup": 0,
+   "genericCs": 4,
+   "mergeGateFail": 1,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.33,
+    "grounded": 5,
+    "understanding": 3,
+    "uniqueAnswer": 5,
+    "misreadings": 2.67,
+    "explanationClarifies": 3.33,
+    "nonNiche": 4.83
+   },
+   "deeper": {
+    "importance": 3.27,
+    "grounded": 4.8,
+    "understanding": 3.6,
+    "uniqueAnswer": 4.87,
+    "misreadings": 3.33,
+    "explanationClarifies": 3.8,
+    "nonNiche": 3.87
+   },
+   "grading": {
+    "items": 12,
+    "pinpoint": 4.58,
+    "credit": 4.36,
+    "kindFit": 4.08,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 9,
+    "answerFirst": 4.78,
+    "grounded": 4.89,
+    "premise": 5,
+    "csOnlyWhenNeeded": 3,
+    "unverified": 4.44
+   }
+  },
+  "final": {
+   "questions": 13,
+   "importance": 4.23,
+   "grounded": 4.85,
+   "understanding": 4.23,
+   "uniqueAnswer": 4.92,
+   "misreadings": 4.46,
+   "explanationClarifies": 4.85,
+   "nonNiche": 4.38,
+   "overall": 4.56,
+   "padded": 0,
+   "lookup": 0,
+   "genericCs": 1,
+   "mergeGateFail": 0,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.67,
+    "grounded": 5,
+    "understanding": 3.83,
+    "uniqueAnswer": 4.83,
+    "misreadings": 4.5,
+    "explanationClarifies": 4.83,
+    "nonNiche": 4.83
+   },
+   "deeper": {
+    "importance": 3.86,
+    "grounded": 4.71,
+    "understanding": 4.57,
+    "uniqueAnswer": 5,
+    "misreadings": 4.43,
+    "explanationClarifies": 4.86,
+    "nonNiche": 4
+   },
+   "grading": {
+    "items": 11,
+    "pinpoint": 4.91,
+    "credit": 4.7,
+    "kindFit": 5,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 9,
+    "answerFirst": 4.89,
+    "grounded": 5,
+    "premise": 5,
+    "csOnlyWhenNeeded": 5,
+    "unverified": 4.89
+   }
+  }
  }
 }

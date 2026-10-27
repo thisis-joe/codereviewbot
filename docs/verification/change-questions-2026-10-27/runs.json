@@ -1450,5 +1450,306 @@
   ],
   "externalCommentWrites": 0,
   "productionDataWrites": 0
+ },
+ "final/s1": {
+  "codeUnderTest": "e7e76ea2aa67ca34dea74dacc765f5aa856bb8df",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:27:56.852Z",
+  "finishedAt": "2026-10-27T01:36:17.525Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 61
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 79
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 11
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 19
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 15
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 11
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 22
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 12
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "final/s2": {
+  "codeUnderTest": "e7e76ea2aa67ca34dea74dacc765f5aa856bb8df",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:30:22.480Z",
+  "finishedAt": "2026-10-27T01:37:50.769Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 44
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 60
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 21
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 18
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 7
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 17
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 24
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 2
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "final/s3": {
+  "codeUnderTest": "e7e76ea2aa67ca34dea74dacc765f5aa856bb8df",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:32:11.330Z",
+  "finishedAt": "2026-10-27T01:39:33.665Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 41
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 67
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 14
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 16
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 17
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 12
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 19
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 18
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
  }
 }
