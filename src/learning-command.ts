@@ -16,7 +16,7 @@ import { commentKey, type Comment } from './webhooks.js';
 const MAX_BATCHES = 5;
 // Four teaching questions with source reads ran past 120 s on GMS (109 s, then three 120 s timeouts on a four-question anchor).
 const MORECS_BUDGET_MS = 240000;
-function readable(q: Pick<ChangeQuestion, 'path' | 'line' | 'side'>, context: ReviewContext): boolean {
+export function readable(q: Pick<ChangeQuestion, 'path' | 'line' | 'side'>, context: ReviewContext): boolean {
   const files = q.side === 'LEFT' ? context.baseFiles : context.files;
   return Boolean(files && Object.hasOwn(files, q.path) && q.line > 0 && q.line <= files[q.path]!.split('\n').length);
 }

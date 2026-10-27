@@ -318,6 +318,12 @@ test('a keyed grade shows exactly the explanation and option notes that /hey sho
   assert.match(grade, /##### 답변 평가\n\nA는 <b>동작<\/b>을 잘못 읽었습니다\\\./);
 });
 
+test('the largest @hey answer stays within the comment budget', async () => {
+  const big = '&'.repeat(6000), path = Array(5).fill('漢'.repeat(99)).join('/');
+  const { renderAnswer } = await import('../dist/render.js');
+  const body = renderAnswer({ premise: big, answer: big, why: big, evidence: Array(8).fill({ path, line: 1, side: 'RIGHT', reason: big }), unverified: big, dropped: 8 }, snapshot(), 'budget');
+  assert.ok(body.length <= 60000, `got ${body.length}`); assert.equal((body.match(/^- \[/gm) ?? []).length, 8);
+});
 
 test('display numbers resolve to review questions first and then continue through follow-up batches', async () => {
   const grade = { verdict: 'correct', explanation: '맞습니다.', expectedAnswer: '같은 키', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] };
@@ -447,7 +453,7 @@ test('oversized follow-up batches keep all five questions and their choices with
 });
 
 test('the @hey prompt never carries answer keys', async () => {
-  const h = learningHarness('@hey Q1 정답이 뭐야?', { output: { answer: '코드를 보세요.', evidence: [], next: '확인' } }); await h.run();
+  const h = learningHarness('@hey Q1 정답이 뭐야?', { output: { premise: null, answer: '코드를 보세요.', why: null, evidence: [], unverified: null } }); await h.run();
   assert.equal(h.data.calls[0].phase, 'answer'); assert.ok(!h.data.calls[0].prompt.includes('보기 해설')); assert.ok(!h.data.calls[0].prompt.includes('"key"'));
   assert.ok(h.data.calls[0].prompt.includes(h.data.report.questions[0].question));
 });
@@ -456,8 +462,8 @@ test('a push during contextual answer generation prevents publishing obsolete co
   let snap = snapshot(), replies = 0;
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], snapshot: async () => ({ ...snap }), reply: async () => { replies++; } };
   const store = { getTarget: async () => ({ report: report() }) };
-  const workspaces = { prepare: async () => ({ context: { sourceDir: '/source' }, policy: {} }) };
-  const model = { run: async () => { snap = { ...snap, headSha: 'c'.repeat(40) }; return { answer: 'old code advice', evidence: [], next: 'check code' }; } };
+  const workspaces = { prepare: async () => ({ context: context(), policy: {} }) };
+  const model = { run: async () => { snap = { ...snap, headSha: 'c'.repeat(40) }; return { premise: null, answer: 'old code advice', why: null, evidence: [], unverified: null }; } };
   const controller = new Controller(store, [], workspaces, model);
   const job = { id: 'job', body: { target: snapshot(), comment: { id: 'q1', author: 'joe', body: '@hey explain behavior', parentId: null, discussionId: null, surface: 'issue' } } };
   await assert.rejects(() => controller.command(job, platform, async () => {}), /Answer snapshot changed/);
@@ -513,13 +519,23 @@ test('follow-ups go deeper into this change, leave CS depth to 꼬리 and never 
   assert.doesNotMatch(body, /정답은 B입니다/);
 });
 
-test('code questions request relevant CS knowledge before applying it to the repository', async () => {
-  const h = learningHarness('@hey 같은 키를 재사용하는 이유는?', { output: { answer: '멱등성은 같은 요청의 반복이 같은 효과를 내는 성질입니다. pay는 같은 키를 재사용합니다.', evidence: ['src/pay.ts:2'], next: '없음' } });
-  await h.run();
+test('code answers correct the premise first, explain CS only when needed and link only checked evidence', async () => {
+  const output = { premise: '이 변경은 새 키를 만들지 않습니다.', answer: 'pay는 같은 키를 재사용합니다.', why: '재시도가 같은 요청으로 식별되어야 승인이 한 번만 일어납니다.',
+    evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: 'charge 호출' }, { path: 'src/missing.ts', line: 1, side: 'RIGHT', reason: '추측' }, { path: 'src/pay.ts', line: 99, side: 'RIGHT', reason: '범위 밖' }], unverified: '외부 승인 서비스의 키 보관 기간은 확인하지 못했습니다.' };
+  const h = learningHarness('@hey 재시도마다 새 키를 만드는 이유는?', { output }); await h.run();
   assert.equal(h.data.calls[0].phase, 'answer');
-  assert.match(h.data.calls[0].prompt, /CS 개념.*정의/);
-  assert.match(h.data.calls[0].prompt, /코드에 어떻게 적용/);
-  assert.match(h.data.replies[0][1], /멱등성은 같은 요청/);
+  const prompt = h.data.calls[0].prompt;
+  assert.match(prompt, /조회\([^)]*\): answer와 evidence면 충분합니다\. CS 개념은 설명하지 마세요/);
+  assert.match(prompt, /판단이 CS 원리에 달려 있을 때만/); assert.match(prompt, /premise에서 먼저 바로잡고/);
+  assert.match(prompt, /나쁜 답[\s\S]*좋은 답/); assert.doesNotMatch(prompt, /CS 개념의 이름과 정의·핵심 원리/);
+  assert.deepEqual(Object.keys(JSON.parse(prompt.split('질문 자료(JSON 데이터):\n')[1]).diff), ['src/pay.ts']);
+  const body = h.data.replies[0][1];
+  assert.match(body, /^\*\*전제와 다른 점\*\*: 이 변경은 새 키를 만들지 않습니다\\\.\n\npay는 같은 키를 재사용합니다\\\.\n\n##### 이유\n\n재시도가/m);
+  assert.match(body, /##### 코드 근거\n\n- \[src\/pay\\\.ts:2\]\(https:\/\/github\.com\/joe\/demo\/blob\/b{40}\/src\/pay\.ts#L2\): charge 호출\n- 확인할 수 없는 근거 위치 2곳은 제외했습니다\./);
+  assert.match(body, /##### 확인하지 못한 것\n\n외부 승인 서비스의 키 보관 기간/); assert.doesNotMatch(body, /missing|추측|범위 밖/);
+  const lookup = learningHarness('@hey charge는 어디서 호출되나요?', { output: { premise: null, answer: 'pay 안에서 호출합니다.', why: null, evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }], unverified: null } }); await lookup.run();
+  const reply = lookup.data.replies[0][1];
+  assert.doesNotMatch(reply, /전제와 다른 점|##### 이유|확인하지 못한 것/); assert.match(reply, /pay 안에서 호출합니다/);
 });
 
 test('answer and reveal retain stored commit titles when the live snapshot omits metadata', async () => {

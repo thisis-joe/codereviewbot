@@ -93,7 +93,9 @@ export const VerificationSchema = z.strictObject({
   resolutions: z.array(z.strictObject({ id: z.string().regex(/^CRB-\d+$/), status: z.enum(['fixed', 'unverified']), reason: text })).max(100),
   questions: ChangeQuestionsSchema,
 });
-export const AnswerSchema = z.strictObject({ answer: text, evidence: z.array(text).max(12), next: text });
+// @hey answers correct a wrong premise first, then answer, explain why and cite code locations that are checked before posting.
+export const AnswerSchema = z.strictObject({ premise: text.nullable(), answer: text, why: text.nullable(), evidence: z.array(EvidenceSchema).max(8), unverified: text.nullable() });
+export type Answer = z.infer<typeof AnswerSchema>;
 export type Candidate = z.infer<typeof CandidateSchema>;
 export type Analysis = z.infer<typeof AnalysisSchema>;
 export type Check = z.infer<typeof CheckSchema>;
