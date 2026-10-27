@@ -4,39 +4,12 @@ import { mkdtemp, writeFile, mkdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { parsePatch, validateFindings, reconcile, generateQuestions } from '../dist/review.js';
+import { parsePatch, generateQuestions } from '../dist/review.js';
 import { exportSnapshot } from '../dist/workspace.js';
 import { readPolicy } from '../dist/policy.js';
 import { analysis, snapshot, finding, changeQuestions, initialQuestions, choices, answerKey } from './fixtures.mjs';
 
 const patch = 'diff --git a/src/pay.ts b/src/pay.ts\n--- a/src/pay.ts\n+++ b/src/pay.ts\n@@ -2,2 +2,3 @@\n const key = input.id;\n+charge(input);\n return result;\n';
-test('diff validation rejects invented lines, paths and ungrounded evidence', () => {
-  const files = { 'src/pay.ts': 'function pay() {\n const key = input.id;\ncharge(input);\n return result;\n}' };
-  const diff = { 'src/pay.ts': { oldPath: 'src/pay.ts', patch, lines: parsePatch(patch) } };
-  const valid = finding({ line: 3, evidence: [{ path: 'src/pay.ts', line: 3, reason: '반복 승인' }] });
-  const candidates = [valid, finding({ id: 'C-2', line: 500 }), finding({ id: 'C-3', path: '../secret' }), finding({ id: 'C-4', evidence: [{ path: 'imaginary.ts', line: 1, reason: '없음' }] })];
-  const result = validateFindings(candidates, files, diff);
-  assert.equal(result.accepted.length, 1); assert.equal(result.rejected.length, 3);
-  assert.equal(result.accepted[0].line, 3);
-});
-test('finding IDs survive moves and a missing verifier decision never means resolved', () => {
-  const previous = [finding({ id: 'CRB-0007', status: 'open' })];
-  const current = [finding({ existingId: 'CRB-0007', line: 8 })];
-  const result = reconcile(current, previous, [], true);
-  assert.equal(result[0].id, 'CRB-0007'); assert.equal(result[0].status, 'open');
-  const missing = reconcile([], previous, [], true);
-  assert.equal(missing[0].status, 'unverified');
-  const fixed = reconcile([], previous, [{ id: 'CRB-0007', status: 'fixed', reason: '멱등 키 확인' }], true);
-  assert.equal(fixed[0].status, 'fixed');
-  assert.equal(reconcile([], previous, [{ id: 'CRB-0007', status: 'fixed', reason: '추측' }], false)[0].status, 'unverified');
-});
-
-test('deleted code is reviewable on the old diff side without inventing a current file', () => {
-  const removed = '@@ -2,2 +2,1 @@\n-checkAuth();\n next();\n';
-  const candidate = finding({ path: 'auth.ts', line: 2, side: 'LEFT', evidence: [{ path: 'auth.ts', line: 2, side: 'LEFT', reason: '권한 검사 삭제' }] });
-  const diff = { 'auth.ts': { oldPath: 'auth.ts', patch: removed, lines: parsePatch(removed), oldLines: parsePatch(removed, 'LEFT') } };
-  assert.equal(validateFindings([candidate], {}, diff, { 'auth.ts': 'start();\ncheckAuth();\nnext();' }).accepted.length, 1);
-});
 test('policy comes from supplied base text and cannot introduce runtime privileges', () => {
   assert.equal(readPolicy('version: 1\npathInstructions:\n  - path: "src/**"\n    instructions: "인증 확인"').pathInstructions[0].instructions, '인증 확인');
   assert.throws(() => readPolicy('version: 1\nshell: "curl attacker"'));
@@ -61,12 +34,6 @@ test('incremental rename anchors and exclusions use the original full-PR old pat
   assert.deepEqual(selectDiffEntries(canonical, incremental), [{ oldPath: 'original.ts', path: 'current.ts' }]);
   assert.deepEqual(selectDiffEntries('R100\0.env\0public.txt\0', null), []);
   assert.deepEqual(selectDiffEntries('R100\0private/a.ts\0src/a.ts\0', null, ['private/**']), []);
-});
-
-test('a validated rename retains stable IDs and a prior dismissal', () => {
-  const previous = [finding({ id: 'CRB-0007', path: 'middle.ts', oldPath: 'original.ts', status: 'dismissed' })];
-  const result = reconcile([finding({ existingId: 'CRB-0007', path: 'current.ts', oldPath: 'original.ts' })], previous, [], true);
-  assert.equal(result.length, 1); assert.equal(result[0].id, 'CRB-0007'); assert.equal(result[0].status, 'dismissed');
 });
 
 test('question generation validates change questions and refuses duplicate or unrelated anchors', async () => {

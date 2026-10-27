@@ -9,7 +9,8 @@ export const changeQuestions = () => [
 ];
 // Initial generation focuses on two distinct CS principles: idempotency and transaction boundaries.
 export const initialQuestions = () => [changeQuestions()[0], changeQuestions()[2]].map(q => ({ ...q, level: 'basic' }));
-export const verification = (o = {}) => ({ decisions: [], resolutions: [], questions: changeQuestions(), ...o });
+// A minimal @hey answer, also used where a test needs any valid structured model output.
+export const heyAnswer = (o = {}) => ({ premise: null, answer: '결제 재시도 처리 변경', why: null, evidence: [], unverified: null, ...o });
 export const analysis = (o = {}) => {
   const value = { summary: '결제 재시도 처리 변경', findings: [], checks: [], recommendedTests: ['재시도 검사'], limitations: [], resolutions: [], questions: changeQuestions(), ...o };
   value.findings = value.findings.map(({ status, fingerprint, ...candidate }) => candidate);

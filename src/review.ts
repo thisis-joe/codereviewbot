@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto';
-import { InitialQuestionsSchema, emptyReport, type Analysis, type Candidate, type Finding, type Report, type Snapshot, type ChangeQuestion } from './contracts.js';
+import { InitialQuestionsSchema, emptyReport, type Finding, type Report, type Snapshot, type ChangeQuestion } from './contracts.js';
 import type { Policy } from './policy.js';
 import { changeExplanation, grounding, hunkRule, questionSecurity, renameRule, sourceTools } from './prompt-blocks.js';
 
@@ -7,7 +6,7 @@ export interface DiffPosition { oldLine?: number; newLine?: number }
 export interface DiffMetadata { oldPath: string; positions?: Record<'LEFT' | 'RIGHT', Record<number, DiffPosition>> }
 export interface DiffFile extends DiffMetadata { patch: string; lines: Set<number>; oldLines?: Set<number> }
 export interface ReviewContext { files: Record<string, string>; baseFiles?: Record<string, string>; diff: Record<string, DiffFile>; excluded: string[]; limited: boolean; sourceDir: string; changesSincePrevious?: { fromHeadSha: string; files: Record<string, { oldPath: string; patch: string }> } }
-export type ModelPhase = 'review' | 'verify' | 'answer' | 'initial_questions' | 'questions' | 'csinterview' | 'morecs' | 'grade';
+export type ModelPhase = 'answer' | 'initial_questions' | 'questions' | 'csinterview' | 'morecs' | 'grade';
 export interface Model { run(phase: ModelPhase, prompt: string, workspaceId: string, timeoutMs?: number): Promise<unknown> }
 export function parsePatch(patch: string, side: 'LEFT' | 'RIGHT' = 'RIGHT'): Set<number> {
   const result = new Set<number>(); let line = 0, active = false;
@@ -32,24 +31,6 @@ export function parsePositions(patch: string): NonNullable<DiffMetadata['positio
   }
   return positions;
 }
-export function validateFindings(candidates: Candidate[], files: Record<string, string>, diff: Record<string, DiffFile>, baseFiles: Record<string, string> = {}): { accepted: (Candidate & { oldPath?: string })[]; rejected: string[] } {
-  const accepted: (Candidate & { oldPath?: string })[] = [], rejected: string[] = [], ids = new Set<string>();
-  for (const f of candidates) {
-    const d = diff[f.path], source = f.side === 'LEFT' ? baseFiles : files;
-    const sourcePath = f.side === 'LEFT' ? d?.oldPath ?? f.path : f.path;
-    const exists = (path: string, line: number, values = files) => Object.hasOwn(values, path) && line > 0 && line <= values[path]!.split('\n').length;
-    const lines = f.side === 'LEFT' ? d?.oldLines : d?.lines;
-    if (ids.has(f.id) || !d || !lines?.has(f.line) || !exists(sourcePath, f.line, source) || f.evidence.some(e => !exists(e.path, e.line, e.side === 'LEFT' ? baseFiles : files))) { rejected.push(f.id); continue; }
-    ids.add(f.id);
-    const s = f.suggestion;
-    if (s && (f.side === 'LEFT' || s.endLine < s.startLine || s.startLine > f.line || s.endLine < f.line || s.endLine - s.startLine > 50 || !Array.from({ length: s.endLine - s.startLine + 1 }, (_, i) => s.startLine + i).every(line => d.lines.has(line) && exists(f.path, line)))) f.suggestion = null;
-    accepted.push({ ...f, oldPath: d.oldPath });
-  }
-  return { accepted, rejected };
-}
-function fingerprint(f: Candidate): string {
-  return createHash('sha256').update(JSON.stringify([f.category, f.path, f.symbol, f.title.replace(/\s+/g, '')])).digest('hex');
-}
 function questionSourcePath(q: Pick<ChangeQuestion, 'path' | 'line' | 'side'>, context: ReviewContext): string | null {
   const diff = context.diff[q.path], path = q.side === 'LEFT' ? diff?.oldPath : q.path;
   const source = q.side === 'LEFT' ? context.baseFiles : context.files;
@@ -71,24 +52,6 @@ export function validateQuestions(questions: ChangeQuestion[], context: ReviewCo
     if (!path) throw new Error('질문의 코드 근거는 이번 변경의 유효한 위치여야 합니다.');
     return { ...q, path };
   });
-}
-export function reconcile(current: (Candidate & { oldPath?: string })[], previous: Finding[], resolutions: Analysis['resolutions'], complete: boolean): Finding[] {
-  let next = Math.max(0, ...previous.map(f => Number(f.id.slice(4)) || 0)) + 1;
-  const used = new Set<string>(), findings: Finding[] = [];
-  for (const f of current) {
-    const key = fingerprint(f);
-    const old = previous.find(p => !used.has(p.id) && ((p.id === f.existingId && (p.path === f.path || p.path === f.oldPath || Boolean(p.oldPath && p.oldPath === f.oldPath)) && p.category === f.category && p.symbol === f.symbol) || p.fingerprint === key));
-    const id = old?.id ?? `CRB-${String(next++).padStart(4, '0')}`;
-    used.add(id);
-    const status = old?.status === 'dismissed' ? 'dismissed' : old ? 'open' : 'new';
-    findings.push({ ...f, id, fingerprint: key, status });
-  }
-  for (const old of previous) if (!used.has(old.id)) {
-    const resolution = resolutions.find(r => r.id === old.id);
-    const status = ['fixed', 'dismissed'].includes(old.status) ? old.status : complete && resolution?.status === 'fixed' ? 'fixed' : 'unverified';
-    findings.push({ ...old, status });
-  }
-  return findings;
 }
 export function buildQuestionPrompt(s: Snapshot, policy: Policy, context: ReviewContext, guidelines: string[], issues: string[], previous: Report | null = null): string {
   const data = JSON.stringify({ snapshot: s, policy, guidelines, linkedIssues: issues,

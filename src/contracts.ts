@@ -81,15 +81,11 @@ export const GradeSchema = z.strictObject({
   evidence: z.array(EvidenceSchema).max(6),
 });
 export type Grade = z.infer<typeof GradeSchema> & { expectedAnswer: string };
+// No model phase produces an analysis any more; it types the summary fields and archived findings of stored reports.
 export const AnalysisSchema = z.strictObject({
   summary: text,
   findings: z.array(CandidateSchema).max(40), checks: z.array(CheckSchema).max(30),
   recommendedTests: z.array(text).max(30), limitations: z.array(text).max(30),
-  resolutions: z.array(z.strictObject({ id: z.string().regex(/^CRB-\d+$/), status: z.enum(['fixed', 'unverified']), reason: text })).max(100),
-  questions: ChangeQuestionsSchema,
-});
-export const VerificationSchema = z.strictObject({
-  decisions: z.array(z.strictObject({ id: z.string().regex(/^C-\d+$/), decision: z.enum(['confirmed', 'rejected', 'unverifiable']), reason: text })).max(40),
   resolutions: z.array(z.strictObject({ id: z.string().regex(/^CRB-\d+$/), status: z.enum(['fixed', 'unverified']), reason: text })).max(100),
   questions: ChangeQuestionsSchema,
 });
