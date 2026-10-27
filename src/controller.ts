@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Store, type Job } from './store.js';
 import { Platform } from './platform.js';
 import { Workspaces } from './workspace.js';
-import { generateQuestions, archivedFindings, hasQuestionSource, type Model } from './review.js';
+import { generateQuestions, archivedFindings, hasQuestionSource, sourceExcerpts, type Model } from './review.js';
 import { emptyReport, reviewed, isQuestionReport, hasChangeQuestions, withoutKeys, AnswerSchema, type Snapshot, type Report, type Target } from './contracts.js';
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
@@ -167,7 +167,7 @@ export class Controller {
     const snap = await platform.snapshot(target.number, true);
     snap.title = redact(snap.title); snap.description = redact(snap.description);
     const prepared = await this.workspaces.prepare(platform, snap, job.id, null);
-    const payload = learningInput({ question: redact(command.text), snapshot: snap, diff: patches(prepared.context), report: withoutKeys(state?.report), policy: prepared.policy });
+    const payload = learningInput({ question: redact(command.text), snapshot: snap, diff: patches(prepared.context), sourceExcerpts: sourceExcerpts(prepared.context), report: withoutKeys(state?.report), policy: prepared.policy });
     if (!payload) { await usage('질문 자료가 입력 한도를 초과해 답변을 보류합니다. 질문 범위를 좁혀 다시 물어 주세요.'); return; }
     const result = AnswerSchema.parse(await this.model.run('answer', askPrompt(prepared.context.sourceDir, payload.json), job.id, 120000));
     // Evidence becomes code links, so only locations that exist in the pinned snapshot are posted.

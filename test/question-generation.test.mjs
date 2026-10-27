@@ -50,3 +50,20 @@ test('incremental generation preserves the exact delta and grounds purpose witho
   assert.match(prompt, /오답에 없는 주장을 덧붙여 반박하지 마세요/);
   assert.equal(calls.length, 1);
 });
+
+test('prompts carry numbered excerpts around changed lines and around a graded anchor', async () => {
+  const lines = Array.from({ length: 120 }, (_, i) => `line ${i + 1}`).join('\n');
+  const ctx = { ...context(), files: { 'src/pay.ts': lines }, baseFiles: { 'src/old.ts': lines },
+    diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '', lines: new Set([10, 12, 90]) } } };
+  const excerpts = engine.sourceExcerpts(ctx);
+  assert.deepEqual(excerpts.map(e => [e.path, e.side, e.start, e.end]), [['src/pay.ts', 'RIGHT', 1, 32], ['src/pay.ts', 'RIGHT', 70, 110]]);
+  assert.equal(excerpts[0].text.split('\n')[0], '1\tline 1');
+  assert.equal(engine.sourceExcerpts(ctx, 200).length, 0);
+  assert.deepEqual(engine.anchorExcerpts({ path: 'src/old.ts', line: 5, side: 'LEFT' }, ctx).map(e => [e.side, e.start, e.end]), [['LEFT', 1, 35]]);
+  assert.deepEqual(engine.anchorExcerpts({ path: 'missing.ts', line: 5, side: 'RIGHT' }, ctx), []);
+  const calls = [];
+  await engine.generateQuestions({ run: async (...args) => { calls.push(args); return { questions: initialQuestions() }; } }, 'workspace', snapshot(), readPolicy(), context(), null, [], [], 'full');
+  const data = JSON.parse(calls[0][1].split('출제 자료(JSON 데이터):\n')[1]);
+  assert.equal(data.sourceExcerpts[0].text, '1\tfunction pay() {\n2\tcharge();\n3\t}');
+  assert.match(calls[0][1], /sourceExcerpts\(줄 번호가 붙은 변경 주변 코드\)를 먼저 읽고/);
+});

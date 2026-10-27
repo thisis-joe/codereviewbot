@@ -212,6 +212,8 @@ test('reasoning goes to the model with the key, but the key alone decides right 
   for (const [answer, model, expected] of [['B 같은 키를 재사용합니다', 'incorrect', 'partial'], ['B 같은 키', 'unverifiable', 'correct'], ['A 새 키가 안전합니다', 'correct', 'incorrect'], ['B 같은 키', 'partial', 'partial']]) {
     const h = learningHarness(`/hey answer ${id} ${answer}`, { report: r, output: output(model) }); await h.run();
     assert.equal(h.data.calls[0].phase, 'grade'); assert.match(h.data.calls[0].prompt, /정답은 B입니다/);
+    // The graded anchor's code travels with the prompt, so grading rarely needs a source-tool round.
+    assert.match(h.data.calls[0].prompt, /"sourceExcerpts":\[\{"path":"[^"]+","side":"(LEFT|RIGHT)","start":\d+/);
     assert.deepEqual(h.data.saved.grades, [{ id, verdict: expected }]); assert.match(h.data.replies[0][1], /##### 답변 평가\n\n이유 평가/);
   }
 });

@@ -21,7 +21,7 @@ Mac 정리 및 복구 주의사항은 [마이그레이션 운영 기록](hey-edo
 
 2026-10-26 운영 Runner(`25312d1` 기반)의 `gms.js`만 이 로깅 변경(최초 커밋 `d7dc5fc`)으로 교체하고 `GMS_USAGE_ENV=production`을 추가했다. Controller는 이미지 변경 없이 재시작만 했고, DB·n8n·터널은 변경하지 않았다. 이제 GMS 요청마다 `gms-usage` 로그가 남는다. 형식은 [연결 설정](connections.md#gms-responses-api-직접-호출-기본-엔진)을 참고한다. [운영 적용 증거](verification/gms-usage-production-2026-10-26.json)가 있고, 되돌릴 때는 `/home/ubuntu/hey/releases/gms-usage-d7dc5fc`에서 `python3 deploy.py rollback`을 실행한다.
 
-호출 절감 개선을 배포하기 전에 기준값을 모은다. 목표는 phase별 실행 10회 이상, 약 1주일이다. 운영 호출은 Runner 로그로, 개발 호출은 로컬 `.local/gms-usage.jsonl`로 확인한다.
+기준값은 2026-10-27 17:00(KST)까지 하루 동안 모았다. 운영 호출은 Runner 로그로, 개발 호출은 로컬 `.local/gms-usage.jsonl`로 확인한다. 같은 날 오전 개발 검증의 기준값은 실행 135회, 요청 493건, 실행당 요청 수 중앙값 3~4(최대 6)였다.
 
 ```bash
 ssh -o ClearAllForwardings=yes edo1 'docker logs hey-edo1-runner-1 2>/dev/null | grep "^{\"service\":\"gms-usage\""' > .local/gms-usage-production.jsonl
