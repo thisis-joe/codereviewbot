@@ -22,10 +22,12 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 
 ## Observable contract
 
-- Initial generation produces exactly two complementary multiple-choice questions:
-  Q1 asks about the change's core effect or guarantee, and Q2 applies a principle
-  needed to understand it. The same concept may support different learning goals;
-  unrelated CS terminology is not required for documentation/configuration/data changes.
+- Initial generation produces exactly two complementary multiple-choice questions that
+  act as a merge gate: Q1 asks the effect a reviewer must grasp before approving (behavior,
+  guarantee, risk or affected callers/data/operations), and Q2 asks the principle the
+  change's correctness most depends on, applied in this change's situation. The same
+  concept may support different learning goals; unrelated CS terminology is not required
+  for documentation/configuration/data changes, and the identifier-rename test applies.
   These goals are generation instructions, not a deterministic semantic validator.
   Questions are produced in one
   `initial_questions` model call with a 120,000 ms budget per attempt. Each question
@@ -33,10 +35,15 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   anchor. Both initial questions must be basic; advanced learning is opt-in.
   Difficulty tags are never displayed.
   Questions and choices come before concise answer/reveal/optional-whatelse hints.
-  `/hey whatelse` generates additional questions only on explicit request,
-  using the same question-first layout. Newly generated answer keys and grading
-  explanations teach a relevant CS concept and connect it to the actual code,
-  using one to three sentences per explanation. Feedback shows the correct choice
+  `/hey whatelse` generates up to five additional questions only on explicit request,
+  using the same question-first layout. They go deeper into this change (trade-offs,
+  failure boundaries, impact on callers/data/operations/compatibility, how to confirm
+  the guarantee); general CS depth belongs to 면접/꼬리. Fewer than five require a
+  nonempty reason, shown under the batch; zero becomes a notice. Prompts for Q and 심화
+  state every condition one answer needs instead of a length cap, and the validator's
+  hunk-line rule. Change-question keys explain the change in one to three sentences:
+  behavior before vs after, why it matters and what goes wrong if misread; wrong-option
+  notes name the misreading and what the code does, bolding at most two phrases. Feedback shows the correct choice
   as a sentence; option explanations appear on a new, indented line, without
   picked/correct letter comparisons or per-option verdict tags.
   The initial comment starts with `hey! 이건 알고 머지하는거지? 😏`;
@@ -69,12 +76,25 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   Existing stored batches without `batchKind` remain supplementary; old five-question
   interview batches keep their numbers and may anchor morecs. `answer` accepts mixed
   Q/심화/면접/꼬리 labels; a wrong bare letter leads with the stored note for that
-  option, and reasoned grading must name the missed concept. `showanswer` reveals only
+  option. Reasoned grading is kind-aware: Q/심화 feedback names whether behavior, reason
+  or impact was misread, with code evidence, credits the correct parts and flags a right
+  answer for a wrong reason (partial); 면접/꼬리 feedback names the missed concept. A
+  keyed grade always shows the stored explanation and option notes, so it matches
+  `showanswer`; the model writes only verdict, feedback and evidence, and older
+  full-explanation outputs are accepted and overridden. Unkeyed legacy questions still
+  get model-written explanations. `showanswer` reveals only
   the originating trusted question thread's stored key, without inference or credit.
   Interview and follow-up questions never become merge-gate requirements.
 - `/hey help` displays eight commands: `answer`, `showanswer`, `whatelse`, `csinterview`,
   `morecs`, `tryagain`, `@hey` and `help`. It needs no report, snapshot export or model call,
   respects existing permissions and reconciles owned markers.
+- `@hey` answers help the asker understand this PR/MR: a wrong premise is corrected
+  first, then the answer, why (in terms of this change), path:line evidence rendered as
+  code links (locations outside the pinned snapshot are dropped and counted) and what
+  stayed unverified. Lookups carry no CS explanation. The payload includes the diff and
+  is bounded like learning inputs; replies step down to fit the comment budget.
+- Model phases are `answer`, `initial_questions`, `questions`, `csinterview`, `morecs`
+  and `grade`; the retired `review`/`verify` phases are no longer admitted.
 - `tryagain` regenerates questions on current code, bypassing the same-SHA cache.
   With no newer revision to compare it falls back to full-PR source.
 - Removed commands (`full`, `pause`, `resume`, `explain`, `dismiss`, `learn`,
