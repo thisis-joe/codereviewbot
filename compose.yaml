@@ -45,6 +45,7 @@ services:
       GMS_KEY: ${GMS_KEY:-}
       GMS_MODEL: ${GMS_MODEL:-gpt-6.1-sol}
       GMS_RESPONSES_URL: ${GMS_RESPONSES_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses}
+      GMS_USAGE_ENV: ${GMS_USAGE_ENV:-production}
       CODEX_HOME: /codex
       CODEX_MODEL: ${CODEX_MODEL:-}
       CODEX_API_KEY: ${CODEX_API_KEY:-}
