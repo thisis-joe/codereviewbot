@@ -40,7 +40,7 @@ Questions use H4 headings and blank lines. Reference commits appear as a list of
 
 Explanations show the correct option's sentence, then **explanation → per-option notes → code evidence**. Notes are indented on a new line beneath each option. Each generated explanation is 1–3 sentences connecting CS principles to concrete code conditions. Your answer and the correct option letters are not displayed side by side.
 
-[Initial question example](docs/examples/initial-questions.md) · [Follow-up and explanation examples](docs/examples/whatelse-with-cs.md)
+[Initial question example](docs/examples/initial-questions.md) · [Follow-up and grading examples](docs/examples/whatelse.md) · [`@hey` answer examples](docs/examples/hey.md)
 
 ## Comment commands
 

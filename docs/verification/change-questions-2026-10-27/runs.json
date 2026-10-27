@@ -1,0 +1,1454 @@
+{
+ "before/s1": {
+  "codeUnderTest": "135ac1c0eb2cecd05f9c1f9346e7ffda32535a97",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:19:00.388Z",
+  "finishedAt": "2026-10-27T00:26:29.270Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 37
+   },
+   {
+    "phase": "questions",
+    "status": "failed",
+    "seconds": 120,
+    "failure": "timeout"
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 99
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 21
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 21
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 18
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 24
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 33
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 20
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 2
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "before/s2": {
+  "codeUnderTest": "135ac1c0eb2cecd05f9c1f9346e7ffda32535a97",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:19:00.388Z",
+  "finishedAt": "2026-10-27T00:26:28.661Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 41
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 71
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 24
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 22
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 25
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 15
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 22
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 29
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "before/s3": {
+  "codeUnderTest": "135ac1c0eb2cecd05f9c1f9346e7ffda32535a97",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:19:00.388Z",
+  "finishedAt": "2026-10-27T00:26:34.482Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 40
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 90
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 26
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 23
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 23
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 21
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 25
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 27
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "before/s4": {
+  "codeUnderTest": "135ac1c0eb2cecd05f9c1f9346e7ffda32535a97",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:19:00.388Z",
+  "finishedAt": "2026-10-27T00:26:30.803Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 45
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 81
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 21
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 21
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 24
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 22
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 30
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 21
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r1/s1": {
+  "codeUnderTest": "377422b5db22153eb3d26e86390a9dcbddbffad4",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:33:44.773Z",
+  "finishedAt": "2026-10-27T00:39:17.365Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 44
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 99
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 12
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 12
+   },
+   {
+    "phase": "grade",
+    "status": "failed",
+    "seconds": 14,
+    "failure": "invalid_output"
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 11
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 10
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 19
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 12
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 31
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 13
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 6
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r1/s2": {
+  "codeUnderTest": "377422b5db22153eb3d26e86390a9dcbddbffad4",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:33:44.773Z",
+  "finishedAt": "2026-10-27T00:38:45.672Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 45
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 74
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 18
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 13
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 17
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 7
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 24
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 23
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r1/s3": {
+  "codeUnderTest": "377422b5db22153eb3d26e86390a9dcbddbffad4",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:33:44.773Z",
+  "finishedAt": "2026-10-27T00:38:44.192Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 46
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 80
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 20
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 16
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 17
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 10
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 18
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 19
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r1/s4": {
+  "codeUnderTest": "377422b5db22153eb3d26e86390a9dcbddbffad4",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:33:44.773Z",
+  "finishedAt": "2026-10-27T00:40:24.740Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 52
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 94
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 16
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 15
+   },
+   {
+    "phase": "grade",
+    "status": "failed",
+    "seconds": 14,
+    "failure": "invalid_output"
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 19
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 12
+   },
+   {
+    "phase": "grade",
+    "status": "failed",
+    "seconds": 15,
+    "failure": "invalid_output"
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 14
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 14
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 15
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 12
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 17
+   },
+   {
+    "phase": "answer",
+    "status": "failed",
+    "seconds": 19,
+    "failure": "invalid_output"
+   },
+   {
+    "phase": "answer",
+    "status": "passed",
+    "seconds": 18
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 9
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "hey-lookup",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-design",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "hey-wrongPremise",
+    "state": "completed",
+    "modelCalls": 2
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r2/s1": {
+  "codeUnderTest": "d2f1470b098c6dc85b655a870318ccaa2bf14ba0",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:50:33.911Z",
+  "finishedAt": "2026-10-27T00:54:37.206Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 56
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 89
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 12
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 20
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 19
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r2/s2": {
+  "codeUnderTest": "d2f1470b098c6dc85b655a870318ccaa2bf14ba0",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:50:33.910Z",
+  "finishedAt": "2026-10-27T00:54:35.320Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 39
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 88
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 17
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 18
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 14
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r2/s3": {
+  "codeUnderTest": "d2f1470b098c6dc85b655a870318ccaa2bf14ba0",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:50:33.910Z",
+  "finishedAt": "2026-10-27T00:54:35.321Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 48
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 85
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 19
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 18
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 12
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r2/s4": {
+  "codeUnderTest": "d2f1470b098c6dc85b655a870318ccaa2bf14ba0",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T00:50:33.910Z",
+  "finishedAt": "2026-10-27T00:54:27.289Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 52
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 89
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 13
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 15
+   },
+   {
+    "phase": "grade",
+    "status": "passed",
+    "seconds": 12
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   },
+   {
+    "name": "answer",
+    "state": "completed",
+    "modelCalls": 3
+   },
+   {
+    "name": "showanswer-Q1",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-Q2",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "showanswer-whatelse",
+    "state": "completed",
+    "modelCalls": 0
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r3/s1": {
+  "codeUnderTest": "776265d23aa7b6169bdcfc4afb03bafcbe8c7551",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:04:39.464Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 69
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 76
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r3/s2": {
+  "codeUnderTest": "776265d23aa7b6169bdcfc4afb03bafcbe8c7551",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:04:39.464Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 57
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 75
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r3/s3": {
+  "codeUnderTest": "776265d23aa7b6169bdcfc4afb03bafcbe8c7551",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:04:39.461Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 68
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 88
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r3/s4": {
+  "codeUnderTest": "776265d23aa7b6169bdcfc4afb03bafcbe8c7551",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:04:39.462Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 55
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 88
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r4/s1": {
+  "codeUnderTest": "f6e189d4027d89d917468f0696c8e7bb83ae94cb",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:13:56.096Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 77
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 104
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r4/s2": {
+  "codeUnderTest": "f6e189d4027d89d917468f0696c8e7bb83ae94cb",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:13:56.092Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 44
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 65
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r4/s3": {
+  "codeUnderTest": "f6e189d4027d89d917468f0696c8e7bb83ae94cb",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:13:56.095Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 63
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 67
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ },
+ "after-r4/s4": {
+  "codeUnderTest": "f6e189d4027d89d917468f0696c8e7bb83ae94cb",
+  "model": "gpt-6.1-sol",
+  "startedAt": "2026-10-27T01:13:56.097Z",
+  "calls": [
+   {
+    "phase": "initial_questions",
+    "status": "passed",
+    "seconds": 49
+   },
+   {
+    "phase": "questions",
+    "status": "passed",
+    "seconds": 81
+   }
+  ],
+  "actions": [
+   {
+    "name": "tryagain",
+    "state": "completed",
+    "modelCalls": 0
+   },
+   {
+    "name": "initial",
+    "state": "completed",
+    "modelCalls": null
+   },
+   {
+    "name": "whatelse",
+    "state": "completed",
+    "modelCalls": 1
+   }
+  ],
+  "externalCommentWrites": 0,
+  "productionDataWrites": 0
+ }
+}

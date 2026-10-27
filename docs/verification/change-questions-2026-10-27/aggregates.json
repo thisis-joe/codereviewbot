@@ -1,0 +1,410 @@
+{
+ "round1": {
+  "before": {
+   "questions": 28,
+   "importance": 3.54,
+   "grounded": 4.75,
+   "understanding": 3.79,
+   "uniqueAnswer": 4.96,
+   "misreadings": 3.43,
+   "explanationClarifies": 3.75,
+   "nonNiche": 4.14,
+   "overall": 4.05,
+   "padded": 3,
+   "lookup": 0,
+   "genericCs": 4,
+   "mergeGateFail": 1,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.5,
+    "grounded": 5,
+    "understanding": 3.38,
+    "uniqueAnswer": 5,
+    "misreadings": 2.88,
+    "explanationClarifies": 3.5,
+    "nonNiche": 4.88
+   },
+   "deeper": {
+    "importance": 3.15,
+    "grounded": 4.65,
+    "understanding": 3.95,
+    "uniqueAnswer": 4.95,
+    "misreadings": 3.65,
+    "explanationClarifies": 3.85,
+    "nonNiche": 3.85
+   },
+   "grading": {
+    "items": 16,
+    "pinpoint": 4.63,
+    "credit": 4.81,
+    "kindFit": 3.94,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 12,
+    "answerFirst": 4.67,
+    "grounded": 5,
+    "premise": 5,
+    "csOnlyWhenNeeded": 2.92,
+    "unverified": 4.67
+   }
+  },
+  "after-r1": {
+   "questions": 27,
+   "importance": 3.74,
+   "grounded": 4.85,
+   "understanding": 4,
+   "uniqueAnswer": 5,
+   "misreadings": 4.07,
+   "explanationClarifies": 4.89,
+   "nonNiche": 3.96,
+   "overall": 4.36,
+   "padded": 0,
+   "lookup": 0,
+   "genericCs": 1,
+   "mergeGateFail": 0,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.75,
+    "grounded": 5,
+    "understanding": 4,
+    "uniqueAnswer": 5,
+    "misreadings": 4.38,
+    "explanationClarifies": 5,
+    "nonNiche": 5
+   },
+   "deeper": {
+    "importance": 3.32,
+    "grounded": 4.79,
+    "understanding": 4,
+    "uniqueAnswer": 5,
+    "misreadings": 3.95,
+    "explanationClarifies": 4.84,
+    "nonNiche": 3.53
+   },
+   "grading": {
+    "items": 16,
+    "pinpoint": 5,
+    "credit": 4.94,
+    "kindFit": 5,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 12,
+    "answerFirst": 5,
+    "grounded": 5,
+    "premise": 5,
+    "csOnlyWhenNeeded": 5,
+    "unverified": 4.92
+   }
+  }
+ },
+ "round2": {
+  "after-r2": {
+   "questions": 26,
+   "importance": 3.96,
+   "grounded": 4.96,
+   "understanding": 4.04,
+   "uniqueAnswer": 5,
+   "misreadings": 4.15,
+   "explanationClarifies": 4.81,
+   "nonNiche": 4.08,
+   "overall": 4.43,
+   "padded": 3,
+   "lookup": 1,
+   "genericCs": 0,
+   "mergeGateFail": 0,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.75,
+    "grounded": 5,
+    "understanding": 4.13,
+    "uniqueAnswer": 5,
+    "misreadings": 4.25,
+    "explanationClarifies": 4.88,
+    "nonNiche": 5
+   },
+   "deeper": {
+    "importance": 3.61,
+    "grounded": 4.94,
+    "understanding": 4,
+    "uniqueAnswer": 5,
+    "misreadings": 4.11,
+    "explanationClarifies": 4.78,
+    "nonNiche": 3.67
+   },
+   "grading": {
+    "items": 16,
+    "pinpoint": 4.75,
+    "credit": 5,
+    "kindFit": 5,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 12,
+    "answerFirst": 5,
+    "grounded": 5,
+    "premise": 5,
+    "csOnlyWhenNeeded": 5,
+    "unverified": 4.83
+   }
+  },
+  "before": {
+   "questions": 28,
+   "importance": 3.64,
+   "grounded": 4.86,
+   "understanding": 3.32,
+   "uniqueAnswer": 5,
+   "misreadings": 2.96,
+   "explanationClarifies": 3.79,
+   "nonNiche": 4.32,
+   "overall": 3.98,
+   "padded": 5,
+   "lookup": 0,
+   "genericCs": 5,
+   "mergeGateFail": 1,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.25,
+    "grounded": 4.88,
+    "understanding": 2.5,
+    "uniqueAnswer": 5,
+    "misreadings": 2.13,
+    "explanationClarifies": 3.5,
+    "nonNiche": 4.88
+   },
+   "deeper": {
+    "importance": 3.4,
+    "grounded": 4.85,
+    "understanding": 3.65,
+    "uniqueAnswer": 5,
+    "misreadings": 3.3,
+    "explanationClarifies": 3.9,
+    "nonNiche": 4.1
+   },
+   "grading": {
+    "items": 16,
+    "pinpoint": 4.31,
+    "credit": 4.88,
+    "kindFit": 3.81,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 12,
+    "answerFirst": 4.67,
+    "grounded": 4.83,
+    "premise": 5,
+    "csOnlyWhenNeeded": 2.83,
+    "unverified": 4.5
+   }
+  }
+ },
+ "round3": {
+  "before": {
+   "questions": 28,
+   "importance": 3.54,
+   "grounded": 4.86,
+   "understanding": 3.54,
+   "uniqueAnswer": 5,
+   "misreadings": 3.29,
+   "explanationClarifies": 3.68,
+   "nonNiche": 4.07,
+   "overall": 3.99,
+   "padded": 2,
+   "lookup": 0,
+   "genericCs": 4,
+   "mergeGateFail": 1,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.5,
+    "grounded": 5,
+    "understanding": 2.88,
+    "uniqueAnswer": 5,
+    "misreadings": 2.38,
+    "explanationClarifies": 3.5,
+    "nonNiche": 4.63
+   },
+   "deeper": {
+    "importance": 3.15,
+    "grounded": 4.8,
+    "understanding": 3.8,
+    "uniqueAnswer": 5,
+    "misreadings": 3.65,
+    "explanationClarifies": 3.75,
+    "nonNiche": 3.85
+   },
+   "grading": {
+    "items": 0,
+    "pinpoint": null,
+    "credit": null,
+    "kindFit": null,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 0,
+    "answerFirst": null,
+    "grounded": null,
+    "premise": null,
+    "csOnlyWhenNeeded": null,
+    "unverified": null
+   }
+  },
+  "after-r3": {
+   "questions": 19,
+   "importance": 4,
+   "grounded": 4.95,
+   "understanding": 3.74,
+   "uniqueAnswer": 4.89,
+   "misreadings": 4.26,
+   "explanationClarifies": 4.79,
+   "nonNiche": 4.11,
+   "overall": 4.39,
+   "padded": 0,
+   "lookup": 0,
+   "genericCs": 1,
+   "mergeGateFail": 0,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.75,
+    "grounded": 5,
+    "understanding": 3.63,
+    "uniqueAnswer": 4.88,
+    "misreadings": 4.38,
+    "explanationClarifies": 4.88,
+    "nonNiche": 4.75
+   },
+   "deeper": {
+    "importance": 3.45,
+    "grounded": 4.91,
+    "understanding": 3.82,
+    "uniqueAnswer": 4.91,
+    "misreadings": 4.18,
+    "explanationClarifies": 4.73,
+    "nonNiche": 3.64
+   },
+   "grading": {
+    "items": 0,
+    "pinpoint": null,
+    "credit": null,
+    "kindFit": null,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 0,
+    "answerFirst": null,
+    "grounded": null,
+    "premise": null,
+    "csOnlyWhenNeeded": null,
+    "unverified": null
+   }
+  }
+ },
+ "round4": {
+  "before": {
+   "questions": 28,
+   "importance": 3.43,
+   "grounded": 4.79,
+   "understanding": 3.18,
+   "uniqueAnswer": 4.93,
+   "misreadings": 2.71,
+   "explanationClarifies": 3.75,
+   "nonNiche": 4.04,
+   "overall": 3.83,
+   "padded": 4,
+   "lookup": 0,
+   "genericCs": 4,
+   "mergeGateFail": 1,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.38,
+    "grounded": 5,
+    "understanding": 2.75,
+    "uniqueAnswer": 5,
+    "misreadings": 2.25,
+    "explanationClarifies": 3.63,
+    "nonNiche": 4.88
+   },
+   "deeper": {
+    "importance": 3.05,
+    "grounded": 4.7,
+    "understanding": 3.35,
+    "uniqueAnswer": 4.9,
+    "misreadings": 2.9,
+    "explanationClarifies": 3.8,
+    "nonNiche": 3.7
+   },
+   "grading": {
+    "items": 0,
+    "pinpoint": null,
+    "credit": null,
+    "kindFit": null,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 0,
+    "answerFirst": null,
+    "grounded": null,
+    "premise": null,
+    "csOnlyWhenNeeded": null,
+    "unverified": null
+   }
+  },
+  "after-r4": {
+   "questions": 19,
+   "importance": 4.26,
+   "grounded": 4.95,
+   "understanding": 4.32,
+   "uniqueAnswer": 4.95,
+   "misreadings": 4.58,
+   "explanationClarifies": 4.95,
+   "nonNiche": 4.42,
+   "overall": 4.63,
+   "padded": 0,
+   "lookup": 1,
+   "genericCs": 0,
+   "mergeGateFail": 1,
+   "keyWrong": 0,
+   "ownPickDiffers": 0,
+   "q12": {
+    "importance": 4.5,
+    "grounded": 5,
+    "understanding": 3.63,
+    "uniqueAnswer": 5,
+    "misreadings": 4.5,
+    "explanationClarifies": 4.88,
+    "nonNiche": 4.75
+   },
+   "deeper": {
+    "importance": 4.09,
+    "grounded": 4.91,
+    "understanding": 4.82,
+    "uniqueAnswer": 4.91,
+    "misreadings": 4.64,
+    "explanationClarifies": 5,
+    "nonNiche": 4.18
+   },
+   "grading": {
+    "items": 0,
+    "pinpoint": null,
+    "credit": null,
+    "kindFit": null,
+    "inaccurate": 0
+   },
+   "hey": {
+    "items": 0,
+    "answerFirst": null,
+    "grounded": null,
+    "premise": null,
+    "csOnlyWhenNeeded": null,
+    "unverified": null
+   }
+  }
+ }
+}

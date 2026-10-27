@@ -40,7 +40,7 @@ PR/MR이 머지되면 최종 변경을 읽고 기본 수준의 객관식 질문 
 
 해설은 정답 보기의 문장을 먼저 보여 주고, **해설 → 보기별 해설 → 코드 근거** 순서로 이어집니다. 보기별 설명은 보기 다음 줄에 들여쓰며, 각 설명은 CS 원리와 코드의 조건을 연결하는 1~3문장으로 생성합니다. 내 답과 정답의 보기 문자를 나란히 표시하지 않습니다.
 
-[최초 질문 예시](docs/examples/initial-questions.md) · [추가 질문·해설 예시](docs/examples/whatelse-with-cs.md)
+[최초 질문 예시](docs/examples/initial-questions.md) · [심화 질문·채점 예시](docs/examples/whatelse.md) · [`@hey` 답변 예시](docs/examples/hey.md)
 
 ## 댓글 명령
 

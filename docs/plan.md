@@ -80,7 +80,7 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   or impact was misread, with code evidence, credits the correct parts and flags a right
   answer for a wrong reason (partial); 면접/꼬리 feedback names the missed concept. A
   keyed grade always shows the stored explanation and option notes, so it matches
-  `showanswer`; the model writes only verdict, feedback and evidence, and older
+  `showanswer`; the model writes only verdict, feedback (up to four sentences) and evidence, and older
   full-explanation outputs are accepted and overridden. Unkeyed legacy questions still
   get model-written explanations. `showanswer` reveals only
   the originating trusted question thread's stored key, without inference or credit.
