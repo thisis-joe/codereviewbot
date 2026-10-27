@@ -15,19 +15,21 @@
 - 흐름: 표본마다 이전 프롬프트(`25312d1`, 5문항)를 before로 한 번 호출했다. 이어 서명된 웹훅 → 워크플로 단계 API → PostgreSQL → 게시 캡처 경로로 `/hey csinterview`와 `/hey morecs` 3회를 실제 명령 흐름에서 실행했고, 마지막 묶음에는 섞어 답한 키 채점과 스레드 `showanswer`를 실행했다.
 - 채점: 생성 전에 고정한 [평가 기준](../csinterview-morecs-rubric-2026-10-26.json)을 썼다. 채점은 이 세션의 판단을 보지 않은 독립 검토 에이전트가 했다. 정답키를 보기 전에 스스로 답을 골라 키와 비교했고(76/76, 56/56 일치), 문항마다 점수를 매겼다(`scores-round3.json`, `scores-final.json`). 작성자는 플래그 문항을 원문으로 확인했다.
 
+커밋 표기: 검증은 다른 세션이 이 체크아웃을 `feat(be)/138-GMS_호출_횟수_절감` 브랜치로 바꾼 상태에서 진행되었다. 따라서 `runs.json`의 `codeUnderTest`에는 그 브랜치의 커밋(`dcd697b`, `9ff18c8`, `0920508`)이 실제로 검증한 트리로 남아 있다. 이 문서의 SHA는 같은 변경을 `codex/csinterview`에 cherry-pick한 커밋이다(`dcd697b`→`1d63ba9`, `9ff18c8`→`8dac8c4`, `0920508`→`5ca4c32`). 차이는 그 브랜치에 있던 GMS 사용량 로깅(동작 변화 없음)뿐이다.
+
 ## 평가표 (독립 채점, 1~5)
 
 | 묶음 | 문항 | 핵심·깊이 | 비지엽 | 지식+적용 | 정답 유일 | 오답 품질 | 학습 가치 | 근거 | 앵커 적합 | 표류 없음 | 정의 고르기 | 모호 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | before (이전 프롬프트) | 20 | 3.55 | 4.50 | 2.70 | 4.95 | 3.00 | 3.15 | 4.20 | – | – | 2 | 0 |
-| 3회차 after+morecs (`dcd697b`) | 56 | 3.73 | 4.57 | 3.75 | 4.84 | 3.79 | 4.93 | 3.11 | 4.00 | 3.79 | 0 | 0 |
+| 3회차 after+morecs (`1d63ba9`) | 56 | 3.73 | 4.57 | 3.75 | 4.84 | 3.79 | 4.93 | 3.11 | 4.00 | 3.79 | 0 | 0 |
 | **최종 after** | 8 | **4.62** | **5.00** | 4.12 | 5.00 | 4.62 | **5.00** | 4.75 | – | – | 0 | 0 |
 | 최종 morecs-1 | 16 | 4.50 | 4.81 | 3.88 | 5.00 | 3.88 | 5.00 | 4.25 | 4.17 | 5.00 | 1 | 0 |
 | 최종 morecs-2 | 16 | 3.94 | 4.81 | 3.81 | 4.94 | 4.00 | 5.00 | 4.12 | 4.13 | 4.44 | 0 | 0 |
 | 최종 morecs-3 | 16 | 3.62 | 4.94 | 3.50 | 5.00 | 3.75 | 4.94 | 3.38 | 4.06 | 4.06 | 0 | 0 |
 | **최종 after+morecs** | 56 | **4.11** | **4.88** | 3.79 | 4.98 | 3.98 | **4.98** | 4.04 | 4.12 | 4.50 | **1** | **0** |
 
-최종 프롬프트는 s1·s3이 `9ff18c8`, s2·s4가 `0920508`이다. `0920508`은 근거 위치 규칙 문장만 더했다. morecs의 새 면접 질문 정당성(문항)은 4.40이고, 묶음 구성 판단(3+1/4+0)은 라운드별로 4.50 → 4.00 → 3.50이다.
+최종 프롬프트는 s1·s3이 `8dac8c4`, s2·s4가 `5ca4c32`이다. `5ca4c32`은 근거 위치 규칙 문장만 더했다. morecs의 새 면접 질문 정당성(문항)은 4.40이고, 묶음 구성 판단(3+1/4+0)은 라운드별로 4.50 → 4.00 → 3.50이다.
 
 ## 이전·이후 비교
 
@@ -41,12 +43,12 @@
 |---|---|---|---|---|
 | 0 | 1 | none (first real run, S1 only) | — | 744ca1b/f5fa8b3 |
 | 1 | 2 | morecs model budget 120 s → 240 s | S1 morecs-1 took 109 s; morecs-2 timed out at 120 s on all three attempts with a 4-question anchor batch, so the chain stopped | dd6dc37 |
-| 2 | 3 | prompt: anchor must be the question whose concept the follow-up deepens; exclude one-formula questions and answers resting on an assumed OS/library facility; a new interview question must beat the remaining follow-ups | round 2: S1 꼬리2/꼬리3 named 면접2 but tested size caps and UTF-8 decoding; S3 면접3 (linear scan) and S4 면접4 (hash map O(M+N)) were solvable by one formula; S4 꼬리10 drifted into hashing arithmetic; S1 꼬리1 relied on an assumed OS facility that blocks root escape | dcd697b |
-| 3 | 5 | prompt: follow-up assumptions may change only one condition (failure timing, concurrency, scale, order) of a mechanism the change uses; no new subsystems (replication, partitions, separate caches, MACs, version stores); prefer a new core interview question when remaining follow-ups need such subsystems; no repeated judgment under another anchor; no formal-variant distractors | independent scoring of round 3: after+morecs coreDepth 3.73 (<4), grounding 3.62 → 2.56 → 2.31 and noDrift 4.81 → 3.44 → 3.12 across morecs rounds; s2 꼬리6/꼬리10 and s4 꼬리4 rested on replication, partition and MAC subsystems; dedup retention, lock ordering and retry storms repeated across anchors; 4+0 chosen after drift | 9ff18c8 |
+| 2 | 3 | prompt: anchor must be the question whose concept the follow-up deepens; exclude one-formula questions and answers resting on an assumed OS/library facility; a new interview question must beat the remaining follow-ups | round 2: S1 꼬리2/꼬리3 named 면접2 but tested size caps and UTF-8 decoding; S3 면접3 (linear scan) and S4 면접4 (hash map O(M+N)) were solvable by one formula; S4 꼬리10 drifted into hashing arithmetic; S1 꼬리1 relied on an assumed OS facility that blocks root escape | 1d63ba9 |
+| 3 | 5 | prompt: follow-up assumptions may change only one condition (failure timing, concurrency, scale, order) of a mechanism the change uses; no new subsystems (replication, partitions, separate caches, MACs, version stores); prefer a new core interview question when remaining follow-ups need such subsystems; no repeated judgment under another anchor; no formal-variant distractors | independent scoring of round 3: after+morecs coreDepth 3.73 (<4), grounding 3.62 → 2.56 → 2.31 and noDrift 4.81 → 3.44 → 3.12 across morecs rounds; s2 꼬리6/꼬리10 and s4 꼬리4 rested on replication, partition and MAC subsystems; dedup retention, lock ordering and retry storms repeated across anchors; 4+0 chosen after drift | 8dac8c4 |
 
 Round 2 completed all 4 samples × (before + after + 3 morecs) except S4 before (old prompt timed out at 120 s). GMS 503/unavailable responses occurred on 4 attempts and were absorbed by the application's own retries. morecs durations: 114–200 s.
 
-추가: 위치 계약 수정 (`0920508`, 품질 반복 아님). 프롬프트는 "읽을 수 있는 유효한 줄"이라고만 했지만, 검증기는 diff hunk 안의 줄만 받는다. 5회차에서 이 차이로 morecs 작업 2건이 3회 시도를 모두 실패했다(s2 `workflow.ts:90/94`, s4 `controller.ts:113`). 문구를 고친 뒤 6회차 s2·s4는 위치 거절 없이 첫 시도에 완료했다.
+추가: 위치 계약 수정 (`5ca4c32`, 품질 반복 아님). 프롬프트는 "읽을 수 있는 유효한 줄"이라고만 했지만, 검증기는 diff hunk 안의 줄만 받는다. 5회차에서 이 차이로 morecs 작업 2건이 3회 시도를 모두 실패했다(s2 `workflow.ts:90/94`, s4 `controller.ts:113`). 문구를 고친 뒤 6회차 s2·s4는 위치 거절 없이 첫 시도에 완료했다.
 
 ## 최종 문항 (앵커 포함)
 
@@ -143,7 +145,7 @@ Round 2 completed all 4 samples × (before + after + 3 morecs) except S4 before 
 - 전체 GMS 호출 78회 중 67회 성공했다. 실패 11회는 시간 초과 6회와 일시 장애(503 등) 5회이며, 일시 장애는 모두 애플리케이션 재시도로 회복했다.
 - 1회차: morecs 120초 예산에서 4문항 앵커 묶음 호출이 3회 모두 시간 초과되어 체인이 멈췄다. 이후 morecs 예산을 240초로 올렸다(`dd6dc37`). 그 뒤 morecs 소요 시간은 95–208초였다.
 - 6회차 s2의 csinterview 첫 시도가 120초 예산에서 시간 초과됐고 재시도에서 65초에 끝났다. csinterview 소요 시간은 65–108초로, 120초 예산에 가깝다.
-- 근거 위치 거절은 3회차 1건, 5회차 7건(그중 작업 2건 실패)이었다. `0920508` 이후 0건이다.
+- 근거 위치 거절은 3회차 1건, 5회차 7건(그중 작업 2건 실패)이었다. `5ca4c32` 이후 0건이다.
 - 모든 체인에서 섞어 답한 보기 문자 채점(모델 호출 0회)과 해당 스레드 `showanswer`(모델 호출 0회, 채점 기록 없음)가 완료됐다.
 
 ## 검증하지 못한 것
