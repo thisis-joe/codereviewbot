@@ -1,0 +1,163 @@
+{
+  "source": "fa9b7c83bf9bcf8dc8bf35c36969c8d8997e75a2",
+  "release": "change-fa9b7c8",
+  "deployed": "edo1:/home/ubuntu/hey (project hey-edo1)",
+  "activatedAt": "2026-10-27T01:54:18.892029+00:00",
+  "approvedByUser": "2026-10-27: user asked to merge (after bringing in the latest csinterview work) and deploy; PR #24 merged as fa9b7c8",
+  "images": {
+    "prior": {
+      "controller": {
+        "tag": "hey-controller:morecs-dfe1209",
+        "imageId": "sha256:cb54fb7466dc0e7f71f470ccd888b3667de7afc46f0a03aafca696c392037c90"
+      },
+      "runner": {
+        "tag": "hey-runner:morecs-dfe1209",
+        "imageId": "sha256:a838f4c5d41b94ac1f51c071fff40b3622c014d96551180652e62f7062a1327c"
+      }
+    },
+    "candidate": {
+      "controller": "hey-controller:change-fa9b7c8",
+      "runner": "hey-runner:change-fa9b7c8"
+    },
+    "rollback": {
+      "controller": "hey-controller:change-prior-fa9b7c8",
+      "imageId": "sha256:cb54fb7466dc0e7f71f470ccd888b3667de7afc46f0a03aafca696c392037c90",
+      "note": "exact prior controller image retagged; the prior pair (morecs-dfe1209) already reads every row this release writes"
+    }
+  },
+  "build": "overlay of /app/dist (37 compiled modules) and the unchanged migration onto the prior images; module hashes verified in candidate images and in running containers",
+  "priorReleaseNote": "Another session deployed morecs-dfe1209 (main after PR #23) at 01:41 UTC, 10 minutes before this release; the first prepare stopped on its prior-image guard before touching anything, and the release was retargeted to that pair.",
+  "attempts": [
+    "prepare stopped: prior image changed (morecs-dfe1209 had just been activated)",
+    "prepare stopped: candidate modules unreadable (bundle files unpacked as 0600); fixed to 0644 inside the 0700 release directory, partial outputs cleared, half-built image removed",
+    "prepare, stage and activate passed"
+  ],
+  "stage": {
+    "forward": {
+      "passed": true,
+      "authenticatedRunnerRpc": true,
+      "retiredReviewPhaseRejected": true,
+      "whatelseShortWithReason": 3,
+      "keyedGrade": "partial",
+      "gradeMatchesShowanswer": true,
+      "heySections": true,
+      "heyUncheckedEvidenceDropped": 1,
+      "csinterview": 2,
+      "morecsLabels": [
+        "꼬리1",
+        "꼬리2"
+      ],
+      "mixedGrades": true,
+      "modelGatewayCalls": {
+        "csinterview": 1,
+        "morecs": 1,
+        "questions": 1,
+        "grade": 1,
+        "answer": 1
+      },
+      "externalPosts": 0
+    },
+    "rollbackCompatibility": {
+      "passed": true,
+      "shortWhatelseBatchAnswerable": true,
+      "interviewBatchAnswerable": true,
+      "morecsBatchAnswerable": true,
+      "modelOrSourceAccess": false
+    },
+    "externalNetwork": "disabled",
+    "database": "restored production copy"
+  },
+  "history": {
+    "beforePrepare": {
+      "targets": {
+        "count": 49,
+        "hash": "08e256f7348b366aaa7577d55795be87"
+      },
+      "jobs": {
+        "count": 174,
+        "hash": "1db632e0e9331982cff5379d70fb58d2"
+      },
+      "deliveries": {
+        "count": 214,
+        "hash": "2fc4ec05a43405812244f8dbd231112a"
+      },
+      "mattermost_notifications": {
+        "count": 267,
+        "hash": "6a14e501c94992c80eaf9b2f1b0d1cf9"
+      },
+      "bot_comment_history": {
+        "count": 38,
+        "hash": "e50331c6a34cb65c36eb971ef3819120"
+      }
+    },
+    "atCutover": {
+      "targets": {
+        "count": 49,
+        "hash": "08e256f7348b366aaa7577d55795be87"
+      },
+      "jobs": {
+        "count": 174,
+        "hash": "1db632e0e9331982cff5379d70fb58d2"
+      },
+      "deliveries": {
+        "count": 214,
+        "hash": "2fc4ec05a43405812244f8dbd231112a"
+      },
+      "mattermost_notifications": {
+        "count": 267,
+        "hash": "6a14e501c94992c80eaf9b2f1b0d1cf9"
+      },
+      "bot_comment_history": {
+        "count": 38,
+        "hash": "e50331c6a34cb65c36eb971ef3819120"
+      }
+    },
+    "afterActivationEqualsCutover": true
+  },
+  "configurationPreserved": {
+    "controller": "Cmd, User, Healthcheck, Entrypoint, WorkingDir, HostConfig, Mounts and Networks equal; Env equal as a set (order only); labels differ only in com.docker.compose.image and config-hash",
+    "runner": "same"
+  },
+  "moduleHashesMatched": {
+    "controller": true,
+    "runner": true
+  },
+  "health": {
+    "controller": "healthy, /healthz 200",
+    "runner": "healthy, /healthz 200, busy=false",
+    "unauthorizedClaim": 401,
+    "controllerErrorLinesSinceActivation": 0
+  },
+  "publicIngressCurl": {
+    "/webhooks/gitlab": 401,
+    "/healthz": 404,
+    "/internal/flow/claim": 404
+  },
+  "n8n": {
+    "errorIdsBefore": [
+      47357,
+      38006,
+      38007
+    ],
+    "errorIdsAfter": [
+      38006,
+      38007,
+      47357
+    ],
+    "newExecutionErrors": 0
+  },
+  "gmsUsageLinesSaved": {
+    "beforePrepare": 0,
+    "atCutover": 0,
+    "note": "the prior runner had served no GMS calls since its start"
+  },
+  "migration": "none (001_initial.sql hash unchanged)",
+  "liveTraffic": "No real MR command was run against this release. A planned real-MR test on GitLab !58 was stopped by the user after a mis-focused browser input opened the MR edit page; nothing was saved or posted.",
+  "rollbackCommand": "cd /home/ubuntu/hey/releases/change-fa9b7c8 && python3 deploy.py rollback",
+  "rollbackEffect": "restores the exact morecs-dfe1209 controller and runner; database and history kept; change-question prompts, key-sourced grading and sectioned @hey revert to the previous versions",
+  "backups": [
+    "/home/ubuntu/hey/releases/change-fa9b7c8/compose.before.json",
+    "/home/ubuntu/hey/releases/change-fa9b7c8/reviewbot.before.dump",
+    "/home/ubuntu/hey/releases/change-fa9b7c8/reviewbot.cutover.dump"
+  ]
+}
