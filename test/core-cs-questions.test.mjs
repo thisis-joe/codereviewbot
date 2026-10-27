@@ -19,12 +19,12 @@ test('generation assigns change-effect and principle-application goals in a sing
  const result=await generateQuestions({run:async(...args)=>{calls.push(args);return {questions:questions()};}},'workspace',snapshot(),readPolicy(),context,null,[],[],'full');
  assert.equal(result.questions.length,2);assert.equal(calls.length,1);
  const prompt = calls[0][1];
- assert.match(prompt,/Q1은 변경의 핵심 효과/);assert.match(prompt,/Q2는.*핵심 원리를 적용/);
- assert.match(prompt,/같은 개념을 다루더라도 Q1은 변경 효과, Q2는 원리 적용/);
- assert.match(prompt,/함수명을 반드시 질문에 넣을 필요는 없습니다/);
- assert.match(prompt,/단순한 값 조회나 실행 순서 추적만으로 평가가 끝나지 않는다/);
- assert.match(prompt,/선택지의 차이가 예외 처리 경로나 내부 규칙의 결과뿐이면/);
- assert.match(prompt,/key.explanation: 관련 원리의 뜻/);
+ assert.match(prompt,/Q1은 변경의 핵심 효과/);assert.match(prompt,/Q2는 이 변경의 정확성이 가장 크게 기대는 원리 하나를 이번 변경의 상황에서 묻습니다/);
+ assert.match(prompt,/같은 사실을 효과와 원리로 두 번 묻지 마세요/); assert.match(prompt,/리뷰어가 승인 전에 반드시 알아야 할 효과/);
+ assert.match(prompt,/함수명은 특정 구현을 구별할 때만 쓰고/); assert.match(prompt,/나쁜 Q1[\s\S]*좋은 Q1/);
+ assert.match(prompt,/값 조회나 실행 순서 추적만으로는 풀리지 않는가/); assert.match(prompt,/역할을 나타내는 말로 바꿨을 때 조건 → 원리 → 보장 또는 위험의 관계가 남지 않으면/);
+ assert.match(prompt,/선택지의 차이가 예외 처리 경로나 내부 규칙의 결과뿐인 문항/); assert.match(prompt,/hunk 밖의 줄은 거부됩니다/);
+ assert.match(prompt,/변경 전과 후에 동작이 어떻게 다른지/); assert.match(prompt,/오답 보기는 어떤 오독/); assert.match(prompt,/최대 2곳/); assert.doesNotMatch(prompt,/관련 원리의 뜻/);
  assert.match(prompt,/정확히 2개/);assert.match(prompt,/level은 모두 basic/);
  assert.doesNotMatch(prompt,/서로 다른 CS 원리 두 가지|나머지는 기존처럼 동작|정확히 4개|basic 3개/);
 });

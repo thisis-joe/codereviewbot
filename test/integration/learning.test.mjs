@@ -25,7 +25,7 @@ test('signed learning webhooks generate, resume, grade and reconcile lost replie
       replies.push({ body, parent, discussion }); comments.push({ id: `bot-${replies.length}`, surface: parent ? 'review' : 'issue', parentId: parent ?? undefined, body, author: 'bot', url: '' }); if (loseReply) { loseReply = false; throw new Error('response lost after remote write'); } } };
   const workspaces = { prepare: async () => ({ policy: {}, context: { sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\ncharge();\n}' }, baseFiles: {}, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines: new Set([1, 2, 3]) } }, excluded: [], limited: false } }) };
   const questions = ['pay에서 같은 멱등 키를 사용하는 이유는 무엇인가요?', 'charge가 성공한 뒤 저장이 실패하면 어떤 복구 전략을 적용하나요?', '동시 pay 요청에 대한 멱등 기록은 어떻게 원자적으로 저장하나요?', 'pay 재시도 간격은 어떤 기준으로 정하나요?', 'charge 타임아웃 뒤 상태 조회는 왜 필요한가요?'].map((question, i) => ({ question, path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'advanced', options: (i ? ['보기 A', '보기 B', '보기 C', '보기 D'] : ['중복 요청 식별', '호출마다 새 승인', '승인 생략', '재시도 금지']).map((text, n) => ({ id: 'ABCD'[n], text })), key: { answer: 'A', explanation: '같은 키로 같은 요청을 식별합니다.', options: [...'ABCD'].map(id => ({ id, explanation: `${id} 해설` })) } }));
-  const model = { run: async (phase, prompt) => { calls.push({ phase, prompt }); return phase === 'questions' ? { questions } : { verdict: 'correct', explanation: '동일 요청을 식별한다는 답이 맞습니다.', expectedAnswer: '외부 승인 재시도에서 같은 키를 재사용해 중복 부작용을 방지합니다.', optionExplanations: [{ id: 'A', explanation: '같은 논리 요청을 식별합니다.' }, { id: 'B', explanation: '새 승인은 중복 결제를 만들 수 있습니다.' }, { id: 'C', explanation: '승인을 생략할 수 없습니다.' }, { id: 'D', explanation: '재시도 자체는 필요합니다.' }], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '외부 결제 승인' }] }; } };
+  const model = { run: async (phase, prompt) => { calls.push({ phase, prompt }); return phase === 'questions' ? { questions, unavailableReason: null } : { verdict: 'correct', explanation: '동일 요청을 식별한다는 답이 맞습니다.', expectedAnswer: '외부 승인 재시도에서 같은 키를 재사용해 중복 부작용을 방지합니다.', optionExplanations: [{ id: 'A', explanation: '같은 논리 요청을 식별합니다.' }, { id: 'B', explanation: '새 승인은 중복 결제를 만들 수 있습니다.' }, { id: 'C', explanation: '승인을 생략할 수 없습니다.' }, { id: 'D', explanation: '재시도 자체는 필요합니다.' }], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '외부 결제 승인' }] }; } };
   let controller = new Controller(store, [platform], workspaces, model);
   // The HTTP application and signature verification remain real; only provider/model boundaries are fixtures.
   let server;
@@ -132,7 +132,7 @@ test('GitLab signed replies reveal their persisted initial or follow-up question
       if (newThread && lost) { lost = false; throw Error('reply response lost'); }
     } };
   const questions = Array.from({ length:5 }, (_,i) => ({ ...value.questions[0], level:'advanced', question: `추가 묶음에서 조건 ${i+1}이 보장에 미치는 영향은 무엇인가요?` }));
-  const model = { run: async () => { calls++; return { questions }; } };
+  const model = { run: async () => { calls++; return { questions, unavailableReason: null }; } };
   const workspaces = { prepare: async () => ({ policy:{}, context:{ sourceDir:'/source', files:{'src/pay.ts':'function pay() {\ncharge();\n}'}, baseFiles:{}, diff:{'src/pay.ts':{ oldPath:'src/pay.ts', patch:'@@ -1,3 +1,3 @@\n function pay() {\n+charge();\n }', lines:new Set([1,2,3]), positions:{ RIGHT:{2:{newLine:2}}, LEFT:{} } }}, excluded:[], limited:false } }) };
   let controller = new Controller(store,[platform],workspaces,model);
   let server;

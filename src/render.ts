@@ -61,7 +61,7 @@ export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
   ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화1 B · 면접1 B · 꼬리1 B', '/hey answer Q1 B'],
   ['/hey showanswer', '정답 보기', '질문 댓글에 답글로 남기면 그 댓글의 질문만 정답·해설 공개<br>번호 지정 없이 사용 · 답변 완료로 처리하지 않음', '/hey showanswer'],
-  ['/hey whatelse', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey whatelse'],
+  ['/hey whatelse', '심화 질문', '이 변경의 트레이드오프·실패 경계·영향·확인 방법을 더 깊게 묻는 질문 최대 5개<br>심화1·심화2…로 번호 부여 · CS 개념 심화는 morecs', '/hey whatelse'],
   ['/hey csinterview', 'CS 면접', '변경이 기대는 핵심 CS 개념 면접 질문 2개<br>면접1·면접2…로 번호 부여', '/hey csinterview'],
   ['/hey morecs', '꼬리 질문', '최근 면접 묶음을 더 파고드는 질문 최대 4개<br>꼬리1·꼬리2…, 새 면접 질문은 면접 번호를 이음', '/hey morecs'],
   ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],

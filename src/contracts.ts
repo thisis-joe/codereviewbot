@@ -48,13 +48,14 @@ export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10
 // Initial questions cover fundamental CS principles; advanced learning is opt-in.
 export const INITIAL_QUESTION_COUNT = 2;
 export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema.extend({ level: z.literal('basic') })).length(INITIAL_QUESTION_COUNT) });
-// Each /hey whatelse batch is fixed at five questions.
+const shortfallReason = z.string().trim().min(1).max(1000).nullable();
+// Each /hey whatelse batch aims for five questions and returns fewer, with a reason, rather than padding.
 export const QUESTION_BATCH_SIZE = 5;
-export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
+export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).max(QUESTION_BATCH_SIZE), unavailableReason: shortfallReason })
+  .refine(v => (v.questions.length === QUESTION_BATCH_SIZE) === (v.unavailableReason === null), 'A shortfall reason is required exactly when fewer than five questions are available');
 // Interview batches favor the most core concepts over filling the quota.
 export const CS_INTERVIEW_COUNT = 2;
 const InterviewQuestionSchema = ChangeQuestionSchema.extend({ key: InterviewKeySchema });
-const shortfallReason = z.string().trim().min(1).max(1000).nullable();
 export const CsInterviewBatchSchema = z.strictObject({
   questions: z.array(InterviewQuestionSchema).max(CS_INTERVIEW_COUNT),
   unavailableReason: shortfallReason,

@@ -28,7 +28,7 @@ function learningHarness(body, overrides = {}) {
   const platform = { config: { botLogin: 'bot' }, permission: async () => data.permission ?? 'write', owned: c => c.author === 'bot',
     comments: async () => data.remote.map(c => ({ surface: job.body.comment.surface, ...c })), inlineComments: async () => [], snapshot: async () => ({ ...data.snap }),
     reply: async (...args) => { data.replies.push(args); if (data.replyError) throw new Error('network lost'); } };
-  const model = { run: async (phase, prompt) => { data.calls.push({ phase, prompt }); data.onModel?.(); return data.output ?? { questions: extraQuestions() }; } };
+  const model = { run: async (phase, prompt) => { data.calls.push({ phase, prompt }); data.onModel?.(); return data.output ?? { questions: extraQuestions(), unavailableReason: null }; } };
   const controller = new Controller(store, [], { prepare: async () => ({ context: data.context ?? context(), policy: data.policy ?? {} }) }, model);
   return { data, job, run: async (jobOverride = {}) => controller.command({ ...job, ...jobOverride }, platform, async () => {}) };
 }
@@ -272,6 +272,22 @@ test('unverifiable answers remain ungraded and incomplete choice explanations ca
   await assert.rejects(() => choice.run(), /보기/); assert.equal(choice.data.replies.length, 0);
 });
 
+test('whatelse publishes fewer than five questions with the model reason and later batches continue the numbering', async () => {
+  const reason = '나머지 후보는 변경 맥락 없이도 성립하는 일반 CS 질문이라 제외했습니다.';
+  const h = learningHarness('/hey whatelse', { output: { questions: extraQuestions().slice(0, 3), unavailableReason: reason } }); await h.run();
+  const body = h.data.replies[0][1];
+  assert.equal(h.data.saved.questions.length, 3); assert.equal([...body.matchAll(/^#### 심화\d+\. /gm)].length, 3);
+  assert.match(body, /3문항만 출제했습니다\. 나머지 후보는 변경 맥락 없이도/);
+  const next = learningHarness('/hey whatelse', { batches: [{ snapshot: snapshot(), questions: h.data.saved.questions, start: 1 }], output: { questions: [extraQuestions()[3]], unavailableReason: '한 문항만 남았습니다.' } }); await next.run();
+  assert.match(next.data.replies[0][1], /^#### 심화4\. /m);
+  for (const output of [{ questions: extraQuestions().slice(0, 3), unavailableReason: null }, { questions: extraQuestions(), unavailableReason: '사유' }]) {
+    const invalid = learningHarness('/hey whatelse', { output }); await assert.rejects(() => invalid.run()); assert.equal(invalid.data.replies.length, 0);
+  }
+  const none = learningHarness('/hey whatelse', { output: { questions: [], unavailableReason: '변경이 설정 한 줄뿐입니다.' } }); await none.run();
+  assert.match(none.data.replies[0][1], /심화 질문을 생성하지 못했습니다\. 변경이 설정 한 줄뿐입니다/); assert.equal(none.data.saved.questions, undefined);
+});
+
+
 test('display numbers resolve to review questions first and then continue through follow-up batches', async () => {
   const grade = { verdict: 'correct', explanation: '맞습니다.', expectedAnswer: '같은 키', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] };
   const r = report(), extra = extraQuestions();
@@ -285,7 +301,7 @@ test('display numbers resolve to review questions first and then continue throug
   const mixed = learningHarness('/hey answer Q1 B 심화1 B', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await mixed.run();
   assert.deepEqual(mixed.data.saved.grades.map(g => g.id), [questionId(r.snapshot, r.questions[0]), questionId(r.snapshot, extra[0])]);
   const fresh = ['pay 재시도 사이 키 저장소 장애는 어떻게 다뤄야 하나요?', 'charge 응답 코드별 재시도 정책은 어떻게 나누나요?', 'save 실패를 재현하는 테스트는 어떤 경계에서 작성하나요?', 'pay 로그에 남길 멱등 키 정보는 무엇인가요?', 'charge 호출 순서를 바꾸면 어떤 불변 조건이 깨지나요?'].map(question => ({ ...extra[0], question }));
-  const more = learningHarness('/hey whatelse', { report: r, batches: [{ snapshot: snapshot(), questions: extra }], output: { questions: fresh } }); await more.run();
+  const more = learningHarness('/hey whatelse', { report: r, batches: [{ snapshot: snapshot(), questions: extra }], output: { questions: fresh, unavailableReason: null } }); await more.run();
   assert.equal(more.data.saved.start, 6); assert.match(more.data.replies[0][1], /^#### 심화6\. pay /m); assert.match(more.data.replies[0][1], /^#### 심화10\. /m);
   assert.doesNotMatch(more.data.replies[0][1], /^#### Q\d/m); assert.match(more.data.replies[0][1], /`\/hey help`/); assert.doesNotMatch(more.data.replies[0][1], /pay\\.ts:\d|\/blob\//);
   const missing = learningHarness('/hey answer Q4 B', { report: r }); await missing.run();
@@ -301,7 +317,7 @@ test('choice questions ask for an option letter before spending a grading call',
 
 test('extra learning rejects repeated questions and anchors outside the current change', async () => {
   for (const q of [report().questions[0], { ...extraQuestions()[0], path: 'unrelated.ts' }]) {
-    const h = learningHarness('/hey whatelse', { output: { questions: [q, ...extraQuestions().slice(1)] } });
+    const h = learningHarness('/hey whatelse', { output: { questions: [q, ...extraQuestions().slice(1)], unavailableReason: null } });
     await assert.rejects(() => h.run(), /중복|근거/); assert.equal(h.data.replies.length, 0);
   }
 });
@@ -392,7 +408,7 @@ test('grading reserves comment room for the request link near the output boundar
 test('oversized follow-up batches keep all five questions and their choices within the comment budget', async () => {
   const path = Array(5).fill('漢'.repeat(99)).join('/');
   const questions = Array.from({ length: 5 }, (_, i) => ({ question: '&'.repeat(498) + i, path, line: 1, side: 'RIGHT', level: 'advanced', options: ['A', 'B', 'C', 'D'].map(id => ({ id, text: '&'.repeat(299) + id })), key: answerKey() }));
-  const h = learningHarness('/hey whatelse', { output: { questions }, context: { ...context(), files: { [path]: 'source' }, diff: { [path]: { oldPath: path, patch: '@@ -0,0 +1 @@\n+source', lines: new Set([1]) } } } });
+  const h = learningHarness('/hey whatelse', { output: { questions, unavailableReason: null }, context: { ...context(), files: { [path]: 'source' }, diff: { [path]: { oldPath: path, patch: '@@ -0,0 +1 @@\n+source', lines: new Set([1]) } } } });
   await h.run(); const body = h.data.replies[0][1]; assert.ok(body.length <= 60000, `got ${body.length}`);
   assert.equal(h.data.saved.questions.length, 5); assert.equal([...body.matchAll(/^#### 심화\d+\. /gm)].length, 5);
   assert.equal([...body.matchAll(/^- \*\*[A-D]\.\*\* /gm)].length, 20);
@@ -443,21 +459,23 @@ test('stored CS explanations accompany both bare-option grading and answer revea
   }
 });
 
-test('follow-ups deepen principles and exclude repeated learning goals before publishing questions', async () => {
+test('follow-ups go deeper into this change, leave CS depth to 꼬리 and never pad', async () => {
   const h = learningHarness('/hey whatelse'); await h.run();
   const body = h.data.replies[0][1];
   assert.ok(body.indexOf('#### 심화5.') < body.indexOf('답변 달기:'));
   assert.match(body, /^#### 심화1\./m);
   const prompt = h.data.calls[0].prompt;
-  assert.match(prompt, /보장이 성립하는 조건과 그 한계/);
-  assert.match(prompt, /함수명, 숫자, 사례만 바꾼 질문도 중복/);
+  assert.match(prompt, /CS 개념을 깊이 파는 것은 면접·꼬리 질문\(\/hey csinterview, \/hey morecs\)의 몫/);
+  for (const topic of ['트레이드오프', '실패 경계', '영향', '확인']) assert.match(prompt, new RegExp(`^- ${topic}: `, 'm'));
+  assert.match(prompt, /함수명·숫자·사례만 바꿔 다시 묻지 마세요/);
   assert.match(prompt, /여러 선택이 타당한 상황에서 현재 구현과 다르다는 이유만으로 오답 처리하지 마세요/);
-  assert.match(prompt, /핵심 보장의 유지 또는 위반/);
+  assert.match(prompt, /보장의 유지 또는 위반/);
   assert.match(prompt, /문항 난이도·개수 같은 제품 내부 규칙/);
-  assert.match(prompt, /책임 경계.*표현을 붙여도 출제하지 마세요/);
   assert.match(prompt, /조건 → 원리 → 보장 또는 위험/);
-  assert.match(prompt, /key.explanation: 관련 원리, 성립 조건/);
-  assert.match(prompt, /정확히 5개/);assert.match(prompt, /level은 모두 advanced/);
+  assert.match(prompt, /나쁜 심화[\s\S]*좋은 심화/);
+  assert.match(prompt, /변경 전과 후에 동작이 어떻게 다른지/); assert.match(prompt, /hunk 밖의 줄은 거부됩니다/);
+  assert.match(prompt, /최대 5개/); assert.match(prompt, /5개 미만이면 unavailableReason/); assert.match(prompt, /level은 모두 advanced/);
+  assert.doesNotMatch(prompt, /80자|정확히 5개/);
   const data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
   assert.deepEqual(data.priorQuestions, h.data.report.questions.map(q => q.question));
   assert.deepEqual(Object.keys(data.diff), ['src/pay.ts']);
