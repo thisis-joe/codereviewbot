@@ -2,7 +2,9 @@
 
 ## 결론
 
-마지막 7회차(`16cabe3`)에서 새 `/hey csinterview`는 모든 기준을 충족했다. 핵심·깊이 4.88, 비지엽성 5.00, 학습 가치 5.00이고, 정의 고르기와 정답 모호 문항은 0이다. csinterview와 morecs 최종 묶음 56문항을 합치면 핵심·깊이 4.14, 비지엽성 4.86, 학습 가치 5.00으로 평균 목표(4 이상)를 충족한다. 정답 모호는 0이다. **정의 고르기 목표 0은 충족하지 못했다.** 직전 회차(5·6회차)에 1건, 7회차에 2건이 나왔다. 모두 morecs-1에서 질문의 목표·전제 문장이 정답 보기를 그대로 말한 문항이다. 7회차의 '목표 문장 되풀이 금지' 규칙은 지식+적용(3.79 → 4.09), 오답 품질(3.98 → 4.21), 근거(4.04 → 4.14)를 높였지만, 이 결함을 프롬프트 지시만으로 없애지는 못했다.
+마지막 8회차(`6e34bfa`)에서 모든 목표를 충족했다. csinterview와 morecs 54문항 기준 핵심·깊이 4.20, 비지엽성 4.78, 학습 가치 5.00이고, 정의 고르기 0, 정답 모호 0이다. 새 `/hey csinterview`만 보면 4.75, 5.00, 5.00이다. 독립 검토자는 54문항 모두에서 정답키와 같은 답을 골랐다.
+
+정의 고르기는 5·6회차 1건, 7회차 2건이었다. 둘 다 질문의 목표·전제 문장이 정답 보기를 그대로 말한 문항이다. 프롬프트 지시만으로는 사라지지 않아, 8회차에서는 문항마다 출제 검사 필드를 필수로 넣고 컨트롤러가 이를 강제했다. 8회차 생성에서 이 검사로 버린 문항은 0건이므로, 개선은 모델이 생성 중 검사를 수행하며 문항을 고친 결과로 보인다. 다만 회차당 실행이 한 번이라 실행 간 변동과 완전히 구분하지는 못했다.
 
 ## 방법
 
@@ -28,11 +30,16 @@
 | 5·6회차 morecs-2 | 16 | 3.94 | 4.81 | 3.81 | 4.94 | 4.00 | 5.00 | 4.12 | 4.13 | 4.44 | 0 | 0 |
 | 5·6회차 morecs-3 | 16 | 3.62 | 4.94 | 3.50 | 5.00 | 3.75 | 4.94 | 3.38 | 4.06 | 4.06 | 0 | 0 |
 | 5·6회차 after+morecs | 56 | 4.11 | 4.88 | 3.79 | 4.98 | 3.98 | 4.98 | 4.04 | 4.12 | 4.50 | 1 | 0 |
-| **7회차 after** | 8 | **4.88** | **5.00** | 4.50 | 5.00 | 5.00 | **5.00** | 4.62 | – | – | 0 | 0 |
+| 7회차 after | 8 | 4.88 | 5.00 | 4.50 | 5.00 | 5.00 | 5.00 | 4.62 | – | – | 0 | 0 |
 | 7회차 morecs-1 | 16 | 4.25 | 4.81 | 3.94 | 5.00 | 4.12 | 5.00 | 4.44 | 3.92 | 4.94 | 2 | 0 |
 | 7회차 morecs-2 | 16 | 4.00 | 4.88 | 4.00 | 5.00 | 4.06 | 5.00 | 4.12 | 4.20 | 4.69 | 0 | 0 |
 | 7회차 morecs-3 | 16 | 3.81 | 4.81 | 4.12 | 5.00 | 4.06 | 5.00 | 3.62 | 4.31 | 4.06 | 0 | 0 |
-| **7회차 after+morecs** | 56 | **4.14** | **4.86** | 4.09 | 5.00 | 4.21 | **5.00** | 4.14 | 4.15 | 4.56 | **2** | **0** |
+| 7회차 after+morecs | 56 | 4.14 | 4.86 | 4.09 | 5.00 | 4.21 | 5.00 | 4.14 | 4.15 | 4.56 | 2 | 0 |
+| **8회차 after** | 8 | **4.75** | **5.00** | 4.00 | 5.00 | 4.88 | **5.00** | 4.88 | – | – | 0 | 0 |
+| 8회차 morecs-1 | 16 | 4.44 | 4.81 | 4.12 | 5.00 | 4.25 | 5.00 | 4.25 | 4.23 | 5.00 | 0 | 0 |
+| 8회차 morecs-2 | 15 | 4.13 | 4.80 | 3.87 | 5.00 | 4.13 | 5.00 | 4.33 | 3.79 | 4.67 | 0 | 0 |
+| 8회차 morecs-3 | 15 | 3.73 | 4.60 | 3.80 | 5.00 | 3.80 | 5.00 | 3.53 | 4.20 | 4.00 | 0 | 0 |
+| **8회차 after+morecs** | 54 | **4.20** | **4.78** | 3.94 | 5.00 | 4.19 | **5.00** | 4.17 | 4.07 | 4.57 | **0** | **0** |
 
 최종 프롬프트는 s1·s3이 `8dac8c4`, s2·s4가 `5ca4c32`이다. `5ca4c32`은 근거 위치 규칙 문장만 더했다. morecs의 새 면접 질문 정당성(문항)은 4.40이고, 묶음 구성 판단(3+1/4+0)은 라운드별로 4.50 → 4.00 → 3.50이다.
 
@@ -51,14 +58,76 @@
 | 2 | 3 | prompt: anchor must be the question whose concept the follow-up deepens; exclude one-formula questions and answers resting on an assumed OS/library facility; a new interview question must beat the remaining follow-ups | round 2: S1 꼬리2/꼬리3 named 면접2 but tested size caps and UTF-8 decoding; S3 면접3 (linear scan) and S4 면접4 (hash map O(M+N)) were solvable by one formula; S4 꼬리10 drifted into hashing arithmetic; S1 꼬리1 relied on an assumed OS facility that blocks root escape | 1d63ba9 |
 | 3 | 5 | prompt: follow-up assumptions may change only one condition (failure timing, concurrency, scale, order) of a mechanism the change uses; no new subsystems (replication, partitions, separate caches, MACs, version stores); prefer a new core interview question when remaining follow-ups need such subsystems; no repeated judgment under another anchor; no formal-variant distractors | independent scoring of round 3: after+morecs coreDepth 3.73 (<4), grounding 3.62 → 2.56 → 2.31 and noDrift 4.81 → 3.44 → 3.12 across morecs rounds; s2 꼬리6/꼬리10 and s4 꼬리4 rested on replication, partition and MAC subsystems; dedup retention, lock ordering and retry storms repeated across anchors; 4+0 chosen after drift | 8dac8c4 |
 | 4 | 7 | 질문의 목표·조건 문장이 정답 보기를 되풀이하지 않게 하고, 오답 셋도 그 목표를 지킨다고 주장하는 방법이 되게 함(자기 검토 항목 추가) | 5·6회차 독립 채점: s4 꼬리1의 목표 문장 '대상 밖 해설을 공개하지 않음'이 정답 C였음. 사용자가 이 회차와 GMS 호출 추가를 따로 승인함 | 16cabe3 |
+| 5 | 8 | 구조적 검사: 문항마다 check{definitionOnlyPick, definitionOnlyReason, stemQuote, giveaway} 필수. 컨트롤러가 pick=정답, 본문에 없는 인용, giveaway=true인 문항을 버리고 사유를 붙임(채우지 않음). 문자열 유사도 검사는 실제 188문항으로 보정한 결과 플래그 5건을 구분하지 못해 넣지 않음 | 7회차 정의 고르기 2건(s3 꼬리2, s4 꼬리2). 프롬프트 문구로는 줄지 않음. 사용자가 구조적 수정과 추가 GMS 호출을 따로 승인함 | 6e34bfa |
 
 Round 2 completed all 4 samples × (before + after + 3 morecs) except S4 before (old prompt timed out at 120 s). GMS 503/unavailable responses occurred on 4 attempts and were absorbed by the application's own retries. morecs durations: 114–200 s.
 
-품질 반복 집계: 프롬프트 품질 반복은 `1d63ba9`, `8dac8c4`, `16cabe3` 3회다. 120초→240초 예산(`dd6dc37`)과 아래 위치 계약 수정은 실행·계약 결함 수정이며 품질 반복에 넣지 않았다.
+품질 반복 집계: 목표의 3회 한도 안에서 프롬프트 품질 반복은 `1d63ba9`, `8dac8c4`, `16cabe3` 3회였다. 남은 정의 고르기를 없애기 위한 구조적 수정 `6e34bfa`(5행)와 그 검증 회차는 사용자가 한도를 넘는 추가 작업과 GMS 호출로 따로 승인했다. 120초→240초 예산(`dd6dc37`)과 아래 위치 계약 수정은 실행·계약 결함 수정이며 품질 반복에 넣지 않았다.
 
 추가: 위치 계약 수정 (`5ca4c32`, 품질 반복 아님). 프롬프트는 "읽을 수 있는 유효한 줄"이라고만 했지만, 검증기는 diff hunk 안의 줄만 받는다. 5회차에서 이 차이로 morecs 작업 2건이 3회 시도를 모두 실패했다(s2 `workflow.ts:90/94`, s4 `controller.ts:113`). 문구를 고친 뒤 6회차 s2·s4는 위치 거절 없이 첫 시도에 완료했다.
 
-## 7회차 문항 (마지막 프롬프트, 앵커 포함)
+## 8회차 문항 (마지막, 앵커 포함)
+
+원문 전체: `round8-questions.md`. s1 morecs-3과 s4 morecs-2는 사유와 함께 3문항만 냈다. 플래그 문항은 없다.
+
+| 표본 | 묶음 | 번호 | 앵커 | 개념 (채점자 요약) | 정답 | 핵심·깊이 | 비지엽 | 지식+적용 | 학습 | 근거 | 앵커 적합 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| s1 | after | 면접1 | – | realpath + separator-bounded prefix | B | 5 | 5 | 5 | 5 | 4 | – |
+| s1 | after | 면접2 | – | stateful UTF-8 decoding across chunks | C | 5 | 5 | 4 | 5 | 5 | – |
+| s1 | morecs-1 | 꼬리1 | 면접1 | TOCTOU: shared lock spanning check to read | B | 5 | 4 | 4 | 5 | 3 | 5 |
+| s1 | morecs-1 | 꼬리2 | 면접2 | lossy conversion: strict decoding before U+FFFD | D | 4 | 4 | 5 | 5 | 4 | 5 |
+| s1 | morecs-1 | 꼬리3 | 면접2 | incremental decoder still accumulates output | A | 4 | 5 | 4 | 5 | 5 | 4 |
+| s1 | morecs-1 | 면접3 | – | partial failure: timeout retry may double-run | C | 5 | 5 | 4 | 5 | 4 | – |
+| s1 | morecs-2 | 꼬리4 | 꼬리3 | quadratic re-serialization of growing history | A | 4 | 5 | 4 | 5 | 5 | 3 |
+| s1 | morecs-2 | 꼬리5 | 꼬리3 | pre-parse byte cap vs post-hoc size checks | D | 4 | 5 | 3 | 5 | 5 | 4 |
+| s1 | morecs-2 | 꼬리6 | 면접3 | fixed deadline minus now incl. tool time | C | 4 | 5 | 3 | 5 | 5 | 3 |
+| s1 | morecs-2 | 면접4 | – | runtime validation of tool arguments | B | 4 | 5 | 4 | 5 | 5 | – |
+| s1 | morecs-3 | 꼬리7 | 꼬리5 | admission control: slots x M <= P | A | 4 | 5 | 3 | 5 | 3 | 4 |
+| s1 | morecs-3 | 꼬리8 | 꼬리6 | slot held until uncancellable tool finishes | D | 4 | 5 | 4 | 5 | 4 | 4 |
+| s1 | morecs-3 | 꼬리9 | 면접4 | read budget at the consumption point | C | 4 | 5 | 4 | 5 | 3 | 4 |
+| s2 | after | 면접1 | – | lease from executor + conditional save | B | 5 | 5 | 4 | 5 | 5 | – |
+| s2 | after | 면접2 | – | atomic + conditional retry UPDATE | D | 5 | 5 | 4 | 5 | 5 | – |
+| s2 | morecs-1 | 꼬리1 | 면접1 | shorter lease: faster recovery vs false takeover | C | 4 | 5 | 4 | 5 | 4 | 4 |
+| s2 | morecs-1 | 꼬리2 | 면접1 | execution deadline vs heartbeat liveness | B | 5 | 5 | 4 | 5 | 4 | 4 |
+| s2 | morecs-1 | 꼬리3 | 면접2 | ABA: generation id in conditional UPDATE | D | 4 | 5 | 4 | 5 | 5 | 5 |
+| s2 | morecs-1 | 꼬리4 | 면접2 | crash consistency: file before reference | A | 4 | 5 | 4 | 5 | 4 | 4 |
+| s2 | morecs-2 | 꼬리5 | 꼬리1 | DB fencing does not cover external edits | B | 5 | 5 | 4 | 5 | 4 | 3 |
+| s2 | morecs-2 | 꼬리6 | 꼬리2 | cooperative scheduling delays both timers | C | 4 | 4 | 4 | 5 | 3 | 4 |
+| s2 | morecs-2 | 꼬리7 | 꼬리4 | safe reclamation: lock publish and delete together | D | 4 | 5 | 4 | 5 | 4 | 5 |
+| s2 | morecs-2 | 꼬리8 | 꼬리4 | copy-on-write vs in-place atomic replace | A | 4 | 5 | 4 | 5 | 4 | 5 |
+| s2 | morecs-3 | 꼬리9 | 꼬리6 | timeout is not cancellation of side effects | B | 4 | 5 | 4 | 5 | 3 | 4 |
+| s2 | morecs-3 | 꼬리10 | 꼬리7 | lock span from key lookup to file copy | D | 3 | 5 | 3 | 5 | 2 | 5 |
+| s2 | morecs-3 | 꼬리11 | 꼬리7 | connection pool exhaustion; admit before acquiring | C | 4 | 4 | 4 | 5 | 4 | 3 |
+| s2 | morecs-3 | 꼬리12 | 꼬리8 | rename durability vs visibility (directory fsync) | A | 3 | 3 | 4 | 5 | 2 | 5 |
+| s3 | after | 면접1 | – | unique key + job insert in one transaction | C | 5 | 5 | 4 | 5 | 5 | – |
+| s3 | after | 면접2 | – | persistent shared call budget across lineage | B | 4 | 5 | 4 | 5 | 5 | – |
+| s3 | morecs-1 | 꼬리1 | 면접1 | registration once is not execution once | B | 5 | 5 | 4 | 5 | 4 | 4 |
+| s3 | morecs-1 | 꼬리2 | 면접1 | target lock must span check through insert commit | D | 5 | 5 | 4 | 5 | 4 | 4 |
+| s3 | morecs-1 | 꼬리3 | 면접2 | generation cap bounds depth, not width | C | 5 | 5 | 5 | 5 | 5 | 5 |
+| s3 | morecs-1 | 면접3 | – | composite index: equality fields then sort keys | A | 4 | 4 | 4 | 5 | 5 | – |
+| s3 | morecs-2 | 꼬리4 | 꼬리2 | consistent snapshot across two queries | D | 4 | 4 | 4 | 5 | 4 | 3 |
+| s3 | morecs-2 | 꼬리5 | 꼬리2 | ownership check on result save | A | 5 | 5 | 4 | 5 | 5 | 2 |
+| s3 | morecs-2 | 꼬리6 | 꼬리3 | jitter is probabilistic, not a rate bound | C | 4 | 5 | 4 | 5 | 4 | 3 |
+| s3 | morecs-2 | 꼬리7 | 면접3 | covering index read/write trade-off | B | 3 | 4 | 4 | 5 | 3 | 5 |
+| s3 | morecs-3 | 꼬리8 | 꼬리4 | MVCC old-version retention cost | A | 3 | 3 | 4 | 5 | 2 | 5 |
+| s3 | morecs-3 | 꼬리9 | 꼬리5 | ABA: owner token per lease acquisition | C | 4 | 5 | 4 | 5 | 5 | 5 |
+| s3 | morecs-3 | 꼬리10 | 꼬리6 | polling quantizes jittered times | B | 3 | 4 | 4 | 5 | 4 | 5 |
+| s3 | morecs-3 | 꼬리11 | 꼬리6 | queue stability must count retries | D | 4 | 5 | 4 | 5 | 3 | 3 |
+| s4 | after | 면접1 | – | provenance + thread relation | B | 5 | 5 | 4 | 5 | 5 | – |
+| s4 | after | 면접2 | – | invalidate cached result on rule change | C | 4 | 5 | 3 | 5 | 5 | – |
+| s4 | morecs-1 | 꼬리1 | 면접1 | validate all references before publishing | B | 4 | 5 | 4 | 5 | 4 | 3 |
+| s4 | morecs-1 | 꼬리2 | 면접2 | re-check narrows but does not close TOCTOU | C | 4 | 5 | 4 | 5 | 5 | 3 |
+| s4 | morecs-1 | 꼬리3 | 면접2 | atomic body+version pair | A | 4 | 5 | 4 | 5 | 4 | 5 |
+| s4 | morecs-1 | 면접3 | – | uncertain publish: hold until confirmed | D | 5 | 5 | 4 | 5 | 4 | – |
+| s4 | morecs-2 | 꼬리4 | 꼬리3 | compare-and-swap first write with success check | D | 5 | 5 | 4 | 5 | 5 | 5 |
+| s4 | morecs-2 | 꼬리5 | 면접3 | idempotency key = original command id | B | 4 | 5 | 4 | 5 | 5 | 4 |
+| s4 | morecs-2 | 꼬리6 | 면접3 | finite retries cannot guarantee liveness | A | 4 | 5 | 4 | 5 | 4 | 4 |
+| s4 | morecs-3 | 꼬리7 | 꼬리4 | DB transaction does not cover external POST | C | 4 | 5 | 4 | 5 | 4 | 3 |
+| s4 | morecs-3 | 꼬리8 | 꼬리4 | ambiguous outcome of conditional write; reread | B | 5 | 5 | 4 | 5 | 5 | 5 |
+| s4 | morecs-3 | 꼬리9 | 꼬리5 | composite key in scoped ID namespace | A | 3 | 5 | 3 | 5 | 5 | 4 |
+| s4 | morecs-3 | 꼬리10 | 꼬리6 | head-of-line blocking: release slot during backoff | D | 4 | 5 | 4 | 5 | 4 | 4 |
+
+## 7회차 문항 (앵커 포함)
 
 원문 전체: `round7-questions.md`. ⚑는 플래그 문항이다(s3 꼬리2, s4 꼬리2: 목표·전제 문장이 정답을 말함).
 
@@ -213,7 +282,7 @@ Round 2 completed all 4 samples × (before + after + 3 morecs) except S4 before 
 
 ## 실행 기록과 실패
 
-- 전체 GMS 호출 96회 중 83회 성공했다. 실패 13회는 시간 초과 6회와 일시 장애(503 등) 7회이며, 일시 장애는 모두 애플리케이션 재시도로 회복했다. 7회차(18회 호출)는 위치 거절 없이 네 체인을 모두 완료했다.
+- 전체 GMS 호출 112회 중 99회 성공했다. 실패 13회는 시간 초과 6회와 일시 장애(503 등) 7회이며, 일시 장애는 모두 애플리케이션 재시도로 회복했다. 7회차(18회)와 8회차(16회)는 위치 거절 없이 네 체인을 모두 완료했다. 8회차 출제 검사로 버린 문항은 0건이다.
 - 1회차: morecs 120초 예산에서 4문항 앵커 묶음 호출이 3회 모두 시간 초과되어 체인이 멈췄다. 이후 morecs 예산을 240초로 올렸다(`dd6dc37`). 그 뒤 morecs 소요 시간은 95–208초였다.
 - 6회차 s2의 csinterview 첫 시도가 120초 예산에서 시간 초과됐고 재시도에서 65초에 끝났다. csinterview 소요 시간은 65–108초로, 120초 예산에 가깝다.
 - 근거 위치 거절은 3회차 1건, 5회차 7건(그중 작업 2건 실패)이었다. `5ca4c32` 이후 0건이다.
@@ -221,17 +290,17 @@ Round 2 completed all 4 samples × (before + after + 3 morecs) except S4 before 
 
 ## 검증하지 못한 것
 
-- 정의 고르기 0 목표를 충족하지 못했다(7회차 2건: s3 꼬리2, s4 꼬리2). 프롬프트 지시로는 더 줄이지 못했다. 다음 단계 후보는 출력 계약에 "정의만 아는 지원자가 고를 보기"를 적게 하는 구조적 장치, 또는 생성 후 문항을 검토하는 추가 호출이다. 추가 호출은 GMS 할당량을 더 쓴다.
-- morecs-3의 근거가 3.62로 가장 낮다. 지어낸 잠금·공정성 확장과 표본 간 반복 주제(부분 실패, 조건부 갱신, 시간 초과 후 슬롯 유지)가 남아 있다.
-- 표본은 이 저장소의 변경 4개이고 프롬프트마다 표본당 실행은 한 번이다. 다른 언어·도메인의 저장소나 반복 실행에 따른 변동은 측정하지 않았다.
+- 8회차 목표 충족은 회차당 한 번 실행한 결과다. 출제 검사로 버린 문항이 0건이므로, 개선이 필수 검사 필드의 효과인지 실행 간 변동인지 완전히 구분하지 못했다. 반복 실행으로 정의 고르기 0이 유지되는지는 측정하지 않았다.
+- 목표·전제 문장이 정답을 암시하는 약한 사례가 남아 있다(채점자 기준 지식+적용 3: s1 꼬리5·꼬리6, s4 면접2 등).
+- morecs-3의 근거(3.53)와 표류 없음(4.00)이 가장 낮다. DB 엔진 내부, 저장 장치 내구성 같은 두 단계 떨어진 확장과 표본 간 반복 주제가 남아 있다. s4 morecs-2의 부족 사유는 이후 회차의 문항과 모순된다.
+- 표본은 이 저장소의 변경 4개이고, 다른 언어·도메인의 저장소는 측정하지 않았다.
 - 채점은 독립 에이전트 1명과 작성자 확인이며, 사람 면접관이나 다수 평가자의 합의가 아니다.
-- Codex와 Claude 공급자의 실제 모델 출력은 검증하지 않았다(스키마와 어댑터는 로컬 가짜 바이너리로 테스트).
-- csinterview 소요 시간은 65–108초로 120초 예산에 가깝다(6회차 시간 초과 1회는 재시도로 회복).
+- Codex와 Claude 공급자의 실제 모델 출력은 검증하지 않았다(스키마와 어댑터는 로컬 가짜 바이너리로 테스트). 출제 검사 필드가 추가되어 출력 토큰과 시간이 늘 수 있으나, 8회차 소요 시간은 기존 예산 안이었다.
 - 실제 GitHub/GitLab 댓글 게시와 운영 배포는 하지 않았다.
 
 ## 파일
 
 - `runs.json`: 호출별 단계, 상태, 시간, 실패 코드, 명령 결과, 정리 여부
-- `scores-round3.json`, `scores-final.json`(5·6회차), `scores-round7.json`: 문항별 독립 채점과 요약
-- `round1-questions.md` … `round7-questions.md`: 회차별 실제 출력 원문
+- `scores-round3.json`, `scores-final.json`(5·6회차), `scores-round7.json`, `scores-round8.json`: 문항별 독립 채점과 요약
+- `round1-questions.md` … `round8-questions.md`: 회차별 실제 출력 원문
 - 평가 기준: `../csinterview-morecs-rubric-2026-10-26.json`
