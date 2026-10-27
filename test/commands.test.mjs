@@ -219,7 +219,7 @@ test('change-question grading judges change understanding and leaves explanation
   const r = report(), id = questionId(r.snapshot, r.questions[0]);
   const h = learningHarness(`/hey answer Q1 B 같은 키를 씁니다`, { report: r, output: { verdict: 'partial', explanation: 'B는 맞지만 이유가 다릅니다.', expectedAnswer: null, optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } }); await h.run();
   const prompt = h.data.calls[0].prompt;
-  assert.match(prompt, /PR\/MR 변경을 이해했는지/); assert.match(prompt, /동작\(코드가 실제로 하는 일\), 이유\(왜 바꿨는지\), 영향/);
+  assert.match(prompt, /PR\/MR 변경을 이해했는지/); assert.match(prompt, /1~4문장/); assert.match(prompt, /동작\(코드가 실제로 하는 일\), 이유\(왜 바꿨는지\), 영향/);
   assert.match(prompt, /정답은 맞지만 이유가 다릅니다/); assert.match(prompt, /expectedAnswer=null, optionExplanations=\[\]/);
   assert.match(prompt, /나쁜 피드백[\s\S]*좋은 피드백/); assert.doesNotMatch(prompt, /한국어와 영어/);
   assert.deepEqual(JSON.parse(prompt.split('채점 자료(JSON 데이터):\n')[1]).diff['src/pay.ts'].oldPath, 'src/pay.ts');
@@ -513,6 +513,8 @@ test('follow-ups go deeper into this change, leave CS depth to 꼬리 and never 
   assert.match(prompt, /변경 전과 후에 동작이 어떻게 다른지/); assert.match(prompt, /hunk 밖의 줄은 거부됩니다/);
   assert.match(prompt, /최대 5개/); assert.match(prompt, /5개 미만이면 unavailableReason/); assert.match(prompt, /level은 모두 advanced/);
   assert.doesNotMatch(prompt, /80자|정확히 5개/);
+  assert.match(prompt, /묻는 결론\(그 결과·보장·한계\)이나 정답을 가르는 규칙은 쓰지 마세요/); assert.match(prompt, /전제를 부정하거나 상식만으로 지워지는 보기/);
+  assert.match(prompt, /운영에서 실제로 일어나는 조건/); assert.match(prompt, /드물게 겹치는 사건을 가정해야만/); assert.match(prompt, /변경 전에도 그대로였던 동작/);
   const data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
   assert.deepEqual(data.priorQuestions, h.data.report.questions.map(q => q.question));
   assert.deepEqual(Object.keys(data.diff), ['src/pay.ts']);

@@ -73,10 +73,11 @@ export const MoreCsBatchSchema = z.strictObject({
   .refine(v => v.questions.length === MORECS_COUNT || v.unavailableReason !== null, 'A shortfall reason is required when fewer than four questions are available');
 // explanation is the feedback on the developer's reasoning. A keyed question shows its stored explanation and option notes,
 // so the model leaves expectedAnswer null; questions saved before keys existed still get them from the model.
-// An older runner's fully written grade also parses and is overridden by the key.
+// An older runner's fully written grade also parses and is overridden by the key. Feedback that credits, names the
+// misreading and cites code ran past three sentences in real runs and failed whole commands, so it may use four.
 export const GradeSchema = z.strictObject({
   verdict: z.enum(['correct', 'partial', 'incorrect', 'unverifiable']),
-  explanation: explanationText(2000), expectedAnswer: explanationText(2000).nullable(),
+  explanation: explanationText(2000, 4), expectedAnswer: explanationText(2000).nullable(),
   optionExplanations: z.array(z.strictObject({ id: z.enum(['A', 'B', 'C', 'D', 'E']), explanation: explanationText(800) })).max(5),
   evidence: z.array(EvidenceSchema).max(6),
 });

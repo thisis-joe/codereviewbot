@@ -1,6 +1,6 @@
 import { InitialQuestionsSchema, emptyReport, type Finding, type Report, type Snapshot, type ChangeQuestion } from './contracts.js';
 import type { Policy } from './policy.js';
-import { changeExplanation, grounding, hunkRule, questionSecurity, renameRule, sourceTools } from './prompt-blocks.js';
+import { changeExplanation, grounding, hunkRule, questionSecurity, renameRule, sourceTools, stemRule } from './prompt-blocks.js';
 
 export interface DiffPosition { oldLine?: number; newLine?: number }
 export interface DiffMetadata { oldPath: string; positions?: Record<'LEFT' | 'RIGHT', Record<number, DiffPosition>> }
@@ -87,6 +87,7 @@ export function buildQuestionPrompt(s: Snapshot, policy: Policy, context: Review
 - 질문은 필요한 맥락을 담은 짧은 존댓말 의문형 한 문장입니다. 80자 안팎을 권장하지만, 정답을 하나로 정하는 데 필요한 조건은 줄이지 마세요. 함수명은 특정 구현을 구별할 때만 쓰고, "응답 크기를 누적 검사하도록 바뀐 뒤"처럼 무엇이 바뀌었는지 자연스러운 말로 쓰세요. 원리의 이름을 질문에 드러내 답을 암시하지 마세요.
 - 보기는 A·B·C·D 순서의 {id,text}이며 정답은 정확히 하나입니다. 각 보기는 한 가지 주장을 담은 완결된 문장입니다. 오답은 이 변경의 동작·이유·영향 가운데 하나를 실제로 잘못 읽었을 때 고를 법한 내용이어야 합니다. 정답만 유난히 길거나 자세하지 않게 하고 정답 위치를 섞으세요. 질문과 보기에 정답 표시나 해설을 넣지 마세요.
 - 조건을 바꾼 상황을 묻는다면 바뀐 조건을 명시하고, 고정된 코드와 확인된 원리에서 결론이 나오는 범위로 제한하세요.
+- ${stemRule}
 
 ${changeExplanation}
 
@@ -102,8 +103,8 @@ ${changeExplanation}
 다음을 하나라도 통과하지 못하면 주제부터 다시 고르세요.
 - 이 질문에 답하지 못하는 리뷰어가 승인하면 위험한가?
 - 정답을 고르려면 변경의 효과나 원리를 이해해야 하고, 값 조회나 실행 순서 추적만으로는 풀리지 않는가?
-- 질문의 조건과 코드로 정답이 정확히 하나인가?
-- 오답 셋이 각각 이 변경을 실제로 잘못 읽은 결과인가?
+- 질문의 조건과 코드로 정답이 정확히 하나인가? 질문 문장만으로는 정답을 고를 수 없는가?
+- 오답 셋이 각각 이 변경을 실제로 잘못 읽은 결과이고, 질문의 전제와 맞는가?
 - 해설만 읽은 동료가 변경 전후의 차이와 그 이유를 이해할 수 있는가?
 
 [출력]

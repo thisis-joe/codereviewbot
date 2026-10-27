@@ -43,7 +43,7 @@ function gradePrompt(kind: GradeKind, sourceDir: string, payload: string): strin
 
 [피드백]
 
-explanation 필드에 1~3문장으로 씁니다.
+explanation 필드에 1~4문장으로 씁니다.
 ${feedbackRules[kind]}
 정답 해설을 되풀이하지 마세요. key의 해설과 보기별 해설은 피드백 아래에 그대로 보여 줍니다. ${boldRule}
 

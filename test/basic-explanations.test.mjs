@@ -32,4 +32,7 @@ test('new answer keys and grading explanations require one to three sentences', 
   assert.equal(GradeSchema.safeParse(grade).success,true);
   assert.equal(GradeSchema.safeParse({...grade,expectedAnswer:long}).success,false);
   assert.equal(GradeSchema.safeParse({...grade,optionExplanations:[{id:'A',explanation:long}]}).success,false);
+  // Feedback credits, names the misreading and cites code, so it alone may run to four sentences.
+  assert.equal(GradeSchema.safeParse({...grade,explanation:long}).success,true);
+  assert.equal(GradeSchema.safeParse({...grade,explanation:long+' 그래서 D가 아닙니다.'}).success,false);
 });
