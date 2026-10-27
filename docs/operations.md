@@ -21,7 +21,7 @@ Mac 정리 및 복구 주의사항은 [마이그레이션 운영 기록](hey-edo
 
 ## GMS 호출량 기준값 수집 (S15P31E102-138)
 
-2026-10-26 운영 Runner(`25312d1` 기반)의 `gms.js`만 이 로깅 변경(최초 커밋 `d7dc5fc`)으로 교체하고 `GMS_USAGE_ENV=production`을 추가했다. Controller는 이미지 변경 없이 재시작만 했고, DB·n8n·터널은 변경하지 않았다. 이제 GMS 요청마다 `gms-usage` 로그가 남는다. 형식은 [연결 설정](connections.md#gms-responses-api-직접-호출-기본-엔진)을 참고한다. [운영 적용 증거](verification/gms-usage-production-2026-10-26.json)가 있고, 되돌릴 때는 `/home/ubuntu/hey/releases/gms-usage-d7dc5fc`에서 `python3 deploy.py rollback`을 실행한다.
+2026-10-26 운영 Runner(`25312d1` 기반)의 `gms.js`만 이 로깅 변경(최초 커밋 `d7dc5fc`)으로 교체하고 `GMS_USAGE_ENV=production`을 추가했다. Controller는 이미지 변경 없이 재시작만 했고, DB·n8n·터널은 변경하지 않았다. 이제 GMS 요청마다 `gms-usage` 로그가 남는다. 형식은 [연결 설정](connections.md#gms-responses-api-직접-호출-기본-엔진)을 참고한다. [운영 적용 증거](verification/gms-usage-production-2026-10-26.json)를 참고한다. 이후 릴리스가 이 Runner를 대체했으므로 이 릴리스의 rollback은 더 이상 쓰지 않는다.
 
 기준값은 2026-10-27 17:00(KST)까지 하루 동안 모았다. 운영 호출은 Runner 로그로, 개발 호출은 로컬 `.local/gms-usage.jsonl`로 확인한다. 같은 날 오전 개발 검증의 기준값은 실행 135회, 요청 493건, 실행당 요청 수 중앙값 3~4(최대 6)였다.
 
@@ -30,6 +30,16 @@ ssh -o ClearAllForwardings=yes edo1 'docker logs hey-edo1-runner-1 2>/dev/null |
 ```
 
 Runner 로그는 컨테이너를 다시 만들면 사라지고, 서비스당 약 10MB까지만 순환 보관된다. 그래서 다음 Runner 교체 전에 반드시 위 명령으로 내려받아 둔다. 요청 수는 `"event":"request"` 줄 수이고, 실행당 요청 수와 결과는 `"event":"run"` 줄의 `requests`·`outcome`이다.
+
+### 호출 절감 적용 (2026-10-27, `gms-reduce-6afd0d1`)
+
+`6afd0d1`(PR #25)로 Controller·Runner를 함께 교체했다. 바뀐 모듈은 `controller`·`gms`·`learning-command`·`prompt-blocks`·`review` 5개다. 모든 프롬프트에 `sourceExcerpts`를 넣었고, 실행당 상한을 10번으로 낮추면서 마지막 요청은 도구 없이 답하게 했다. 개발 실행에는 결과 재사용과 하루 한도를 적용했다. 운영 Runner는 `GMS_USAGE_ENV=production`이라 캐시와 한도를 쓰지 않는다. DB·워크플로·n8n·터널과 Runner 환경은 바꾸지 않았다.
+
+- 리허설: 운영 DB 복사본 위에서 외부망 없이 진행했다. 새 Controller·Runner가 심화·채점·해설·`@hey`·면접·꼬리 흐름을 모두 통과했고, 가짜 GMS로 간 요청 5건 모두에 코드 발췌와 새 지시문이 들어 있었다. 이전 Controller도 새 데이터를 읽는다.
+- 운영 확인: 두 서비스가 정상이다. 실행 중 모듈 37개가 manifest와 같고, 작업 이력은 교체 전후로 같다. n8n 오류는 기존 3건뿐이고, 공개 웹훅은 인증이 없으면 401이다.
+- 교체 직전 운영 사용량 로그(개선 전 실행 2회: `csinterview` 요청 3번, `morecs` 요청 4번)는 릴리스 디렉터리의 `gms-usage.cutover.jsonl`에 보관했다.
+
+[운영 적용 증거](verification/gms-reduce-production-2026-10-27.json)를 참고한다. 되돌릴 때는 `/home/ubuntu/hey/releases/gms-reduce-6afd0d1`에서 `python3 deploy.py rollback`을 실행한다. 정확히 이전 쌍(`change-fa9b7c8`)으로 돌아가고 DB는 그대로 둔다.
 
 ## hey 이름 전환
 
