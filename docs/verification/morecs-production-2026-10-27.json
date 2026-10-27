@@ -112,8 +112,31 @@
     "note": "Generic JSON requests without platform headers get 404 at the edge; the tunnel forwards only ^/webhooks/(github|gitlab)$"
   },
   "liveMrTest": {
-    "status": "user-reported",
-    "detail": "The user posted the /hey commands on their own MR and reported that it works. This session did not observe the comments or jobs (its read-only watcher was stopped at the user's request before any command completed), so no live command output is recorded here."
+    "status": "verified from production data (read-only)",
+    "mr": "lab.ssafy.com s15-final/S15P31E102 !39 (posted by the user)",
+    "servedBy": "change-fa9b7c8 (PR #24, activated 01:54:18 UTC on top of this release). Its csinterview/morecs logic is unchanged from dfe1209; PR #24 only moved shared prompt blocks and changed grading/whatelse.",
+    "commands": [
+      {
+        "utc": "01:55:50",
+        "command": "/hey csinterview",
+        "state": "completed",
+        "result": "2 interview questions (면접1 LEFT JOIN fan-out in an aggregate, 면접2 least privilege when widening read access)"
+      },
+      {
+        "utc": "01:57:38",
+        "command": "/hey morecs",
+        "state": "completed",
+        "result": "3+1: 꼬리1←면접1 join vs where for a period filter, 꼬리2←면접1 check-then-act without a unique constraint, 꼬리3←면접2 bounding analyst query resources, 면접3 consistent snapshot for two counts",
+        "replyShowsAnchors": [
+          "↳ 면접1에서 이어짐",
+          "↳ 면접1에서 이어짐",
+          "↳ 면접2에서 이어짐"
+        ],
+        "checkFieldStored": false,
+        "boldSpansInOptionNotes": 12
+      }
+    ],
+    "notRunLive": "/hey answer and /hey showanswer were not posted on the MR (the user chose not to); both were verified only in the isolated stage rehearsal."
   },
   "rollback": {
     "command": "cd /home/ubuntu/hey/releases/morecs-dfe1209 && python3 deploy.py rollback",
