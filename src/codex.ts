@@ -3,13 +3,13 @@ import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { AnalysisSchema, VerificationSchema, AnswerSchema, InitialQuestionsSchema, QuestionBatchSchema, GradeSchema } from './contracts.js';
+import { AnalysisSchema, VerificationSchema, AnswerSchema, InitialQuestionsSchema, QuestionBatchSchema, CsInterviewBatchSchema, MoreCsBatchSchema, GradeSchema } from './contracts.js';
 import { execute } from './process.js';
 import { ModelFailure, RunnerFailureSchema } from './model-failure.js';
 import type { Model, ModelPhase } from './review.js';
 import { redact } from './redact.js';
 
-export const phaseSchemas = { review: AnalysisSchema, verify: VerificationSchema, answer: AnswerSchema, initial_questions: InitialQuestionsSchema, questions: QuestionBatchSchema, grade: GradeSchema };
+export const phaseSchemas = { review: AnalysisSchema, verify: VerificationSchema, answer: AnswerSchema, initial_questions: InitialQuestionsSchema, questions: QuestionBatchSchema, csinterview: CsInterviewBatchSchema, morecs: MoreCsBatchSchema, grade: GradeSchema };
 export const sourceServer = fileURLToPath(new URL('./source-mcp.js', import.meta.url));
 export async function workspaceSource(dataRoot: string, id: string): Promise<string> {
   if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid workspace ID');

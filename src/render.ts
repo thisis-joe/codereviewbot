@@ -34,20 +34,36 @@ function commitLink(s: Snapshot, sha = s.headSha): string {
   return `${web.origin}${repo}/${s.platform === 'github' ? 'commit' : '-/commit'}/${sha}`;
 }
 function clip(value: string, length: number): string { return value.length > length ? value.slice(0, length) + '…' : value; }
+/**
+ * Explanations may bold up to two short phrases as **…**. Each segment is escaped before the tags are added,
+ * so only these tags render; unmatched, extra and clipped markers are dropped. <b> avoids CommonMark's
+ * flanking rule, which leaves **멱등성(idempotency)**은 unbolded.
+ */
+export function emphasized(value: string): string {
+  const parts = value.replace(/(?<!\*)\*(?=…$)/, '').split('**');
+  let spans = 0;
+  return parts.map((part, i) => {
+    const bold = i % 2 === 1 && i < parts.length - 1 && part.trim() !== '' && spans < 2;
+    if (bold) spans++;
+    return bold ? `<b>${plain(part)}</b>` : plain(part);
+  }).join('');
+}
 // Separate paragraphs instead of exposing hard-break escapes or HTML spacing entities.
 function lines(values: string[]): string[] { return values.flatMap((v, i) => i ? ['', v] : [v]); }
 function commitLines(s: Snapshot): string[] {
   return ['##### 기준 커밋', '', ...(s.commits?.length ? s.commits.map(c => `- [${plain(c.title)}](${commitLink(s, c.sha)})`) : ['- 커밋 제목 정보가 아직 없습니다.'])];
 }
 export const COMMAND_HELP_HINT = '명령어 안내: `/hey help`';
-const answerHelp = ['답변 달기: `/hey answer Q1 B Q2 C`', '정답·해설 보기: 질문 스레드에 답글로 `/hey showanswer`', '더 풀어보기: `/hey morequestion`'];
+const answerHelp = ['답변 달기: `/hey answer Q1 B Q2 C`', '정답·해설 보기: 질문 스레드에 답글로 `/hey showanswer`', '더 풀어보기: `/hey whatelse`'];
 const verdictMark: Record<Verdict, string> = { correct: '✅ 정답', partial: '🟡 부분 정답', incorrect: '❌ 오답', unverifiable: '⏸ 판정 보류' };
 /** Latest grade per question ID; null marks an answer graded before verdicts were recorded. */
 export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
-  ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화 질문: 심화1 B', '/hey answer Q1 B'],
+  ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화1 B · 면접1 B · 꼬리1 B', '/hey answer Q1 B'],
   ['/hey showanswer', '정답 보기', '질문 댓글에 답글로 남기면 그 댓글의 질문만 정답·해설 공개<br>번호 지정 없이 사용 · 답변 완료로 처리하지 않음', '/hey showanswer'],
-  ['/hey morequestion', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey morequestion'],
+  ['/hey whatelse', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey whatelse'],
+  ['/hey csinterview', 'CS 면접', '변경이 기대는 핵심 CS 개념 면접 질문 2개<br>면접1·면접2…로 번호 부여', '/hey csinterview'],
+  ['/hey morecs', '꼬리 질문', '최근 면접 묶음을 더 파고드는 질문 최대 4개<br>꼬리1·꼬리2…, 새 면접 질문은 면접 번호를 이음', '/hey morecs'],
   ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],
   ['@hey', '코드 질문', '관련 코드를 확인해 질문에 답변', '@hey 키를 재사용하는 이유는?'],
   ['/hey help', '명령어 안내', '사용 가능한 명령과 예시 확인', '/hey help'],
@@ -68,7 +84,7 @@ export function renderReport(r: Report, results: AnswerResults = new Map()): str
 }
 function renderReportBody(r: Report, results: AnswerResults): string {
   const available = hasChangeQuestions(r), s = r.snapshot;
-  const questions = available ? renderQuestions(r.questions, s, 1, results)
+  const questions = available ? renderQuestions(r.questions, s, r.questions.map((_, i) => `Q${i + 1}`), results)
     : [plain(r.state === 'failed' && r.failure ? failureMessage(r.failure) : r.questionsUnavailableReason ?? (r.state === 'failed' ? '질문 생성에 실패했습니다. /hey tryagain 명령으로 다시 요청하거나 봇 운영자에게 알려주세요.' : '출제할 수 있는 코드 근거가 없어 질문을 생성하지 못했습니다.'))];
   // A completed run needs no status word; partial and failed runs keep theirs beside the revision.
   const meta = [...(r.state === 'completed' ? [] : [status[r.state]]),
@@ -119,13 +135,15 @@ export function renderAnswer(a: { answer: string; evidence: string[]; next: stri
 }
 // Q-IDs stay in hidden markers for threading and the merge gate; readers see revision-wide numbers.
 // Questions are H4 headings with a blank line before native Markdown list choices.
+// A follow-up shows the label it continues right under its heading wherever it appears.
+function anchorLine(q: ChangeQuestion): string[] { return q.anchor ? ['', `↳ ${plain(q.anchor)}에서 이어짐`] : []; }
 function questionLines(q: ChangeQuestion, s: Snapshot, label: string, mark = ''): string[] {
-  return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `#### ${label}. ${plain(q.question)}${mark}`, '', ...(q.options ?? []).map(o => `- **${o.id}.** ${plain(o.text)}`)];
+  return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `#### ${label}. ${plain(q.question)}${mark}`, ...anchorLine(q), '', ...(q.options ?? []).map(o => `- **${o.id}.** ${plain(o.text)}`)];
 }
-function renderQuestions(questions: ChangeQuestion[], s: Snapshot, start = 1, results: AnswerResults = new Map(), prefix = 'Q'): string[] {
+function renderQuestions(questions: ChangeQuestion[], s: Snapshot, labels: string[], results: AnswerResults = new Map()): string[] {
   return questions.flatMap((q, i) => {
     const id = questionId(s, q), verdict = results.get(id);
-    return [...(i ? ['', '---', ''] : []), ...questionLines(q, s, `${prefix}${start + i}`, results.has(id) ? ` · ${verdict ? verdictMark[verdict] : '답변함'}` : '')];
+    return [...(i ? ['', '---', ''] : []), ...questionLines(q, s, labels[i]!, results.has(id) ? ` · ${verdict ? verdictMark[verdict] : '답변함'}` : '')];
   });
 }
 /** One inline thread per question, so a bare option letter replied in the thread is graded. */
@@ -143,11 +161,11 @@ const ackText: Record<AckState, string> = {
 /** Posted when a command arrives; deleted once the command finishes, or turned into a failure or closed notice. */
 export function renderAck(id: string, state: AckState = 'received'): string { return [ackMarker(id), ackText[state]].join('\n'); }
 // Each follow-up batch is published as a separate replyable question thread.
-export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1): string {
-  const labels = questions.map((_, i) => `심화${start + i}`);
-  const help = [`답변 달기: \`/hey answer ${labels[0]} B ${labels[1] ?? labels[0]} C\``,
-    '정답·해설 보기: 이 스레드에 답글로 `/hey showanswer`', '더 풀어보기: `/hey morequestion`'];
-  return [replyMarker(commentId), questionRevisionMarker(s), ...renderQuestions(questions, s, start, new Map(), '심화'), '', '---', '',
+// Interview batches (면접 or a mixed 꼬리/면접 morecs batch) point to both ways of continuing.
+export function renderQuestionBatch(questions: ChangeQuestion[], s: Snapshot, commentId: string, start = 1, prefix: '심화' | '면접' = '심화', labels = questions.map((_, i) => `${prefix}${start + i}`)): string {
+  const help = [`답변 달기: \`/hey answer ${labels[0]} B${labels[1] ? ` ${labels[1]} C` : ''}\``,
+    '정답·해설 보기: 이 스레드에 답글로 `/hey showanswer`', prefix === '면접' ? '더 풀어보기: `/hey morecs` 꼬리 질문 · `/hey csinterview` 새 면접 질문' : '더 풀어보기: `/hey whatelse`'];
+  return [replyMarker(commentId), questionRevisionMarker(s), ...renderQuestions(questions, s, labels), '', '---', '',
     ...lines(help), '', ...commitLines(s), '', COMMAND_HELP_HINT].join('\n');
 }
 export interface GradeItem { q: ChangeQuestion; grade: Grade; label: string; picked?: string }
@@ -169,15 +187,15 @@ export function renderGrades(items: GradeItem[], s: Snapshot, commentId: string)
 function renderGradeSection({ q, grade, label }: GradeItem, s: Snapshot): string {
   const answer = q.options?.find(o => o.id === q.key?.answer)?.text;
   return [`<!-- codereviewbot:question:${questionId(s, q)} -->`, `### ${label} · ${verdictMark[grade.verdict]}`, '',
-    `#### ${label}. ${plain(q.question)}`, ...(answer ? ['', plain(answer)] : []),
-    ...(grade.explanation ? ['', '##### 답변 평가', '', plain(grade.explanation)] : []), '', '##### 해설', '', plain(grade.expectedAnswer),
+    `#### ${label}. ${plain(q.question)}`, ...anchorLine(q), ...(answer ? ['', plain(answer)] : []),
+    ...(grade.explanation ? ['', '##### 답변 평가', '', emphasized(grade.explanation)] : []), '', '##### 해설', '', emphasized(grade.expectedAnswer),
     ...((q.options ?? []).length ? ['', '##### 보기별 해설', ...optionExplanationLines(q, id => grade.optionExplanations.find(e => e.id === id)?.explanation ?? '해설 없음')] : []), '',
     '##### 코드 근거', '', ...(grade.evidence.length ? grade.evidence.map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, 700))}`) : ['확인 가능한 코드 근거가 부족해 정답·오답을 확정하지 않았습니다.'])].join('\n');
 }
 export interface RevealItem { q: ChangeQuestion; label: string }
 /** Answer sheet for /hey showanswer: the stored key only, so no model runs and nothing is graded. */
 export function renderReveal(items: RevealItem[], s: Snapshot, commentId: string): string {
-  const levels: [number, number, string][] = [[1500, 500, ''], [600, 200, '댓글 길이 제한으로 해설을 축약했습니다.'], [200, 80, '댓글 길이 제한으로 해설을 크게 축약했습니다.']];
+  const levels: [number, number, string][] = [[2000, 500, ''], [600, 200, '댓글 길이 제한으로 해설을 축약했습니다.'], [200, 80, '댓글 길이 제한으로 해설을 크게 축약했습니다.']];
   for (const [text, option, note] of levels) {
     const body = [replyMarker(commentId), '### 정답·해설', '', items.map(i => renderRevealSection(i, s, text, option)).join('\n\n---\n\n'), '',
       ...commitLines(s), '', COMMAND_HELP_HINT, ...(note ? ['', note] : [])].join('\n');
@@ -186,12 +204,12 @@ export function renderReveal(items: RevealItem[], s: Snapshot, commentId: string
   throw new Error('Answer sheet exceeds comment budget');
 }
 function optionExplanationLines(q: ChangeQuestion, explain: (id: string) => string): string[] {
-  return (q.options ?? []).flatMap(o => ['', `- **${o.id}.** ${plain(o.text)}`, '', `  > ${plain(explain(o.id))}`]);
+  return (q.options ?? []).flatMap(o => ['', `- **${o.id}.** ${plain(o.text)}`, '', `  > ${emphasized(explain(o.id))}`]);
 }
 function renderRevealSection({ q, label }: RevealItem, s: Snapshot, text: number, option: number): string {
-  const key = q.key, head = `#### ${label}. ${plain(q.question)}`;
+  const key = q.key, head = [`#### ${label}. ${plain(q.question)}`, ...anchorLine(q)].join('\n');
   if (!key) return [head, '', '저장된 정답이 없는 이전 질문입니다. `/hey answer`로 답하면 채점과 해설을 받을 수 있습니다.'].join('\n');
   const answer = q.options?.find(o => o.id === key.answer)?.text;
-  return [head, ...(answer ? ['', plain(answer)] : []), '', '##### 해설', '', plain(clip(key.explanation, text)),
+  return [head, ...(answer ? ['', plain(answer)] : []), '', '##### 해설', '', emphasized(clip(key.explanation, text)),
     ...((q.options ?? []).length ? ['', '##### 보기별 해설', ...optionExplanationLines(q, id => clip(key.options.find(e => e.id === id)?.explanation ?? '해설 없음', option))] : []), '', '##### 코드 근거', '', `- ${ref(s, q.path, q.line, q.side, 80)}`].join('\n');
 }

@@ -1,7 +1,9 @@
+import { z } from 'zod';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { RepositoryConfig } from './config.js';
 import { authenticate, normalize, equal } from './webhooks.js';
 import type { Controller } from './controller.js';
+import { WorkflowStartSchema, WorkflowConflict } from './workflow-contract.js';
 
 export async function readBody(req: IncomingMessage, limit = 2 * 1024 * 1024): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -36,8 +38,32 @@ export function application(controller: Controller, repositories: RepositoryConf
       }
       if (path.startsWith('/internal/')) {
         if (!equal(String(req.headers.authorization ?? ''), env.INTERNAL_TOKEN ? `Bearer ${env.INTERNAL_TOKEN}` : '')) { send(res, 401, { error: 'Unauthorized' }); return; }
-        if (req.method === 'POST' && path === '/internal/tick') { send(res, 202, { jobId: await controller.tick() }); return; }
-        if (req.method === 'POST' && path === '/internal/recover') { void controller.recover().catch(() => console.error('{"error":"recovery_failed"}')); send(res, 202, { accepted: true }); return; }
+        if (req.method === 'POST' && path === '/internal/flow/claim') { send(res, 200, await controller.workflow.claim()); return; }
+        const flow = path.match(/^\/internal\/flow\/jobs\/([a-f0-9-]{36})\/(step|status)$/);
+        if (req.method === 'POST' && flow) {
+          if (!z.uuid().safeParse(flow[1]).success) { send(res, 400, { error: 'Invalid job ID' }); return; }
+          const input = JSON.parse((await readBody(req, 2000)).toString('utf8'));
+          const parsed = WorkflowStartSchema.partial({ step: true }).safeParse(input);
+          if (!parsed.success || (flow[2] === 'step' && !parsed.data.step)) { send(res, 400, { error: 'Invalid workflow request' }); return; }
+          const value = parsed.data;
+          try {
+            const result = flow[2] === 'step' && value.step ? await controller.workflow.start(flow[1]!, value.owner, value.step) : await controller.workflow.status(flow[1]!, value.owner);
+            send(res, flow[2] === 'step' ? 202 : 200, result);
+          } catch (error) { if (!(error instanceof WorkflowConflict)) throw error; send(res, 409, { error: 'Workflow ownership or step changed' }); }
+          return;
+        }
+        if (req.method === 'POST' && path === '/internal/flow/notifications') {
+          controller.notifications?.tick(); await controller.notifications?.active;
+          send(res, 200, { accepted: true }); return;
+        }
+        if (req.method === 'POST' && path === '/internal/tick') { send(res, 410, { error: 'Use the n8n phase workflow' }); return; }
+        const maintenance = path.match(/^\/internal\/flow\/(reconcile|recover|cleanup)$/);
+        if (req.method === 'POST' && maintenance) {
+          const task = maintenance[1];
+          if (task === 'reconcile' || task === 'recover' || task === 'cleanup') await controller.maintain(task);
+          send(res, 200, { task, completed: true }); return;
+        }
+        if (req.method === 'POST' && path === '/internal/recover') { send(res, 410, { error: 'Use the n8n recovery workflow' }); return; }
         if (req.method === 'GET' && path === '/internal/health') { send(res, 200, { ...(await controller.store.health()), active: Boolean(controller.active) }); return; }
         const job = path.match(/^\/internal\/jobs\/([a-f0-9-]{36})$/);
         if (req.method === 'GET' && job) { const value = await controller.store.getJob(job[1]!); send(res, value ? 200 : 404, value ? { id: value.id, state: value.state, attempts: value.attempts, headSha: value.result?.snapshot.headSha ?? null } : { error: 'Not found' }); return; }

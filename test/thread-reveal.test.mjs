@@ -32,6 +32,19 @@ test('showanswer accepts no individual question selectors', () => {
 });
 
 for (const name of ['gitlab', 'github']) {
+  test(`${name}: interview reveal uses stored terms and keys from only the selected question thread`, async () => {
+    const h = fixture(name), questions = h.batches[0].questions.map(q => ({ ...q, question: `면접: ${q.question}`, key: { ...q.key, explanation: '멱등성(idempotency)은 반복 호출의 효과가 같다는 성질입니다.' } }));
+    h.batches.push({ snapshot: h.snap, questions, batchKind: 'csinterview', start: 1 });
+    const root = { ...h.roots[1], id: 'interview-root', discussionId: 'interview-thread', body: renderQuestionBatch(questions, h.snap, 'interview', 1, '면접') };
+    h.roots.push(root);
+    const body = await h.run(root);
+    assert.equal([...body.matchAll(/^#### 면접\d+\./gm)].length, 2);
+    assert.match(body, /멱등성.*idempotency/); assert.doesNotMatch(body, /^#### (?:Q|심화)\d+\./m);
+    assert.equal(h.saved.at(-1).grades, undefined);
+    root.author = 'human'; assert.doesNotMatch(await h.run(root), /##### 해설/);
+    root.author = 'bot'; root.body = renderQuestionBatch(questions, { ...h.snap, startSha: 'c'.repeat(40) }, 'old', 1, '면접');
+    assert.doesNotMatch(await h.run(root), /##### 해설/);
+  });
   test(`${name}: reveal follows the question comment, not the most recent or initial batch`, async () => {
     const h = fixture(name);
     for (const [i, expected, excluded] of [[0, /#### Q1\./, /#### 심화/], [1, /#### 심화1\./, /#### Q1\.|#### 심화3\./], [2, /#### 심화3\./, /#### Q1\.|#### 심화1\./], [0, /#### Q1\./, /#### 심화/]]) {

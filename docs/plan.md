@@ -32,8 +32,8 @@ review summaries, CI reporting and candidate verification leave the automatic pa
   has four distinct A–D choices, a hidden fixed answer key and a valid changed-source
   anchor. Both initial questions must be basic; advanced learning is opt-in.
   Difficulty tags are never displayed.
-  Questions and choices come before concise answer/reveal/optional-morequestion hints.
-  `/hey morequestion` generates additional questions only on explicit request,
+  Questions and choices come before concise answer/reveal/optional-whatelse hints.
+  `/hey whatelse` generates additional questions only on explicit request,
   using the same question-first layout. Newly generated answer keys and grading
   explanations teach a relevant CS concept and connect it to the actual code,
   using one to three sentences per explanation. Feedback shows the correct choice
@@ -47,8 +47,33 @@ review summaries, CI reporting and candidate verification leave the automatic pa
 - Schema version 2 results display only a commit, generation state, answer progress,
   code-linked questions and one `/hey help` entry point. Old sections 1–3, review
   verdicts, repeated command examples and automatic finding comments disappear.
-- `/hey help` displays six commands: `answer`, `showanswer`, `morequestion`,
-  `tryagain`, `@hey` and `help`. It needs no report, snapshot export or model call,
+- `/hey csinterview` picks the two most core CS concepts the pinned change relies on
+  (ranked fundamentality > relevance > cost of not knowing > transferability) and asks
+  one four-choice question per concept, one layer below the definition. One
+  `csinterview` call (120,000 ms per attempt) returns at most two questions with fixed
+  keys and valid changed-source anchors; fewer require a nonempty reason and zero
+  becomes a notice. Interview keys allow a five-sentence explanation (2,000 chars);
+  option notes stay at three sentences and may bold up to two phrases with `**…**`,
+  rendered as escaped `<b>` spans with unmatched or clipped markers dropped.
+- `/hey morecs` anchors on the latest `csinterview` or `morecs` batch of the revision
+  and returns up to four questions: three follow-ups plus one new interview question
+  when an uncovered core concept qualifies, otherwise four follow-ups. Output adds
+  `kind` (`followup`/`interview`) and `anchor` (an anchor-batch label or null). The
+  controller rejects unknown anchors, more than one new interview question, a
+  shortfall without a reason, duplicates of any earlier question on the revision, and
+  an uncovered 면접 anchor unless a reason is given. Follow-ups are `꼬리N`; a new
+  interview question continues `면접N`. morecs batches store `batchKind: "morecs"`
+  and `labels`, and every follow-up shows `↳ <anchor>에서 이어짐` in question, grade
+  and answer-sheet comments. Without an interview batch it points to csinterview.
+- `csinterview`, `morecs` and `whatelse` keep separate five-batch limits per revision.
+  Existing stored batches without `batchKind` remain supplementary; old five-question
+  interview batches keep their numbers and may anchor morecs. `answer` accepts mixed
+  Q/심화/면접/꼬리 labels; a wrong bare letter leads with the stored note for that
+  option, and reasoned grading must name the missed concept. `showanswer` reveals only
+  the originating trusted question thread's stored key, without inference or credit.
+  Interview and follow-up questions never become merge-gate requirements.
+- `/hey help` displays eight commands: `answer`, `showanswer`, `whatelse`, `csinterview`,
+  `morecs`, `tryagain`, `@hey` and `help`. It needs no report, snapshot export or model call,
   respects existing permissions and reconciles owned markers.
 - `tryagain` regenerates questions on current code, bypassing the same-SHA cache.
   With no newer revision to compare it falls back to full-PR source.

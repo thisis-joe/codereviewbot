@@ -51,7 +51,7 @@
 
 정답·해설 보기: 이 질문 스레드에 답글로 `/hey showanswer`
 
-더 풀어보기: `/hey morequestion`
+더 풀어보기: `/hey whatelse`
 
 ##### 기준 커밋
 

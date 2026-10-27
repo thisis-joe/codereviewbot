@@ -1,0 +1,151 @@
+{
+  "candidate": "2dcf0d9",
+  "image": "hey-controller:n8n-2dcf0d9",
+  "deployed": true,
+  "services": {
+    "controller": {
+      "running": true,
+      "healthy": "healthy",
+      "containerPreserved": false
+    },
+    "runner": {
+      "running": true,
+      "healthy": "healthy",
+      "containerPreserved": true
+    },
+    "postgres": {
+      "running": true,
+      "healthy": "healthy",
+      "containerPreserved": true
+    },
+    "n8n": {
+      "running": true,
+      "healthy": null,
+      "containerPreserved": true
+    },
+    "tunnel": {
+      "running": true,
+      "healthy": null,
+      "containerPreserved": true
+    }
+  },
+  "configurationPreserved": true,
+  "persistentMountsPreserved": true,
+  "moduleHashesMatched": 34,
+  "history": {
+    "targets": {
+      "count": 38,
+      "hash": "86124d1c206a337b4fe141a20ee6fc0d"
+    },
+    "jobs": {
+      "count": 146,
+      "hash": "21a91de9467668e5122d979f53f956ff"
+    },
+    "deliveries": {
+      "count": 186,
+      "hash": "988308bd73953a73e48e2be5bc92b1ad"
+    },
+    "mattermost_notifications": {
+      "count": 183,
+      "hash": "4ba49b48609447682bcae2fd06b18fad"
+    },
+    "bot_comment_history": {
+      "count": 38,
+      "hash": "e50331c6a34cb65c36eb971ef3819120"
+    }
+  },
+  "phaseColumns": 4,
+  "workflows": [
+    {
+      "id": "crbDispatch",
+      "name": "hey — job orchestration",
+      "active": true,
+      "nodeCount": 22
+    },
+    {
+      "id": "crbRecovery",
+      "name": "hey — recovery",
+      "active": true,
+      "nodeCount": 5
+    }
+  ],
+  "health": {
+    "status": 200,
+    "failed": 10,
+    "queued": 0,
+    "active": false
+  },
+  "routes": {
+    "retiredTick": 410,
+    "unauthorizedClaim": 401,
+    "wake": 202
+  },
+  "newExecutionErrors": 0,
+  "preservedTransitionLegacyErrors": [
+    {
+      "id": 38006,
+      "workflow": "crbDispatch",
+      "status": "error",
+      "started": "2026-10-25T15:27:50.071+00:00",
+      "deleted": false,
+      "newGraph": false
+    },
+    {
+      "id": 38007,
+      "workflow": "crbRecovery",
+      "status": "error",
+      "started": "2026-10-25T15:27:51.025+00:00",
+      "deleted": false,
+      "newGraph": false
+    }
+  ],
+  "stage": {
+    "passed": true,
+    "candidate": "hey-controller:n8n-2dcf0d9",
+    "prior": "hey-controller:edo1-252d5c8",
+    "restoredReviewbot": true,
+    "migrationPreservedAllFiveTables": true,
+    "priorImageStartsAfterMigration": true,
+    "n8nDatabaseRestored": true,
+    "candidateAndPriorWorkflowsImportAndPublish": true,
+    "externalNetwork": "disabled"
+  },
+  "rollbackCommand": "cd /home/ubuntu/hey/releases/n8n-2dcf0d9 && python3 deploy.py rollback hey-controller:n8n-2dcf0d9",
+  "limits": "Live empty-queue dispatch and periodic recovery verified. No live model request or external test comment was created; full question/command paths were verified with isolated fixtures.",
+  "executionObservation": {
+    "byWorkflow": {
+      "crbDispatch": 66,
+      "crbRecovery": 10
+    },
+    "firstStarted": "2026-10-25T15:28:00.052+00:00",
+    "lastStarted": "2026-10-25T15:38:36.912+00:00",
+    "allMarkedForDeletionByExistingRetention": true,
+    "interpretation": "Successful execution bodies are not retained. Running status plus deletedAt is a retention placeholder, not proof of unfinished execution. Candidate graph snapshots were matched separately; zero candidate-graph errors."
+  },
+  "approvedByUser": "2026-10-26, explicit approval in this chat",
+  "checks": {
+    "unitAndBoundary": 154,
+    "postgresHttpIntegration": 67,
+    "realN8nFixture": "passed",
+    "independentReview": "passed after two release corrections",
+    "controllerErrorCodesSinceCutover": {},
+    "temporaryStageContainersRemaining": []
+  },
+  "publicIngressCurl": {
+    "/webhooks/gitlab": 401,
+    "/healthz": 404,
+    "/internal/flow/claim": 404
+  },
+  "dependencyAudit": {
+    "high": 1,
+    "moderate": 1,
+    "changedDependencies": false,
+    "releaseDisposition": "Independent reachability review found no reachable application blocker: native HTTP/stdio do not load body-parser; fast-uri is used only for fixed SDK meta-schema setup, not attacker-controlled URI validation/rendering. Separate tested dependency maintenance remains open.",
+    "owner": "hey maintainer",
+    "reviewBy": "2026-11-02",
+    "references": [
+      "https://github.com/advisories/GHSA-27r3-jxmh-p828",
+      "https://github.com/advisories/GHSA-w74x-v6f9-j3xg"
+    ]
+  }
+}

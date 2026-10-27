@@ -1,0 +1,216 @@
+{
+  "source": "25312d1",
+  "release": "/home/ubuntu/hey/releases/csinterview-25312d1",
+  "deployed": true,
+  "activatedAt": "2026-10-26T12:44:48Z",
+  "cutoverSeconds": 9,
+  "approvedByUser": true,
+  "images": {
+    "controller": "hey-controller:csinterview-25312d1",
+    "runner": "hey-runner:csinterview-25312d1",
+    "rollbackController": "hey-controller:csinterview-compatible-prior-25312d1",
+    "rollbackRunner": "hey-runner:edo1-252d5c8",
+    "prior": {
+      "controller": "hey-controller:n8n-2dcf0d9",
+      "runner": "hey-runner:edo1-252d5c8"
+    }
+  },
+  "build": "Overlay on the exact prior images: replaces /app/dist and /app/migrations with the compiled 25312d1 tree; user, workdir, command and entrypoint unchanged. Dependencies and Dockerfile unchanged since 252d5c8.",
+  "services": {
+    "controller": {
+      "running": true,
+      "healthy": "healthy",
+      "containerPreserved": false
+    },
+    "runner": {
+      "running": true,
+      "healthy": "healthy",
+      "containerPreserved": false
+    },
+    "postgres": {
+      "running": true,
+      "healthy": "healthy",
+      "containerPreserved": true
+    },
+    "n8n": {
+      "running": true,
+      "healthy": null,
+      "containerPreserved": true
+    },
+    "tunnel": {
+      "running": true,
+      "healthy": null,
+      "containerPreserved": true
+    }
+  },
+  "configurationPreserved": {
+    "controller": "env, cmd, user, labels, mounts, binds, host security/limits/logging/ports, networks and healthcheck equal to pre-cutover container",
+    "runner": "same fields equal to pre-cutover container"
+  },
+  "moduleHashesMatched": {
+    "controller": true,
+    "runner": true,
+    "modules": 35
+  },
+  "rollbackControllerDiff": "only dist/store.js (learning batch reader excludes batchKind=csinterview)",
+  "history": {
+    "beforePrepare": {
+      "targets": {
+        "count": 48,
+        "hash": "621c48b882fd1f03c52b1f093df449a4"
+      },
+      "jobs": {
+        "count": 173,
+        "hash": "7392f992c90691eaa323658c7295d723"
+      },
+      "deliveries": {
+        "count": 213,
+        "hash": "f10371f78e551e59119687adb3aced77"
+      },
+      "mattermost_notifications": {
+        "count": 263,
+        "hash": "aebead1cc610d4ab8b80652bad4e605c"
+      },
+      "bot_comment_history": {
+        "count": 38,
+        "hash": "e50331c6a34cb65c36eb971ef3819120"
+      }
+    },
+    "atCutover": {
+      "targets": {
+        "count": 48,
+        "hash": "621c48b882fd1f03c52b1f093df449a4"
+      },
+      "jobs": {
+        "count": 173,
+        "hash": "7392f992c90691eaa323658c7295d723"
+      },
+      "deliveries": {
+        "count": 213,
+        "hash": "f10371f78e551e59119687adb3aced77"
+      },
+      "mattermost_notifications": {
+        "count": 263,
+        "hash": "aebead1cc610d4ab8b80652bad4e605c"
+      },
+      "bot_comment_history": {
+        "count": 38,
+        "hash": "e50331c6a34cb65c36eb971ef3819120"
+      }
+    },
+    "preCutoverRowsUnchanged": {
+      "targets": true,
+      "jobs": true,
+      "deliveries": true,
+      "mattermost_notifications": true,
+      "bot_comment_history": true
+    }
+  },
+  "migration": "none (001_initial.sql hash unchanged)",
+  "workflows": [
+    {
+      "id": "crbDispatch",
+      "active": true,
+      "nodeCount": 22,
+      "changed": false
+    },
+    {
+      "id": "crbRecovery",
+      "active": true,
+      "nodeCount": 5,
+      "changed": false
+    }
+  ],
+  "health": {
+    "status": 200,
+    "failed": 10,
+    "queued": 0,
+    "active": false
+  },
+  "localRoutes": {
+    "healthz": 200,
+    "n8nHealthz": 200,
+    "unauthorizedTick": 401,
+    "unauthorizedClaim": 401
+  },
+  "publicIngressCurl": {
+    "/webhooks/gitlab": 401,
+    "/healthz": 404,
+    "/internal/flow/claim": 404
+  },
+  "n8n": {
+    "errorIdsBefore": [
+      38006,
+      38007
+    ],
+    "errorIdsAfter": [
+      38006,
+      38007
+    ],
+    "newExecutionErrors": 0,
+    "executionsSinceActivation": {
+      "crbDispatch": 17,
+      "crbRecovery": 3
+    }
+  },
+  "liveTraffic": {
+    "postCutoverJobs": [
+      {
+        "kind": "review",
+        "state": "completed",
+        "attempts": 1,
+        "error": false,
+        "modelCalls": 1,
+        "generateMs": 43543,
+        "publishMs": 806
+      }
+    ],
+    "controllerErrorLogLines": 0,
+    "note": "A real GitLab MR event after cutover generated and published initial questions through the new runner. No /hey whatelse or /hey csinterview command has been issued against the new release yet; a /hey csinterview at 11:56 UTC reached the prior controller."
+  },
+  "stage": {
+    "passed": true,
+    "restoredDatabase": true,
+    "candidateRollbackCandidateStartup": true,
+    "historyPreservedDuringStartup": true,
+    "runnerRpcAndCommandFlow": {
+      "passed": true,
+      "authenticatedRunnerRpc": true,
+      "questions": 5,
+      "bareAnswer": "correct",
+      "threadReveal": true,
+      "whatelseCommand": true,
+      "morequestionRejected": true,
+      "modelGatewayCalls": 1,
+      "externalPosts": 0
+    },
+    "rollbackCompatibility": {
+      "passed": true,
+      "interviewRowsBeforeLegacy": 6,
+      "legacyBatchesVisible": 5,
+      "legacyAnswer": "correct",
+      "legacyFiveBatchCap": true,
+      "historyRetained": true,
+      "interviewFeatureDuringRollback": "unavailable"
+    },
+    "externalNetwork": "disabled"
+  },
+  "attempts": [
+    {
+      "source": "1f1588f",
+      "result": "aborted in prepare before any production change: BuildKit cannot resolve a bare image ID in FROM"
+    },
+    {
+      "source": "25312d1",
+      "result": "first prepare aborted by the module-set check: prior images contain macOS AppleDouble ._*.js files; overlay now replaces dist exactly"
+    },
+    {
+      "source": "25312d1",
+      "result": "first stage aborted by a probe regex (help renders /hey&nbsp;whatelse); stage resources cleaned"
+    }
+  ],
+  "rollbackCommand": "cd /home/ubuntu/hey/releases/csinterview-25312d1 && python3 deploy.py rollback",
+  "rollbackEffect": "Restores compatible prior controller and exact prior runner; database and CS interview history retained; /hey csinterview and /hey whatelse unavailable, /hey morequestion returns",
+  "backups": "compose.before.json, containers.before.json, reviewbot.before.dump, reviewbot.cutover.dump in the release directory (mode 600, directory 700)",
+  "limits": "No live model call or external comment was created by this deployment; the CS interview and whatelse paths were verified with isolated fixtures against a restored production copy. Leftover hey images were not pruned."
+}

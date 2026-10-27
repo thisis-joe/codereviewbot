@@ -33,7 +33,7 @@ test('two questions are visible before short action hints and both count toward 
  const body=renderReport(r);
  assert.equal([...body.matchAll(/^#### Q\d+\./gm)].length,2);
  assert.match(body,/#### hey! 이건 알고 머지한거지\? 😏/);assert.ok(body.indexOf('#### Q2.')<body.indexOf('답변 달기:'));
- assert.match(body,/더 풀어보기: `\/hey morequestion`/);assert.match(body,/답변 0\/2/);
+ assert.match(body,/더 풀어보기: `\/hey whatelse`/);assert.match(body,/답변 0\/2/);
  assert.equal(answerGate(r,new Set()).description,'질문 답변 0/2');
  const ids = questions().map(q => questionId(r.snapshot, q));
  assert.deepEqual(answerGate(r,new Set([ids[0]])),{state:'pending',description:'질문 답변 1/2'});

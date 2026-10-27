@@ -9,6 +9,14 @@
 기존 공개 웹훅 주소는 유지한다. 이전 순서, 데이터 검증, 백업 위치,
 Mac 정리 및 복구 주의사항은 [마이그레이션 운영 기록](hey-edo1-migration-2026-10-25.md)을 따른다.
 
+## n8n 단계별 실행
+
+새 구조에서 n8n이 준비·생성·검증·게시·완료를 개별 단계로 지시하고 실제 완료를 조회한다. 복구도 답변 상태 대조·실패 재등록·소스 정리로 나뉜다. 기존 단일 tick/recover API는 410을 반환하므로 Controller와 워크플로를 함께 전환한다. [단계별 흐름·검증·운영 전환 절차](n8n-orchestration.md)를 따른다.
+
+2026-10-26 edo1에 수정 소스 `2dcf0d9`를 적용했다. 두 워크플로가 활성 상태이며 데이터·인증·모델 설정을 보존했다. [운영 적용 증거](verification/n8n-production-2026-10-26.json)와 [복구 방법](n8n-orchestration.md#운영-적용-결과--2026-10-26)을 참고한다.
+
+같은 날 `25312d1`로 Controller·Runner를 함께 교체해 `/hey csinterview`와 `/hey whatelse`를 적용했다. 기존 `/hey morequestion`은 더 이상 인식하지 않는다. DB·워크플로·n8n·터널은 변경하지 않았다. [운영 적용 증거](verification/csinterview-production-2026-10-26.json)를 참고하고, 되돌릴 때는 `/home/ubuntu/hey/releases/csinterview-25312d1`에서 `python3 deploy.py rollback`을 실행한다.
+
 ## GMS 호출량 기준값 수집 (S15P31E102-138)
 
 2026-10-26 운영 Runner(`25312d1` 기반)의 `gms.js`만 이 로깅 변경(최초 커밋 `d7dc5fc`)으로 교체하고 `GMS_USAGE_ENV=production`을 추가했다. Controller는 이미지 변경 없이 재시작만 했고, DB·n8n·터널은 변경하지 않았다. 이제 GMS 요청마다 `gms-usage` 로그가 남는다. 형식은 [연결 설정](connections.md#gms-responses-api-직접-호출-기본-엔진)을 참고한다. [운영 적용 증거](verification/gms-usage-production-2026-10-26.json)가 있고, 되돌릴 때는 `/home/ubuntu/hey/releases/gms-usage-d7dc5fc`에서 `python3 deploy.py rollback`을 실행한다.
@@ -58,7 +66,7 @@ GitLab 저장소 설정의 `mattermostWebhookEnv: MATTERMOST_WEBHOOK_URL`로 알
   알려진 인증 정보는 마스킹한다. 이전 큐 데이터에 미리보기가 없으면 두 줄로 표시한다.
 - 수신 인증·저장소 허용 목록을 통과한 이벤트만 큐에 저장한다. 웹훅 URL은
   서버 설정에서만 읽고 전송 중에는 리다이렉트를 허용하지 않는다.
-- n8n의 기존 tick이 알림 큐도 구동한다. 명시적 429 거절은 최대 3회 시도하고,
+- n8n의 `Deliver queued notification` 노드가 알림 큐를 구동한다. 명시적 429 거절은 최대 3회 시도하고,
   응답 유실·재시작으로 전송 여부가 불명확하면 `uncertain`으로 남겨 자동 중복을 막는다.
   `mattermost_delivery` 로그와 `mattermost_notifications` 테이블에서 상태를 확인한다.
 
@@ -112,7 +120,7 @@ curl --fail http://localhost:18092/healthz
 ## 질문 전용 버전으로 업데이트
 
 1. 기존 DB와 인증 볼륨을 백업한다. DB를 초기화하거나 기존 작업·질문·답변 이력을 삭제하지 않는다. `jobs.command_result`의 멱등 마이그레이션도 유지한다.
-2. 컨트롤러·실행기를 같은 소스에서 함께 재빌드한다. 초기 출제의 `initial_questions` 계약이 양쪽에서 일치해야 한다. n8n dispatch·recovery 연결 방식은 그대로다.
+2. 컨트롤러·실행기를 같은 소스에서 함께 재빌드한다. 초기 출제의 `initial_questions` 계약이 양쪽에서 일치해야 한다. 질문 전용 전환과 별개로 n8n 단계별 관리 버전을 적용할 때는 새 워크플로와 Controller를 함께 전환한다.
 3. 새 결과는 `schemaVersion: "2"`로 저장한다. 이전 버전 결과는 같은 head/base/start SHA라도 최신 코드로 한 번 재생성한다. 전환이 끝난 결과는 같은 코드에서 재사용한다.
 4. 이전 버전의 게시 대기 결과는 질문 생성 작업으로 돌린다. 옛 지적을 새 인라인 댓글로 게시하지 않는다. 원격에 이미 게시된 과거 댓글과 저장된 질문·답변 이력은 유지한다.
 5. 이전 CI 대기 작업은 검사 결과 조회나 모델 호출 없이 종료한다. 새 CI 이벤트와 복구 조회는 CI 보고서 갱신 작업을 만들지 않는다. 선택적 `codereviewbot/questions` 답변 완료 상태는 계속 동기화한다.
@@ -164,7 +172,7 @@ Colima VM의 디스크는 Mac 호스트의 여유 공간과 별개다. `colima s
 
 ### MM 알림이 갑자기 멈춘 경우
 
-MM 전송 오류와 GitLab 수신 중단을 먼저 구분한다. 해당 프로젝트의 `mattermost_notifications` 마지막 성공 시각·대기 상태와 GitLab Webhook Recent events 응답을 함께 확인한다. DB 접속이 `57P03`(recovery mode)로 실패하면 Colima 디스크의 여유 공간과 PostgreSQL의 `No space left on device` 오류를 확인한다. 컨트롤러 재시작만 반복하거나 DB/WAL 파일을 삭제하지 않는다. 데이터·인증 볼륨과 운영·직전 복구 이미지를 보존하고 공간을 확보한 다음 PostgreSQL 연결 수락, 컨트롤러 health, n8n tick 순서로 확인한다.
+MM 전송 오류와 GitLab 수신 중단을 먼저 구분한다. 해당 프로젝트의 `mattermost_notifications` 마지막 성공 시각·대기 상태와 GitLab Webhook Recent events 응답을 함께 확인한다. DB 접속이 `57P03`(recovery mode)로 실패하면 Colima 디스크의 여유 공간과 PostgreSQL의 `No space left on device` 오류를 확인한다. 컨트롤러 재시작만 반복하거나 DB/WAL 파일을 삭제하지 않는다. 데이터·인증 볼륨과 운영·직전 복구 이미지를 보존하고 공간을 확보한 다음 PostgreSQL 연결 수락, 컨트롤러 health, n8n 단계별 실행 순서로 확인한다.
 
 공개 `/healthz`는 터널 경로 설정에 따라 404일 수 있다. 로컬 `/healthz` 200, 공개 `/webhooks/gitlab`의 인증 없는 POST 401, GitLab에서 재전송한 실제 요청 202와 MM 채널의 실제 메시지를 복구 기준으로 삼는다. 장애 중 요청은 DB 알림 큐에 들어오지 못했을 수 있으므로 큐가 비었다고 누락이 없다고 판단하지 않는다. 최신 열린 MR은 recover로 재동기화하고, 과거 이벤트를 전부 무차별 재전송하지 않는다.
 
