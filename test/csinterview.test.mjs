@@ -8,7 +8,8 @@ import { CsInterviewBatchSchema, AnswerKeySchema } from '../dist/contracts.js';
 import { Codex } from '../dist/codex.js';
 import { ClaudeCode } from '../dist/claude.js';
 import { Gms } from '../dist/gms.js';
-import { initialQuestions } from './fixtures.mjs';
+import { initialQuestions as plainQuestions, checked } from './fixtures.mjs';
+const initialQuestions = () => plainQuestions().map(checked);
 
 test('interview output requires a shortfall reason, at most two questions and complete four-choice keys', () => {
   for (const count of [0, 1, 2, 3]) {
@@ -77,7 +78,7 @@ test('shared prompt blocks leave the csinterview and morecs prompts byte-identic
   const { csInterviewPrompt, moreCsPrompt } = await import('../dist/csinterview.js');
   const { createHash } = await import('node:crypto');
   const hash = value => createHash('sha256').update(value).digest('hex');
-  // Hashes of f15ff38's prompts; update them only with an intended change to the CS interview bar.
-  assert.equal(hash(csInterviewPrompt('/snapshot/source', '{"x":1}')), '4ff2542cafdc68c026b9bbc0b960ad767cdcf3177390789f1fa712852996ddcf');
-  assert.equal(hash(moreCsPrompt('/snapshot/source', '{"x":1}')), '173d18d1916f4e3071f6093395fd705ed6e589d7cc9d1483408b6c44113ef720');
+  // Hashes of codex/csinterview's prompts at 7582a76; update them only with an intended change to the CS interview bar.
+  assert.equal(hash(csInterviewPrompt('/snapshot/source', '{"x":1}')), '15d0ae9a276ec74812e95b94d59392347d4e9a6c59050759686f87ef6cbbf603');
+  assert.equal(hash(moreCsPrompt('/snapshot/source', '{"x":1}')), '4d11433a887a3f03377354320cc84c29e3dba44820eeb63d585bd9c15a061cfa');
 });

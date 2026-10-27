@@ -5,7 +5,7 @@ import pg from 'pg';
 import { Store } from '../../dist/store.js';
 import { Controller } from '../../dist/controller.js';
 import { application } from '../../dist/application.js';
-import { snapshot, initialQuestions } from '../fixtures.mjs';
+import { snapshot, initialQuestions, checked } from '../fixtures.mjs';
 import { driveWorkflow } from '../workflow-driver.mjs';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL required');
@@ -33,7 +33,7 @@ for (const provider of ['github', 'gitlab']) test(`${provider}: signed interview
   const model = { run: async (phase, prompt) => {
     calls.push({ phase, prompt });
     const count = phase === 'csinterview' ? 2 : 5;
-    return { questions: Array.from({ length: count }, (_, i) => ({ ...initialQuestions()[0], level: 'advanced',
+    return { questions: Array.from({ length: count }, (_, i) => (phase === 'csinterview' ? checked : x => x)({ ...initialQuestions()[0], level: 'advanced',
       question: `호출 ${calls.length}의 조건 ${i + 1}에서 멱등성(idempotency)의 보장은 무엇인가요?`,
       key: { ...initialQuestions()[0].key, explanation: '멱등성(idempotency)은 반복 호출의 효과가 같은 성질입니다. 이 코드는 동일 요청을 식별합니다.' } })),
       unavailableReason: null };

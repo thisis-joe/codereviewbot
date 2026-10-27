@@ -1,4 +1,4 @@
-import { GradeSchema, QuestionBatchSchema, CsInterviewBatchSchema, MoreCsBatchSchema, CS_INTERVIEW_COUNT, MORECS_COUNT, QUESTION_BATCH_SIZE, hasChangeQuestions, type ChangeQuestion, type Grade, type Snapshot } from './contracts.js';
+import { GradeSchema, QuestionBatchSchema, CsInterviewBatchSchema, MoreCsBatchSchema, CS_INTERVIEW_COUNT, MORECS_COUNT, QUESTION_BATCH_SIZE, hasChangeQuestions, type ChangeQuestion, type Grade, type Snapshot, type QuestionCheck } from './contracts.js';
 import { csInterviewPrompt, moreCsPrompt } from './csinterview.js';
 import { whatElsePrompt } from './whatelse.js';
 import { answerSecurity, boldRule, sourceTools } from './prompt-blocks.js';
@@ -111,6 +111,13 @@ function followUps(questions: ChangeQuestion[], anchorLabels: string[], reason: 
 }
 function labelOf(byLabel: Map<string, ChangeQuestion>, snap: Snapshot, q: ChangeQuestion): string | undefined {
   return [...byLabel].find(([, v]) => questionId(snap, v) === questionId(snap, q))?.[0];
+}
+// Prompt wording alone did not stop stems that state the answer, so the model's per-question check is enforced here.
+// Failing questions are dropped and counted, never repaired or replaced; the check itself is not stored.
+function screened(questions: (ChangeQuestion & { check?: QuestionCheck })[]): { kept: ChangeQuestion[]; dropped: number } {
+  const compact = (value: string) => value.normalize('NFKC').replace(/\s+/g, '');
+  const kept = questions.filter(q => q.check && q.check.definitionOnlyPick !== q.key?.answer && !q.check.giveaway && compact(q.question).includes(compact(q.check.stemQuote)));
+  return { kept: kept.map(({ check: _, ...q }) => q), dropped: questions.length - kept.length };
 }
 function picked(answer: string, q: ChangeQuestion): string | undefined {
   const letter = answer.trim().match(/^\**([A-Za-z])(?![A-Za-z0-9])/)?.[1]?.toUpperCase();
@@ -245,10 +252,11 @@ export async function handleLearning(command: Command, job: Job, platform: Platf
                 const result: { questions: ChangeQuestion[]; unavailableReason: string | null } = kind === 'morecs' ? MoreCsBatchSchema.parse(await model.run('morecs', prompt, job.id, MORECS_BUDGET_MS))
                   : kind === 'csinterview' ? CsInterviewBatchSchema.parse(await model.run('csinterview', prompt, job.id, 120000))
                   : QuestionBatchSchema.parse(await model.run('questions', prompt, job.id, 120000));
-                const unavailableReason = result.unavailableReason;
-                if (!result.questions.length) body = notice(`${name} 질문을 생성하지 못했습니다. ${plain(redact(unavailableReason!))}`);
+                const screen = interview ? screened(result.questions) : { kept: result.questions, dropped: 0 };
+                const unavailableReason = [result.unavailableReason, screen.dropped ? `${screen.dropped}문항은 출제 검사(정의만 아는 지원자 판별·전제의 정답 노출)를 통과하지 못해 제외했습니다.` : null].filter(Boolean).join(' ') || null;
+                if (!screen.kept.length) body = notice(`${name} 질문을 생성하지 못했습니다. ${plain(redact(unavailableReason!))}`);
                 else {
-                  const shaped = kind === 'morecs' ? followUps(result.questions, anchorBatch!.labels, unavailableReason) : { ordered: result.questions, uncovered: [] };
+                  const shaped = kind === 'morecs' ? followUps(screen.kept, anchorBatch!.labels, unavailableReason) : { ordered: screen.kept, uncovered: [] };
                   questions = validateQuestions(shaped.ordered.map(q => ({ ...q, question: redact(q.question), options: q.options.map(o => ({ ...o, text: redact(o.text) })),
                     key: { ...q.key!, explanation: redact(q.key!.explanation), options: q.key!.options.map(o => ({ ...o, explanation: redact(o.explanation) })) } })), context, prior);
                   if (kind === 'morecs') {

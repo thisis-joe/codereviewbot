@@ -13,13 +13,13 @@ import { renderQuestionBatch } from '../dist/render.js';
 import { Codex } from '../dist/codex.js';
 import { ClaudeCode } from '../dist/claude.js';
 import { Gms } from '../dist/gms.js';
-import { snapshot, report, choices, answerKey } from './fixtures.mjs';
+import { snapshot, report, choices, answerKey, checked } from './fixtures.mjs';
 
 const context = () => ({ sourceDir: '/source', files: { 'src/pay.ts': 'function pay() {\n charge();\n save();\n}' }, baseFiles: {}, excluded: [], limited: false, diff: { 'src/pay.ts': { oldPath: 'src/pay.ts', patch: '@@ -1 +1,4 @@\n+function pay() {\n+ charge();\n+ save();\n+}', lines: new Set([1, 2, 3, 4]), oldLines: new Set() } } });
 const q = (text, extra = {}) => ({ question: text, path: 'src/pay.ts', line: 2, side: 'RIGHT', level: 'advanced', options: choices(), key: answerKey(), ...extra });
 const interviewBatch = (texts, start = 1) => ({ snapshot: snapshot(), questions: texts.map(t => q(t)), start, batchKind: 'csinterview' });
-const follow = (anchor, text) => q(text, { kind: 'followup', anchor });
-const fresh = text => q(text, { kind: 'interview', anchor: null });
+const follow = (anchor, text) => checked(q(text, { kind: 'followup', anchor }));
+const fresh = text => checked(q(text, { kind: 'interview', anchor: null }));
 const firstInterview = () => interviewBatch(['면접 첫 질문: 타임아웃 뒤 재시도는 무엇을 보장해야 하나요?', '면접 둘째 질문: 롤백은 외부 승인에 어떤 영향을 주나요?']);
 const payloadOf = prompt => JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
 
@@ -113,8 +113,8 @@ test('invalid anchors, extra interview questions, missing reasons and duplicates
   const cases = [
     { questions: [...valid, follow('면접9', '없는 앵커?')], unavailableReason: null },
     { questions: [...valid, follow('Q1', '최초 질문 앵커?')], unavailableReason: null },
-    { questions: [...valid, q('앵커 없는 꼬리?', { kind: 'followup', anchor: null })], unavailableReason: null },
-    { questions: [...valid, q('앵커 있는 새 면접?', { kind: 'interview', anchor: '면접1' })], unavailableReason: null },
+    { questions: [...valid, checked(q('앵커 없는 꼬리?', { kind: 'followup', anchor: null }))], unavailableReason: null },
+    { questions: [...valid, checked(q('앵커 있는 새 면접?', { kind: 'interview', anchor: '면접1' }))], unavailableReason: null },
     { questions: [valid[0], valid[1], fresh('새 면접 1?'), fresh('새 면접 2?')], unavailableReason: null },
     { questions: valid, unavailableReason: null },
     { questions: [...valid, follow('면접1', firstInterview().questions[0].question)], unavailableReason: null },
@@ -142,7 +142,7 @@ test('morecs, csinterview and whatelse each have their own five-run limit per re
   const five = [firstInterview(), ...Array.from({ length: 5 }, (_, i) => morecs(i))];
   const denied = harness('/hey morecs', { batches: five }); await denied.run();
   assert.equal(denied.data.calls.length, 0); assert.match(denied.data.replies[0][1], /꼬리 질문은 5회까지/);
-  const interview = harness('/hey csinterview', { batches: five, output: { questions: [q('새 면접 A?'), q('새 면접 B?')], unavailableReason: null } }); await interview.run();
+  const interview = harness('/hey csinterview', { batches: five, output: { questions: [checked(q('새 면접 A?')), checked(q('새 면접 B?'))], unavailableReason: null } }); await interview.run();
   assert.deepEqual(interview.data.saved.questions.map(x => x.question), ['새 면접 A?', '새 면접 B?']); assert.equal(interview.data.saved.start, 3);
   const more = harness('/hey whatelse', { batches: five, output: { questions: Array.from({ length: 5 }, (_, i) => q(`심화 ${i}?`)), unavailableReason: null } }); await more.run();
   assert.match(more.data.replies[0][1], /^#### 심화1\./m);
@@ -200,7 +200,7 @@ test('morecs output schema carries kind and anchor and rejects incoherent combin
   assert.equal(MoreCsBatchSchema.safeParse(ok).success, true);
   assert.equal(MoreCsBatchSchema.safeParse({ ...ok, questions: ok.questions.slice(0, 3) }).success, false);
   assert.equal(MoreCsBatchSchema.safeParse({ ...ok, questions: [...ok.questions, follow('면접1', 'e?')] }).success, false);
-  assert.equal(MoreCsBatchSchema.safeParse({ questions: [...ok.questions.slice(0, 3), q('x?')], unavailableReason: null }).success, false);
+  assert.equal(MoreCsBatchSchema.safeParse({ questions: [...ok.questions.slice(0, 3), checked(q('x?'))], unavailableReason: null }).success, false);
   const json = z.toJSONSchema(MoreCsBatchSchema, { unrepresentable: 'any' }), item = json.properties.questions.items;
   assert.equal(json.properties.questions.maxItems, 4); assert.deepEqual(item.properties.kind.enum, ['followup', 'interview']);
   assert.ok(item.required.includes('kind') && item.required.includes('anchor')); assert.equal(item.additionalProperties, false);
@@ -240,4 +240,34 @@ test('GMS morecs calls name the phase and send the follow-up schema', async t =>
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => server.close());
   const model = new Gms(root, `http://127.0.0.1:${server.address().port}`, 'test-key', 'test-model');
   assert.deepEqual(await model.run('morecs', '꼬리 질문', id, 5000), output);
+});
+
+test('interview questions whose own check shows a giveaway are dropped, never stored with the check, and the shortfall is explained', async () => {
+  const good = checked(q('조건을 적용해야 하는 질문입니다?'));
+  // Each case fails exactly one rule; the other fields are valid for its own stem.
+  const failing = (text, change) => { const c = checked(q(text)); return { ...c, check: { ...c.check, ...change } }; };
+  const bad = [
+    failing('정의만 알아도 맞히는 질문입니다?', { definitionOnlyPick: 'B' }),
+    failing('목표가 정답을 말하는 질문입니다?', { giveaway: true }),
+    failing('인용이 지어낸 질문입니다?', { stemQuote: '질문에 없는 문장' }),
+  ];
+  for (const drop of bad) {
+    const h = harness('/hey csinterview', { output: { questions: [good, drop], unavailableReason: null } }); await h.run();
+    assert.deepEqual(h.data.saved.questions.map(x => x.question), [good.question]);
+    assert.equal('check' in h.data.saved.questions[0], false);
+    assert.match(h.data.replies[0][1], /1문항만 출제했습니다\. 1문항은 출제 검사\\\(정의만 아는 지원자 판별·전제의 정답 노출\\\)를 통과하지 못해 제외했습니다\\\./);
+  }
+  const none = harness('/hey csinterview', { output: { questions: bad.slice(0, 2), unavailableReason: null } }); await none.run();
+  assert.equal(none.data.saved.questions, undefined);
+  assert.match(none.data.replies[0][1], /CS 면접 질문을 생성하지 못했습니다\. 2문항은 출제 검사/);
+  // A dropped follow-up may leave a 면접 anchor uncovered; the drop itself is the explained shortfall, so the batch survives.
+  const tails = [follow('면접1', '첫 꼬리?'), follow('면접1', '둘째 꼬리?'), (c => ({ ...c, check: { ...c.check, definitionOnlyPick: 'B' } }))(follow('면접2', '빠질 꼬리?')), fresh('새 면접?')];
+  const more = harness('/hey morecs', { batches: [firstInterview()], output: { questions: tails, unavailableReason: null } }); await more.run();
+  assert.deepEqual(more.data.saved.labels, ['꼬리1', '꼬리2', '면접3']);
+  assert.match(more.data.replies[0][1], /3문항만 출제했습니다\. 1문항은 출제 검사/);
+  const prompt = more.data.calls[0].prompt;
+  assert.match(prompt, /check\.definitionOnlyPick/); assert.match(prompt, /check\.stemQuote/);
+  assert.match(prompt, /시스템은 definitionOnlyPick이 정답과 같거나, stemQuote가 질문 본문에 그대로 없거나, giveaway가 true인 문항을 버립니다/);
+  const { check: _, ...unchecked } = good;
+  assert.equal(MoreCsBatchSchema.safeParse({ questions: [{ ...unchecked, kind: 'interview', anchor: null }], unavailableReason: '한 문항' }).success, false);
 });

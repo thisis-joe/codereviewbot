@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { InitialQuestionsSchema, QuestionBatchSchema, CsInterviewBatchSchema, MoreCsBatchSchema, GradeSchema } from '../dist/contracts.js';
 import { renderReport, renderQuestionThread, renderQuestionBatch, renderGrade, renderGrades, renderReveal, renderCommandHelp, renderAnswer, plain } from '../dist/render.js';
 import { questionId } from '../dist/learning.js';
-import { report, choices } from '../test/fixtures.mjs';
+import { report, choices, checked } from '../test/fixtures.mjs';
 
 // Illustrative source contract: pay(key) calls charge(key), then saves the order.
 // charge reuses the approval for the same key; its effects are outside the local DB transaction.
@@ -39,18 +39,18 @@ const deeperBatch = QuestionBatchSchema.parse({ questions: [
 const deeper = deeperBatch.questions;
 // Interview questions follow the csinterview bar: a definition alone cannot pick the answer, and wrong-option notes name the confused concept.
 const interviewBatch = CsInterviewBatchSchema.parse({ questions: [
-  question('결제 함수가 외부 승인 API를 호출합니다. 승인 API는 같은 멱등 키(idempotency key)로 다시 들어온 요청에는 새 승인 없이 처음 결과를 돌려줍니다. 결제 함수는 재시도 루프에서 HTTP 요청을 보낼 때마다 새 UUID를 멱등 키로 만들어 붙입니다. 첫 요청이 승인된 뒤 응답 전에 타임아웃되었다면, 재시도 결과로 옳은 것은 무엇인가요?', 2, 'advanced',
+  checked(question('결제 함수가 외부 승인 API를 호출합니다. 승인 API는 같은 멱등 키(idempotency key)로 다시 들어온 요청에는 새 승인 없이 처음 결과를 돌려줍니다. 결제 함수는 재시도 루프에서 HTTP 요청을 보낼 때마다 새 UUID를 멱등 키로 만들어 붙입니다. 첫 요청이 승인된 뒤 응답 전에 타임아웃되었다면, 재시도 결과로 옳은 것은 무엇인가요?', 2, 'advanced',
     ['멱등 키를 붙였으므로 재시도해도 승인은 한 번만 일어납니다.', '타임아웃은 첫 요청이 실패했다는 뜻이므로 재시도가 첫 승인이 됩니다.', '재시도는 다른 키를 가지므로 서버가 새 요청으로 보고 승인이 두 번 일어날 수 있습니다.', '서버가 같은 금액과 카드 정보로 중복을 알아채므로 승인은 한 번만 일어납니다.'], 'C',
     '멱등성(idempotency)은 같은 연산을 여러 번 적용해도 결과가 한 번 적용한 것과 같은 성질이며, 멱등 키는 서버가 같은 논리적 연산을 알아보게 하는 식별자입니다. 서버는 키로만 중복을 판단하므로 재시도마다 새 키를 만들면 서로 다른 연산으로 보입니다. 타임아웃은 응답을 받지 못했다는 관찰일 뿐 처리 실패가 아니므로, 첫 승인이 이미 일어났다면 재시도가 두 번째 승인이 됩니다. 키를 결제 시도마다 한 번 만들어 저장하고 모든 재시도에 재사용하면 결론이 바뀝니다. 이 예시의 pay가 첫 요청의 키를 재시도에 그대로 전달하는 지점이 이 보장에 기댑니다.',
-    ['멱등성의 정의만 적용하고 멱등 키의 범위를 놓쳤습니다. 서버는 **키가 같은 요청만 같은 연산으로 판단**하므로 요청마다 새 키를 붙이면 멱등성이 성립하지 않습니다.', '타임아웃과 실패를 혼동했습니다. 타임아웃은 **응답을 받지 못했다는 관찰**일 뿐이며, 서버는 처리를 끝냈을 수 있습니다.', '재시도마다 키가 달라 서버가 같은 결제임을 알 수 없고, 첫 승인이 이미 처리되었을 수 있으므로 승인이 두 번 일어날 수 있습니다.', '내용 기반 중복 제거를 가정했습니다. 이 서버는 **멱등 키로만 중복을 판단**하며, 같은 금액의 정당한 결제도 반복될 수 있습니다.']),
-  question('결제 함수가 하나의 DB 트랜잭션 안에서 외부 승인 API를 호출한 뒤 주문 행을 삽입하고 커밋합니다. 삽입 후 커밋 직전에 DB 연결이 끊겨 트랜잭션이 롤백되었다고 가정합니다. 이때 시스템 상태로 옳은 것은 무엇인가요?', 2, 'basic',
+    ['멱등성의 정의만 적용하고 멱등 키의 범위를 놓쳤습니다. 서버는 **키가 같은 요청만 같은 연산으로 판단**하므로 요청마다 새 키를 붙이면 멱등성이 성립하지 않습니다.', '타임아웃과 실패를 혼동했습니다. 타임아웃은 **응답을 받지 못했다는 관찰**일 뿐이며, 서버는 처리를 끝냈을 수 있습니다.', '재시도마다 키가 달라 서버가 같은 결제임을 알 수 없고, 첫 승인이 이미 처리되었을 수 있으므로 승인이 두 번 일어날 수 있습니다.', '내용 기반 중복 제거를 가정했습니다. 이 서버는 **멱등 키로만 중복을 판단**하며, 같은 금액의 정당한 결제도 반복될 수 있습니다.'])),
+  checked(question('결제 함수가 하나의 DB 트랜잭션 안에서 외부 승인 API를 호출한 뒤 주문 행을 삽입하고 커밋합니다. 삽입 후 커밋 직전에 DB 연결이 끊겨 트랜잭션이 롤백되었다고 가정합니다. 이때 시스템 상태로 옳은 것은 무엇인가요?', 2, 'basic',
     ['트랜잭션이 롤백되었으므로 외부 승인도 함께 취소됩니다.', '주문 행은 남지 않지만 외부 승인은 유지되어, 승인은 있고 주문은 없는 상태가 됩니다.', '주문 행은 삽입 시점에 디스크에 기록되었으므로 재시작 후 복구됩니다.', '외부 호출을 트랜잭션 안에 두었으므로 DB가 2단계 커밋으로 승인과 주문을 함께 커밋하거나 함께 취소합니다.'], 'B',
     '원자성(atomicity)은 한 트랜잭션 안의 DB 변경이 전부 반영되거나 전혀 반영되지 않는 성질입니다. DB는 자신이 관리하는 데이터의 변경만 기록하고 되돌리므로, 트랜잭션 안에서 호출한 외부 API의 부작용은 롤백 범위 밖에 있습니다. 따라서 커밋 직전에 롤백되면 주문 행은 사라지지만 외부 승인은 남아 승인과 주문이 어긋납니다. 외부 서비스가 같은 커밋 조정에 참여하거나 취소 같은 보상 동작을 따로 설계하면 결론이 바뀝니다. 이 예시에서 승인 뒤 주문 저장이 실패할 수 있는 지점이 이 경계에 기댑니다.',
-    ['원자성의 범위를 과대평가했습니다. 롤백은 **DB가 기록한 변경만 되돌리며**, 외부 API가 이미 만든 부작용은 취소하지 않습니다.', 'DB 변경은 롤백되고 외부 승인은 롤백 범위 밖에 남으므로 승인과 주문이 어긋난 상태가 됩니다.', '내구성(durability)을 잘못 적용했습니다. 내구성은 **커밋된 변경만** 장애 뒤에도 보존하며, 커밋되지 않은 변경은 복구 대상이 아닙니다.', '분산 트랜잭션이 저절로 일어난다고 가정했습니다. 2단계 커밋(two-phase commit)은 **모든 참여자가 같은 프로토콜을 지원할 때만** 가능하며, 일반 HTTP 호출은 참여하지 않습니다.']),
+    ['원자성의 범위를 과대평가했습니다. 롤백은 **DB가 기록한 변경만 되돌리며**, 외부 API가 이미 만든 부작용은 취소하지 않습니다.', 'DB 변경은 롤백되고 외부 승인은 롤백 범위 밖에 남으므로 승인과 주문이 어긋난 상태가 됩니다.', '내구성(durability)을 잘못 적용했습니다. 내구성은 **커밋된 변경만** 장애 뒤에도 보존하며, 커밋되지 않은 변경은 복구 대상이 아닙니다.', '분산 트랜잭션이 저절로 일어난다고 가정했습니다. 2단계 커밋(two-phase commit)은 **모든 참여자가 같은 프로토콜을 지원할 때만** 가능하며, 일반 HTTP 호출은 참여하지 않습니다.'])),
 ], unavailableReason: null });
 const interview = interviewBatch.questions;
 // /hey morecs continues 면접1·면접2: three follow-ups one layer below them, plus one uncovered core concept.
-const followUp = (anchor, ...args) => ({ ...question(...args), kind: anchor ? 'followup' : 'interview', anchor });
+const followUp = (anchor, ...args) => checked({ ...question(...args), kind: anchor ? 'followup' : 'interview', anchor });
 const moreBatch = MoreCsBatchSchema.parse({ questions: [
   followUp('면접1', '서버가 멱등 키별 첫 결과를 저장해 두고 같은 키 요청에 그 결과를 돌려준다고 가정합니다. 같은 키를 가진 두 요청이 동시에 도착하고, 서버는 각 요청을 \'키 조회 → 없으면 승인 → 결과 기록\' 순서로 처리합니다. 중복 승인을 막으려면 무엇이 필요한가요?', 2, 'advanced',
     ['조회를 한 번 더 반복해 키가 없는지 다시 확인한 뒤 승인합니다.', '키 기록을 유일 제약이나 원자적 삽입으로 먼저 확보해, 키를 차지한 요청 하나만 승인을 진행하게 합니다.', '두 요청 사이에 짧은 대기 시간을 두어 처리 순서가 겹치지 않게 합니다.', '트랜잭션 격리 수준을 커밋된 읽기(read committed)로 두면 두 요청이 서로의 미완료 기록을 보지 않으므로 충분합니다.'], 'B',

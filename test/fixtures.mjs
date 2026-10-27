@@ -17,3 +17,5 @@ export const analysis = (o = {}) => {
   return value;
 };
 export const report = (o = {}) => ({ schemaVersion: '2', snapshot: snapshot(), state: 'completed', mode: 'full', summary: '결제 처리 변경', findings: [], checks: [], recommendedTests: [], limitations: [], questions: changeQuestions(), reviewedFiles: ['src/pay.ts'], excludedFiles: [], ...o });
+// Interview outputs carry the model's giveaway check; a definition-only pick different from the key and a quote from the stem pass.
+export const checked = q => ({ ...q, check: { definitionOnlyPick: (q.key?.answer ?? 'B') === 'A' ? 'B' : 'A', definitionOnlyReason: '정의만 떠올리면 이 보기가 그럴듯해 보입니다.', stemQuote: q.question, giveaway: false } });
