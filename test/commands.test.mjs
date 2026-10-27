@@ -514,7 +514,8 @@ test('follow-ups go deeper into this change, leave CS depth to 꼬리 and never 
   assert.match(prompt, /최대 5개/); assert.match(prompt, /5개 미만이면 unavailableReason/); assert.match(prompt, /level은 모두 advanced/);
   assert.doesNotMatch(prompt, /80자|정확히 5개/);
   assert.match(prompt, /묻는 결론\(그 결과·보장·한계\)이나 정답을 가르는 규칙은 쓰지 마세요/); assert.match(prompt, /전제를 부정하거나 상식만으로 지워지는 보기/);
-  assert.match(prompt, /운영에서 실제로 일어나는 조건/); assert.match(prompt, /드물게 겹치는 사건을 가정해야만/); assert.match(prompt, /변경 전에도 그대로였던 동작/);
+  assert.match(prompt, /운영에서 실제로 일어나는 조건/); assert.match(prompt, /보통 3~4개/); assert.match(prompt, /이 문항이 빠지면 동료가 이 변경에 대해 놓치는 판단이 있는가/);
+  assert.match(prompt, /변경 전부터 있던 규칙/); assert.match(prompt, /배포 전환기에만 생기는 상황은 묶음에서 한 문항까지만/); assert.match(prompt, /확인할 성질을 나열하지 마세요/); assert.doesNotMatch(prompt, /목표는 5문항/); assert.match(prompt, /드물게 겹치는 사건을 가정해야만/); assert.match(prompt, /변경 전에도 그대로였던 동작/);
   const data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
   assert.deepEqual(data.priorQuestions, h.data.report.questions.map(q => q.question));
   assert.deepEqual(Object.keys(data.diff), ['src/pay.ts']);
