@@ -28,7 +28,7 @@ function learningHarness(body, overrides = {}) {
   const platform = { config: { botLogin: 'bot' }, permission: async () => data.permission ?? 'write', owned: c => c.author === 'bot',
     comments: async () => data.remote.map(c => ({ surface: job.body.comment.surface, ...c })), inlineComments: async () => [], snapshot: async () => ({ ...data.snap }),
     reply: async (...args) => { data.replies.push(args); if (data.replyError) throw new Error('network lost'); } };
-  const model = { run: async (phase, prompt) => { data.calls.push({ phase, prompt }); data.onModel?.(); return data.output ?? { questions: extraQuestions() }; } };
+  const model = { run: async (phase, prompt) => { data.calls.push({ phase, prompt }); data.onModel?.(); return data.output ?? { questions: extraQuestions(), unavailableReason: null }; } };
   const controller = new Controller(store, [], { prepare: async () => ({ context: data.context ?? context(), policy: data.policy ?? {} }) }, model);
   return { data, job, run: async (jobOverride = {}) => controller.command({ ...job, ...jobOverride }, platform, async () => {}) };
 }
@@ -208,13 +208,28 @@ test('a wrong bare letter leads with the stored note that names the confused con
 
 test('reasoning goes to the model with the key, but the key alone decides right or wrong', async () => {
   const r = report(), id = questionId(r.snapshot, r.questions[0]);
-  const output = verdict => ({ verdict, explanation: '이유 평가', expectedAnswer: '같은 키', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] });
+  const output = verdict => ({ verdict, explanation: '이유 평가', expectedAnswer: null, optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] });
   for (const [answer, model, expected] of [['B 같은 키를 재사용합니다', 'incorrect', 'partial'], ['B 같은 키', 'unverifiable', 'correct'], ['A 새 키가 안전합니다', 'correct', 'incorrect'], ['B 같은 키', 'partial', 'partial']]) {
     const h = learningHarness(`/hey answer ${id} ${answer}`, { report: r, output: output(model) }); await h.run();
     assert.equal(h.data.calls[0].phase, 'grade'); assert.match(h.data.calls[0].prompt, /정답은 B입니다/);
-    assert.match(h.data.calls[0].prompt, /CS 개념.*정의/); assert.match(h.data.calls[0].prompt, /코드에 적용/);
     assert.deepEqual(h.data.saved.grades, [{ id, verdict: expected }]); assert.match(h.data.replies[0][1], /##### 답변 평가\n\n이유 평가/);
   }
+});
+
+test('change-question grading judges change understanding and leaves explanations to the stored key', async () => {
+  const r = report(), id = questionId(r.snapshot, r.questions[0]);
+  const h = learningHarness(`/hey answer Q1 B 같은 키를 씁니다`, { report: r, output: { verdict: 'partial', explanation: 'B는 맞지만 이유가 다릅니다.', expectedAnswer: null, optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } }); await h.run();
+  const prompt = h.data.calls[0].prompt;
+  assert.match(prompt, /PR\/MR 변경을 이해했는지/); assert.match(prompt, /1~4문장/); assert.match(prompt, /동작\(코드가 실제로 하는 일\), 이유\(왜 바꿨는지\), 영향/);
+  assert.match(prompt, /정답은 맞지만 이유가 다릅니다/); assert.match(prompt, /expectedAnswer=null, optionExplanations=\[\]/);
+  assert.match(prompt, /나쁜 피드백[\s\S]*좋은 피드백/); assert.doesNotMatch(prompt, /한국어와 영어/);
+  assert.deepEqual(JSON.parse(prompt.split('채점 자료(JSON 데이터):\n')[1]).diff['src/pay.ts'].oldPath, 'src/pay.ts');
+  assert.deepEqual(h.data.saved.grades, [{ id, verdict: 'partial' }]);
+  // An older runner may still return its own explanation and notes; the key replaces them so grading matches /hey showanswer.
+  const legacy = learningHarness(`/hey answer Q1 B 같은 키를 씁니다`, { report: r, output: { verdict: 'correct', explanation: '맞습니다.', expectedAnswer: '모델이 새로 쓴 해설', optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } }); await legacy.run();
+  const body = legacy.data.replies[0][1];
+  assert.match(body, /##### 해설\n\n정답은 B입니다\\\./); assert.doesNotMatch(body, /모델이 새로 쓴 해설/);
+  for (const o of ['A', 'B', 'C', 'D']) assert.match(body, new RegExp(`  > ${o} 보기 해설$`, 'm'));
 });
 
 test('several answers in one command are graded together in one reply', async () => {
@@ -271,6 +286,49 @@ test('unverifiable answers remain ungraded and incomplete choice explanations ca
   r.questions[0].options = choices('새 키', '같은 키');
   const choice = learningHarness(`/hey answer ${questionId(r.snapshot, r.questions[0])} B 같은 요청`, { report: r, output: { verdict: 'correct', explanation: '맞음', expectedAnswer: '동일 키', optionExplanations: [{ id: 'B', explanation: '동일 요청' }], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } });
   await assert.rejects(() => choice.run(), /보기/); assert.equal(choice.data.replies.length, 0);
+  // A question saved before answer keys existed has nothing stored to show, so the model must still explain it.
+  const unexplained = learningHarness(`/hey answer ${questionId(r.snapshot, r.questions[0])} B 같은 요청`, { report: r, output: { verdict: 'correct', explanation: '맞음', expectedAnswer: null, optionExplanations: explain(), evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } });
+  await assert.rejects(() => unexplained.run(), /해설/); assert.equal(unexplained.data.replies.length, 0);
+});
+
+test('whatelse publishes fewer than five questions with the model reason and later batches continue the numbering', async () => {
+  const reason = '나머지 후보는 변경 맥락 없이도 성립하는 일반 CS 질문이라 제외했습니다.';
+  const h = learningHarness('/hey whatelse', { output: { questions: extraQuestions().slice(0, 3), unavailableReason: reason } }); await h.run();
+  const body = h.data.replies[0][1];
+  assert.equal(h.data.saved.questions.length, 3); assert.equal([...body.matchAll(/^#### 심화\d+\. /gm)].length, 3);
+  assert.match(body, /3문항만 출제했습니다\. 나머지 후보는 변경 맥락 없이도/);
+  const next = learningHarness('/hey whatelse', { batches: [{ snapshot: snapshot(), questions: h.data.saved.questions, start: 1 }], output: { questions: [extraQuestions()[3]], unavailableReason: '한 문항만 남았습니다.' } }); await next.run();
+  assert.match(next.data.replies[0][1], /^#### 심화4\. /m);
+  for (const output of [{ questions: extraQuestions().slice(0, 3), unavailableReason: null }, { questions: extraQuestions(), unavailableReason: '사유' }]) {
+    const invalid = learningHarness('/hey whatelse', { output }); await assert.rejects(() => invalid.run()); assert.equal(invalid.data.replies.length, 0);
+  }
+  const none = learningHarness('/hey whatelse', { output: { questions: [], unavailableReason: '변경이 설정 한 줄뿐입니다.' } }); await none.run();
+  assert.match(none.data.replies[0][1], /심화 질문을 생성하지 못했습니다\. 변경이 설정 한 줄뿐입니다/); assert.equal(none.data.saved.questions, undefined);
+});
+
+test('a keyed grade shows exactly the explanation and option notes that /hey showanswer shows, bold included', async () => {
+  const r = report(), q = r.questions[0];
+  q.key = { ...q.key, explanation: '변경 전에는 **새 키를 만들어** 중복될 수 있었고, 이제 `첫 키`를 재사용합니다.', options: q.key.options.map(o => ({ ...o, explanation: `${o.id}는 **${o.id} 오독**입니다. <b>태그</b>와 [링크](x)는 글자입니다.` })) };
+  const graded = learningHarness('/hey answer Q1 A 새 키가 안전합니다', { report: r, output: { verdict: 'incorrect', explanation: 'A는 **동작**을 잘못 읽었습니다.', expectedAnswer: null, optionExplanations: [], evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }] } }); await graded.run();
+  const revealed = learningHarness('/hey showanswer', { report: r, remote: [{ id: 'root', author: 'bot', body: renderReport(r) }], comment: { parentId: 'root' } }); await revealed.run();
+  const section = (body, head) => body.slice(body.indexOf(`##### ${head}`), body.indexOf('##### 코드 근거'));
+  const grade = graded.data.replies[0][1], reveal = revealed.data.replies[0][1];
+  const q1 = reveal.slice(reveal.indexOf('#### Q1.'), reveal.indexOf('#### Q2.'));
+  assert.equal(section(grade, '해설'), section(q1, '해설'));
+  assert.match(grade, /<b>새 키를 만들어<\/b>/); assert.match(grade, /&lt;b&gt;태그&lt;\/b&gt;/); assert.doesNotMatch(grade, /\*\*[가-힣]/);
+  assert.match(grade, /##### 답변 평가\n\nA는 <b>동작<\/b>을 잘못 읽었습니다\\\./);
+});
+
+test('the largest @hey answer stays within the comment budget', async () => {
+  const big = '&'.repeat(6000), path = Array(5).fill('漢'.repeat(99)).join('/');
+  const { renderAnswer } = await import('../dist/render.js');
+  const body = renderAnswer({ premise: big, answer: big, why: big, evidence: Array(12).fill({ path, line: 1, side: 'RIGHT', reason: big }), unverified: big, dropped: 8 }, snapshot(), 'budget');
+  assert.ok(body.length <= 60000, `got ${body.length}`); assert.equal((body.match(/^- \[/gm) ?? []).length, 4); assert.match(body, /답변과 근거를 크게 축약했습니다/);
+  const typical = renderAnswer({ premise: null, answer: '답', why: null, evidence: Array(12).fill({ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }), unverified: null }, snapshot(), 'typical');
+  assert.equal((typical.match(/^- \[/gm) ?? []).length, 12); assert.doesNotMatch(typical, /축약/);
+  const { AnswerSchema } = await import('../dist/contracts.js'), cite = { path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' };
+  assert.equal(AnswerSchema.safeParse({ premise: null, answer: '답', why: null, evidence: Array(12).fill(cite), unverified: null }).success, true);
+  assert.equal(AnswerSchema.safeParse({ premise: null, answer: '답', why: null, evidence: Array(13).fill(cite), unverified: null }).success, false);
 });
 
 test('display numbers resolve to review questions first and then continue through follow-up batches', async () => {
@@ -286,7 +344,7 @@ test('display numbers resolve to review questions first and then continue throug
   const mixed = learningHarness('/hey answer Q1 B 심화1 B', { report: r, batches: [{ snapshot: snapshot(), questions: extra, start: 1 }] }); await mixed.run();
   assert.deepEqual(mixed.data.saved.grades.map(g => g.id), [questionId(r.snapshot, r.questions[0]), questionId(r.snapshot, extra[0])]);
   const fresh = ['pay 재시도 사이 키 저장소 장애는 어떻게 다뤄야 하나요?', 'charge 응답 코드별 재시도 정책은 어떻게 나누나요?', 'save 실패를 재현하는 테스트는 어떤 경계에서 작성하나요?', 'pay 로그에 남길 멱등 키 정보는 무엇인가요?', 'charge 호출 순서를 바꾸면 어떤 불변 조건이 깨지나요?'].map(question => ({ ...extra[0], question }));
-  const more = learningHarness('/hey whatelse', { report: r, batches: [{ snapshot: snapshot(), questions: extra }], output: { questions: fresh } }); await more.run();
+  const more = learningHarness('/hey whatelse', { report: r, batches: [{ snapshot: snapshot(), questions: extra }], output: { questions: fresh, unavailableReason: null } }); await more.run();
   assert.equal(more.data.saved.start, 6); assert.match(more.data.replies[0][1], /^#### 심화6\. pay /m); assert.match(more.data.replies[0][1], /^#### 심화10\. /m);
   assert.doesNotMatch(more.data.replies[0][1], /^#### Q\d/m); assert.match(more.data.replies[0][1], /`\/hey help`/); assert.doesNotMatch(more.data.replies[0][1], /pay\\.ts:\d|\/blob\//);
   const missing = learningHarness('/hey answer Q4 B', { report: r }); await missing.run();
@@ -302,7 +360,7 @@ test('choice questions ask for an option letter before spending a grading call',
 
 test('extra learning rejects repeated questions and anchors outside the current change', async () => {
   for (const q of [report().questions[0], { ...extraQuestions()[0], path: 'unrelated.ts' }]) {
-    const h = learningHarness('/hey whatelse', { output: { questions: [q, ...extraQuestions().slice(1)] } });
+    const h = learningHarness('/hey whatelse', { output: { questions: [q, ...extraQuestions().slice(1)], unavailableReason: null } });
     await assert.rejects(() => h.run(), /중복|근거/); assert.equal(h.data.replies.length, 0);
   }
 });
@@ -393,7 +451,7 @@ test('grading reserves comment room for the request link near the output boundar
 test('oversized follow-up batches keep all five questions and their choices within the comment budget', async () => {
   const path = Array(5).fill('漢'.repeat(99)).join('/');
   const questions = Array.from({ length: 5 }, (_, i) => ({ question: '&'.repeat(498) + i, path, line: 1, side: 'RIGHT', level: 'advanced', options: ['A', 'B', 'C', 'D'].map(id => ({ id, text: '&'.repeat(299) + id })), key: answerKey() }));
-  const h = learningHarness('/hey whatelse', { output: { questions }, context: { ...context(), files: { [path]: 'source' }, diff: { [path]: { oldPath: path, patch: '@@ -0,0 +1 @@\n+source', lines: new Set([1]) } } } });
+  const h = learningHarness('/hey whatelse', { output: { questions, unavailableReason: null }, context: { ...context(), files: { [path]: 'source' }, diff: { [path]: { oldPath: path, patch: '@@ -0,0 +1 @@\n+source', lines: new Set([1]) } } } });
   await h.run(); const body = h.data.replies[0][1]; assert.ok(body.length <= 60000, `got ${body.length}`);
   assert.equal(h.data.saved.questions.length, 5); assert.equal([...body.matchAll(/^#### 심화\d+\. /gm)].length, 5);
   assert.equal([...body.matchAll(/^- \*\*[A-D]\.\*\* /gm)].length, 20);
@@ -401,7 +459,7 @@ test('oversized follow-up batches keep all five questions and their choices with
 });
 
 test('the @hey prompt never carries answer keys', async () => {
-  const h = learningHarness('@hey Q1 정답이 뭐야?', { output: { answer: '코드를 보세요.', evidence: [], next: '확인' } }); await h.run();
+  const h = learningHarness('@hey Q1 정답이 뭐야?', { output: { premise: null, answer: '코드를 보세요.', why: null, evidence: [], unverified: null } }); await h.run();
   assert.equal(h.data.calls[0].phase, 'answer'); assert.ok(!h.data.calls[0].prompt.includes('보기 해설')); assert.ok(!h.data.calls[0].prompt.includes('"key"'));
   assert.ok(h.data.calls[0].prompt.includes(h.data.report.questions[0].question));
 });
@@ -410,8 +468,8 @@ test('a push during contextual answer generation prevents publishing obsolete co
   let snap = snapshot(), replies = 0;
   const platform = { config: { botLogin: 'bot' }, permission: async () => 'write', comments: async () => [], inlineComments: async () => [], snapshot: async () => ({ ...snap }), reply: async () => { replies++; } };
   const store = { getTarget: async () => ({ report: report() }) };
-  const workspaces = { prepare: async () => ({ context: { sourceDir: '/source' }, policy: {} }) };
-  const model = { run: async () => { snap = { ...snap, headSha: 'c'.repeat(40) }; return { answer: 'old code advice', evidence: [], next: 'check code' }; } };
+  const workspaces = { prepare: async () => ({ context: context(), policy: {} }) };
+  const model = { run: async () => { snap = { ...snap, headSha: 'c'.repeat(40) }; return { premise: null, answer: 'old code advice', why: null, evidence: [], unverified: null }; } };
   const controller = new Controller(store, [], workspaces, model);
   const job = { id: 'job', body: { target: snapshot(), comment: { id: 'q1', author: 'joe', body: '@hey explain behavior', parentId: null, discussionId: null, surface: 'issue' } } };
   await assert.rejects(() => controller.command(job, platform, async () => {}), /Answer snapshot changed/);
@@ -444,34 +502,49 @@ test('stored CS explanations accompany both bare-option grading and answer revea
   }
 });
 
-test('follow-ups deepen principles and exclude repeated learning goals before publishing questions', async () => {
+test('follow-ups go deeper into this change, leave CS depth to 꼬리 and never pad', async () => {
   const h = learningHarness('/hey whatelse'); await h.run();
   const body = h.data.replies[0][1];
   assert.ok(body.indexOf('#### 심화5.') < body.indexOf('답변 달기:'));
   assert.match(body, /^#### 심화1\./m);
   const prompt = h.data.calls[0].prompt;
-  assert.match(prompt, /보장이 성립하는 조건과 그 한계/);
-  assert.match(prompt, /함수명, 숫자, 사례만 바꾼 질문도 중복/);
+  assert.match(prompt, /CS 개념을 깊이 파는 것은 면접·꼬리 질문\(\/hey csinterview, \/hey morecs\)의 몫/);
+  for (const topic of ['트레이드오프', '실패 경계', '영향', '확인']) assert.match(prompt, new RegExp(`^- ${topic}: `, 'm'));
+  assert.match(prompt, /함수명·숫자·사례만 바꿔 다시 묻지 마세요/);
   assert.match(prompt, /여러 선택이 타당한 상황에서 현재 구현과 다르다는 이유만으로 오답 처리하지 마세요/);
-  assert.match(prompt, /핵심 보장의 유지 또는 위반/);
+  assert.match(prompt, /보장의 유지 또는 위반/);
   assert.match(prompt, /문항 난이도·개수 같은 제품 내부 규칙/);
-  assert.match(prompt, /책임 경계.*표현을 붙여도 출제하지 마세요/);
   assert.match(prompt, /조건 → 원리 → 보장 또는 위험/);
-  assert.match(prompt, /key.explanation: 관련 원리, 성립 조건/);
-  assert.match(prompt, /정확히 5개/);assert.match(prompt, /level은 모두 advanced/);
+  assert.match(prompt, /나쁜 심화[\s\S]*좋은 심화/);
+  assert.match(prompt, /변경 전과 후에 동작이 어떻게 다른지/); assert.match(prompt, /hunk 밖의 줄은 거부됩니다/);
+  assert.match(prompt, /최대 5개/); assert.match(prompt, /5개 미만이면 unavailableReason/); assert.match(prompt, /level은 모두 advanced/);
+  assert.doesNotMatch(prompt, /80자|정확히 5개/);
+  assert.match(prompt, /묻는 결론\(그 결과·보장·한계\)이나 정답을 가르는 규칙은 쓰지 마세요/); assert.match(prompt, /전제를 부정하거나 상식만으로 지워지는 보기/);
+  assert.match(prompt, /운영에서 실제로 일어나는 조건/); assert.match(prompt, /보통 3~4개/); assert.match(prompt, /이 문항이 빠지면 동료가 이 변경에 대해 놓치는 판단이 있는가/);
+  assert.match(prompt, /변경 전부터 있던 규칙/); assert.match(prompt, /배포 전환기에만 생기는 상황은 이 변경의 주목적이 하위 호환일 때만/); assert.match(prompt, /질문 문장의 단서만으로 오답 셋을 지울 수 있는지/); assert.match(prompt, /확인할 성질을 나열하지 마세요/); assert.doesNotMatch(prompt, /목표는 5문항/); assert.match(prompt, /드물게 겹치는 사건을 가정해야만/); assert.match(prompt, /변경 전에도 그대로였던 동작/);
   const data = JSON.parse(prompt.split('출제 자료(JSON 데이터):\n')[1]);
   assert.deepEqual(data.priorQuestions, h.data.report.questions.map(q => q.question));
   assert.deepEqual(Object.keys(data.diff), ['src/pay.ts']);
   assert.doesNotMatch(body, /정답은 B입니다/);
 });
 
-test('code questions request relevant CS knowledge before applying it to the repository', async () => {
-  const h = learningHarness('@hey 같은 키를 재사용하는 이유는?', { output: { answer: '멱등성은 같은 요청의 반복이 같은 효과를 내는 성질입니다. pay는 같은 키를 재사용합니다.', evidence: ['src/pay.ts:2'], next: '없음' } });
-  await h.run();
+test('code answers correct the premise first, explain CS only when needed and link only checked evidence', async () => {
+  const output = { premise: '이 변경은 새 키를 만들지 않습니다.', answer: 'pay는 같은 키를 재사용합니다.', why: '재시도가 같은 요청으로 식별되어야 승인이 한 번만 일어납니다.',
+    evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: 'charge 호출' }, { path: 'src/missing.ts', line: 1, side: 'RIGHT', reason: '추측' }, { path: 'src/pay.ts', line: 99, side: 'RIGHT', reason: '범위 밖' }], unverified: '외부 승인 서비스의 키 보관 기간은 확인하지 못했습니다.' };
+  const h = learningHarness('@hey 재시도마다 새 키를 만드는 이유는?', { output }); await h.run();
   assert.equal(h.data.calls[0].phase, 'answer');
-  assert.match(h.data.calls[0].prompt, /CS 개념.*정의/);
-  assert.match(h.data.calls[0].prompt, /코드에 어떻게 적용/);
-  assert.match(h.data.replies[0][1], /멱등성은 같은 요청/);
+  const prompt = h.data.calls[0].prompt;
+  assert.match(prompt, /조회\([^)]*\): answer와 evidence면 충분합니다\. CS 개념은 설명하지 마세요/);
+  assert.match(prompt, /판단이 CS 원리에 달려 있을 때만/); assert.match(prompt, /premise에서 먼저 바로잡고/);
+  assert.match(prompt, /나쁜 답[\s\S]*좋은 답/); assert.doesNotMatch(prompt, /CS 개념의 이름과 정의·핵심 원리/);
+  assert.deepEqual(Object.keys(JSON.parse(prompt.split('질문 자료(JSON 데이터):\n')[1]).diff), ['src/pay.ts']);
+  const body = h.data.replies[0][1];
+  assert.match(body, /^\*\*전제와 다른 점\*\*: 이 변경은 새 키를 만들지 않습니다\\\.\n\npay는 같은 키를 재사용합니다\\\.\n\n##### 이유\n\n재시도가/m);
+  assert.match(body, /##### 코드 근거\n\n- \[src\/pay\\\.ts:2\]\(https:\/\/github\.com\/joe\/demo\/blob\/b{40}\/src\/pay\.ts#L2\): charge 호출\n- 확인할 수 없는 근거 위치 2곳은 제외했습니다\./);
+  assert.match(body, /##### 확인하지 못한 것\n\n외부 승인 서비스의 키 보관 기간/); assert.doesNotMatch(body, /missing|추측|범위 밖/);
+  const lookup = learningHarness('@hey charge는 어디서 호출되나요?', { output: { premise: null, answer: 'pay 안에서 호출합니다.', why: null, evidence: [{ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }], unverified: null } }); await lookup.run();
+  const reply = lookup.data.replies[0][1];
+  assert.doesNotMatch(reply, /전제와 다른 점|##### 이유|확인하지 못한 것/); assert.match(reply, /pay 안에서 호출합니다/);
 });
 
 test('answer and reveal retain stored commit titles when the live snapshot omits metadata', async () => {

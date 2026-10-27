@@ -4,6 +4,6 @@
 
 - [화면 미리보기: 최초 질문 / 추가 질문 / 해설](learning-preview.html)
 - [최초 질문 예시](initial-questions.md)
-- [추가 질문과 해설 예시](whatelse-with-cs.md)
+- [심화 질문과 채점 예시](whatelse.md)
 
 앞서 제안했던 CS 키워드 먼저·보기 접기 방식은 적용하지 않습니다.

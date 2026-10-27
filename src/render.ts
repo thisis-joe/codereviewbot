@@ -61,7 +61,7 @@ export type AnswerResults = Map<string, Verdict | null>;
 const commands: [command: string, meaning: string, detail: string, example: string][] = [
   ['/hey answer', '답변', '질문 번호와 보기(A~D)로 답하고 채점·해설 받기<br>여러 답변: Q1 B Q2 C · 심화1 B · 면접1 B · 꼬리1 B', '/hey answer Q1 B'],
   ['/hey showanswer', '정답 보기', '질문 댓글에 답글로 남기면 그 댓글의 질문만 정답·해설 공개<br>번호 지정 없이 사용 · 답변 완료로 처리하지 않음', '/hey showanswer'],
-  ['/hey whatelse', '심화 질문', '기존 질문과 겹치지 않는 심화 질문 5개 추가<br>심화1·심화2…로 번호 부여', '/hey whatelse'],
+  ['/hey whatelse', '심화 질문', '이 변경의 트레이드오프·실패 경계·영향·확인 방법을 더 깊게 묻는 질문 최대 5개<br>심화1·심화2…로 번호 부여 · CS 개념 심화는 morecs', '/hey whatelse'],
   ['/hey csinterview', 'CS 면접', '변경이 기대는 핵심 CS 개념 면접 질문 2개<br>면접1·면접2…로 번호 부여', '/hey csinterview'],
   ['/hey morecs', '꼬리 질문', '최근 면접 묶음을 더 파고드는 질문 최대 4개<br>꼬리1·꼬리2…, 새 면접 질문은 면접 번호를 이음', '/hey morecs'],
   ['/hey tryagain', '질문 재생성', '최신 변경 범위의 질문을 다시 생성', '/hey tryagain'],
@@ -73,7 +73,6 @@ const commands: [command: string, meaning: string, detail: string, example: stri
 const commandCode = (value: string) => `<code>${value.replace(/^\/hey /, '/hey&nbsp;')}</code>`;
 const commandTable = ['| 명령어 | 뜻 | 설명 | 사용 예시 |', '|---|---|---|---|', ...commands.map(([c, m, d, e]) => `| ${commandCode(c)} | ${m.replaceAll(' ', '&nbsp;')} | ${d} | ${commandCode(e)} |`)];
 export function renderCommandHelp(commentId: string): string { return [replyMarker(commentId), '### 명령어 안내', '', ...commandTable].join('\n'); }
-function list(values: string[]): string { return values.length ? values.map(x => `- ${plain(x)}`).join('\n') : '없음'; }
 export function renderReport(r: Report, results: AnswerResults = new Map()): string {
   const full = renderReportBody(r, results); if (full.length <= 60000) return full;
   // Preserve the historical four-question compaction limit for oversized legacy reports.
@@ -126,12 +125,19 @@ function renderFindingBody(f: Finding, s: Snapshot): string {
     '**수정 방향**', plain(f.fix), '', '**추천 검증**', plain(f.test), ...(f.suggestion ? ['', '**코드 제안**', suggestion] : []),
     '', COMMAND_HELP_HINT].join('\n');
 }
-export function renderAnswer(a: { answer: string; evidence: string[]; next: string }, marker: string): string {
-  const next = a.next.trim();
-  const followUp = next && next !== COMMAND_HELP_HINT && !/^(?:없음|해당 없음)[.!。]?$/.test(next);
-  return [replyMarker(marker), plain(a.answer),
-    ...(a.evidence.length ? ['', '#### 코드 근거', '', list(a.evidence)] : []),
-    ...(followUp ? ['', '#### 참고', '', plain(next)] : []), '', COMMAND_HELP_HINT].join('\n');
+export interface AnswerView { premise: string | null; answer: string; why: string | null; evidence: { path: string; line: number; side: 'LEFT' | 'RIGHT'; reason: string }[]; unverified: string | null; dropped?: number }
+/** @hey reply: a premise correction leads, then the answer, its reason, linked code evidence and what stayed unverified. */
+export function renderAnswer(a: AnswerView, s: Snapshot, marker: string): string {
+  const levels: [number, number, number, string][] = [[6000, 700, 12, ''], [1500, 300, 12, '댓글 길이 제한으로 답변을 축약했습니다.'], [500, 120, 4, '댓글 길이 제한으로 답변과 근거를 크게 축약했습니다.']];
+  for (const [text, reason, cited, note] of levels) {
+    const fit = (v: string | null) => v === null ? null : clip(v, text), premise = fit(a.premise), why = fit(a.why), unverified = fit(a.unverified);
+    const evidence = [...a.evidence.slice(0, cited).map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, reason))}`), ...(a.dropped ? [`- 확인할 수 없는 근거 위치 ${a.dropped}곳은 제외했습니다.`] : [])];
+    const body = [replyMarker(marker), ...(premise ? [`**전제와 다른 점**: ${plain(premise)}`, ''] : []), plain(clip(a.answer, text)),
+      ...(why ? ['', '##### 이유', '', plain(why)] : []), ...(evidence.length ? ['', '##### 코드 근거', '', ...evidence] : []),
+      ...(unverified ? ['', '##### 확인하지 못한 것', '', plain(unverified)] : []), '', COMMAND_HELP_HINT, ...(note ? ['', note] : [])].join('\n');
+    if (body.length <= 60000) return body;
+  }
+  throw new Error('Answer exceeds comment budget');
 }
 // Q-IDs stay in hidden markers for threading and the merge gate; readers see revision-wide numbers.
 // Questions are H4 headings with a blank line before native Markdown list choices.

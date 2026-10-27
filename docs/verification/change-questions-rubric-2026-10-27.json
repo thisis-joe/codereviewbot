@@ -1,0 +1,62 @@
+{
+  "fixedAt": "2026-10-27, before any real-model generation for this evaluation",
+  "scope": "Change questions (initial Q1/Q2 and /hey whatelse 심화), their grading and /hey showanswer, and @hey answers; real GMS outputs before (135ac1c prompts) and after (this goal's prompts)",
+  "scale": "1-5 per item; 5, 3 and 1 are anchored below, 4 and 2 sit between",
+  "changeQuestionDimensions": {
+    "importance": { "5": "A reviewer who cannot answer it should not approve this MR: the core effect, guarantee, risk or affected caller/data/operation", "3": "Relevant to the MR but secondary to its main purpose", "1": "Peripheral detail of the MR" },
+    "grounded": { "5": "Every fact matches the diff and pinned code; the location shows the effect or principle; added assumptions are labeled", "3": "Location right but the link is weak, or one minor factual slip", "1": "Wrong facts, wrong location, or a hypothetical presented as current behavior" },
+    "understanding": { "5": "Choosing needs understanding of the change's behavior, reason or impact; cannot be settled by finding a value or tracing a branch", "3": "Partly settled by lookup or tracing", "1": "Pure lookup or execution tracing" },
+    "uniqueAnswer": { "5": "The stated conditions and code determine exactly one option", "3": "Needs one unstated but reasonable assumption", "1": "Two or more options are defensible" },
+    "misreadings": { "5": "All three wrong options are plausible misreadings of this change (behavior, reason or impact)", "3": "One strawman", "1": "Two or more strawmen" },
+    "explanationClarifies": { "5": "Explanation says behavior before vs after, why it matters and what goes wrong if misread; wrong-option notes name the misreading and what the code actually does; a principle appears only where the answer turns on it", "3": "Partly, or drifts into a CS lecture, or restates the code", "1": "Restates the answer, or lectures without explaining the change" },
+    "nonNiche": { "5": "Matters to anyone touching this code; nothing to look up", "3": "Mentions an internal constant or rule but the answer does not hinge on it", "1": "Hinges on an internal constant, product rule, exception name or rare edge case" }
+  },
+  "changeQuestionFlags": {
+    "padded": "Fails the bar on importance or understanding and appears only to fill a fixed count",
+    "lookup": "Answered by locating a value, a sentence or a branch result",
+    "genericCs": "Answerable without this MR; belongs to 면접/꼬리 rather than 심화",
+    "mergeGateFail": "Q1/Q2 only: a reviewer could safely approve without knowing it, or it is advanced rather than basic"
+  },
+  "gradingScenarios": {
+    "rightSound": "Correct option with a correct reason: verdict correct; feedback credits the specific reasoning",
+    "rightFlawed": "Correct option with a wrong reason: verdict partial; feedback says the option is right but the reason is wrong, names what was misread (behavior, reason or impact) with code evidence",
+    "wrongLetterOnly": "Wrong bare letter: verdict incorrect without a model call; feedback is the stored note for that option",
+    "wrongPartial": "Wrong option with a partly correct reason: verdict incorrect; feedback credits the correct part and pinpoints the misread with code evidence"
+  },
+  "gradingDimensions": {
+    "pinpoint": { "5": "Names exactly what was misread (behavior, reason or impact) and what the code does, with valid evidence", "3": "Says it is wrong but vaguely", "1": "Generic or wrong" },
+    "credit": { "5": "Credits the correct parts specifically", "3": "Generic praise", "1": "Ignores correct parts or contradicts them" },
+    "kindFit": { "5": "Q/심화 feedback is about the change; 면접/꼬리 about concepts and terms", "3": "Mixed", "1": "Q/심화 feedback is a CS lecture" }
+  },
+  "gradingChecks": {
+    "verdictMatchesScenario": "Verdict equals the scenario's expected verdict",
+    "keyAgreement": "For keyed questions the grade's 해설 and 보기별 해설 text equals /hey showanswer for the same question (deterministic string comparison)"
+  },
+  "heyQuestions": {
+    "s1": { "lookup": "GMS 어댑터에서 모델이 요청한 파일 읽기는 어떤 코드가 처리하나요?", "design": "GMS 어댑터가 Responses API에 JSON 스키마를 보내면서도 최종 결과를 로컬 스키마로 다시 검증하는 이유는 뭔가요?", "wrongPremise": "GMS 응답이 너무 크면 앞부분만 잘라서 파싱하던데, 잘린 JSON은 어떻게 복구하나요?" },
+    "s2": { "lookup": "workflow 상태 조회에서 pending 단계와 running 단계는 각각 어떤 store 메서드를 호출하나요?", "design": "상태 폴링이 running 단계의 임대를 더 이상 갱신하지 않게 바꾼 이유는 뭔가요?", "wrongPremise": "이제 retry는 결과가 없는 review 작업도 기존 단계 체크포인트를 그대로 재사용하죠? 산출물이 만료됐으면 어떻게 되나요?" },
+    "s3": { "lookup": "실패한 질문 생성은 자동으로 최대 몇 번까지 다시 시도하나요?", "design": "recoveryEvent가 이전 실패 작업의 id와 시도 번호로 deliveryId를 만드는 이유는 뭔가요?", "wrongPremise": "이 변경 뒤로는 인증 실패도 5분 뒤 자동으로 재시도되죠? 왜 그렇게 했나요?" },
+    "s4": { "lookup": "/hey showanswer는 해설을 보여 줄 질문을 어떤 댓글에서 찾나요?", "design": "showanswer가 명령 인자 대신 답글을 단 질문 스레드로 범위를 정하게 바꾼 이유는 뭔가요?", "wrongPremise": "이제 /hey showanswer Q1처럼 번호를 붙이면 그 질문만 보여 주죠? 번호가 틀리면 어떻게 되나요?" }
+  },
+  "heyDimensions": {
+    "answerFirst": { "5": "The first sentence answers the question (or corrects the premise first when it is wrong)", "3": "Answer arrives after background", "1": "No direct answer" },
+    "grounded": { "5": "Claims are right and backed by valid path:line evidence that supports them", "3": "Mostly right; evidence weak or partly missing", "1": "Wrong or unsupported" },
+    "premise": { "5": "A wrong premise is corrected before answering (n/a for correct premises)", "3": "Corrected late or implicitly", "1": "Accepted the wrong premise" },
+    "csOnlyWhenNeeded": { "5": "Lookups carry no CS lecture; design answers name a principle only where the answer turns on it", "3": "Some unneeded concept explanation", "1": "Opens with or centers on a CS lecture" },
+    "unverified": { "5": "States what could not be verified when relevant, and nothing spurious", "3": "Vague", "1": "Presents unverifiable claims as fact" }
+  },
+  "targets": {
+    "changeQuestionDimensionMeansAtLeast4": true,
+    "padded": 0, "lookup": 0,
+    "gradeShowanswerDisagreements": 0,
+    "gradingDimensionMeansAtLeast4": true,
+    "heyDimensionMeansAtLeast4": true
+  },
+  "samples": {
+    "s1": "c3a1367 GMS Responses API adapter",
+    "s2": "2dcf0d9 orphaned n8n phase recovery and expired retry inputs",
+    "s3": "fee3cb6 bounded retries of failed question generation",
+    "s4": "252d5c8 answer reveal scoped to the question thread"
+  },
+  "procedure": "Each sample runs before (code at 135ac1c, from a clean worktree) and after (this goal's code) through the same signed-webhook → controller → disposable PostgreSQL flow: /hey tryagain (initial Q1/Q2), /hey whatelse, /hey answer with the four grading scenarios over Q1/Q2/심화 (answers written after seeing each version's questions), /hey showanswer in the Q1, Q2 and 심화 threads, then the three fixed @hey questions. Model: GMS gpt-6.1-sol via ssh edo1 → hey-edo1-runner-1 (user-approved scope: selected sources of the four commits; budget ~64 calls per round, cap ~140). An independent agent, blind to the author's judgement, picks its own answer from the stated conditions before seeing each key, then scores every item. At most 3 prompt iterations, each logged with the observed reason."
+}

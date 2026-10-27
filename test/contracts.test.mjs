@@ -39,7 +39,6 @@ test('legacy inline and answer templates retain safe suggestion blocks and evide
   const text = renderFinding(finding({ id: 'CRB-0001', suggestion: { startLine: 4, endLine: 4, replacement: 'return `x`;\n```' } }), snapshot());
   for (const label of ['문제', '발생 조건', '영향', '근거', '수정 방향', '추천 검증', '코드 제안']) assert.match(text, new RegExp(`\\*\\*${label}\\*\\*`));
   assert.match(text, /````suggestion/);
-  assert.match(renderAnswer({ answer: '설명', evidence: ['src/pay.ts:4'], next: '검증 필요' }, 'reply-1'), /설명[\s\S]*#### 코드 근거[\s\S]*#### 참고/);
 });
 
 test('question-only report keeps snapshot links and omits all legacy CI and summary content', () => {

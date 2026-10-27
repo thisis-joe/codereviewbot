@@ -48,9 +48,11 @@ export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10
 // Initial questions cover fundamental CS principles; advanced learning is opt-in.
 export const INITIAL_QUESTION_COUNT = 2;
 export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema.extend({ level: z.literal('basic') })).length(INITIAL_QUESTION_COUNT) });
-// Each /hey whatelse batch is fixed at five questions.
+const shortfallReason = z.string().trim().min(1).max(1000).nullable();
+// Each /hey whatelse batch aims for five questions and returns fewer, with a reason, rather than padding.
 export const QUESTION_BATCH_SIZE = 5;
-export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).length(QUESTION_BATCH_SIZE) });
+export const QuestionBatchSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema).max(QUESTION_BATCH_SIZE), unavailableReason: shortfallReason })
+  .refine(v => (v.questions.length === QUESTION_BATCH_SIZE) === (v.unavailableReason === null), 'A shortfall reason is required exactly when fewer than five questions are available');
 // Interview batches favor the most core concepts over filling the quota.
 export const CS_INTERVIEW_COUNT = 2;
 // Each interview question carries the model's own giveaway check; the controller drops questions that fail it
@@ -61,7 +63,6 @@ export const QuestionCheckSchema = z.strictObject({
 });
 export type QuestionCheck = z.infer<typeof QuestionCheckSchema>;
 const InterviewQuestionSchema = ChangeQuestionSchema.extend({ key: InterviewKeySchema, check: QuestionCheckSchema });
-const shortfallReason = z.string().trim().min(1).max(1000).nullable();
 export const CsInterviewBatchSchema = z.strictObject({
   questions: z.array(InterviewQuestionSchema).max(CS_INTERVIEW_COUNT),
   unavailableReason: shortfallReason,
@@ -77,13 +78,18 @@ export const MoreCsBatchSchema = z.strictObject({
 }).refine(v => v.questions.every(q => (q.kind === 'followup') === (q.anchor !== null)), 'Follow-ups name their anchor; new interview questions have none')
   .refine(v => v.questions.filter(q => q.kind === 'interview').length <= 1, 'At most one new interview question')
   .refine(v => v.questions.length === MORECS_COUNT || v.unavailableReason !== null, 'A shortfall reason is required when fewer than four questions are available');
+// explanation is the feedback on the developer's reasoning. A keyed question shows its stored explanation and option notes,
+// so the model leaves expectedAnswer null; questions saved before keys existed still get them from the model.
+// An older runner's fully written grade also parses and is overridden by the key. Feedback that credits, names the
+// misreading and cites code ran past three sentences in real runs and failed whole commands, so it may use four.
 export const GradeSchema = z.strictObject({
   verdict: z.enum(['correct', 'partial', 'incorrect', 'unverifiable']),
-  explanation: explanationText(2000), expectedAnswer: explanationText(2000),
+  explanation: explanationText(2000, 4), expectedAnswer: explanationText(2000).nullable(),
   optionExplanations: z.array(z.strictObject({ id: z.enum(['A', 'B', 'C', 'D', 'E']), explanation: explanationText(800) })).max(5),
   evidence: z.array(EvidenceSchema).max(6),
 });
-export type Grade = z.infer<typeof GradeSchema>;
+export type Grade = z.infer<typeof GradeSchema> & { expectedAnswer: string };
+// No model phase produces an analysis any more; it types the summary fields and archived findings of stored reports.
 export const AnalysisSchema = z.strictObject({
   summary: text,
   findings: z.array(CandidateSchema).max(40), checks: z.array(CheckSchema).max(30),
@@ -91,12 +97,10 @@ export const AnalysisSchema = z.strictObject({
   resolutions: z.array(z.strictObject({ id: z.string().regex(/^CRB-\d+$/), status: z.enum(['fixed', 'unverified']), reason: text })).max(100),
   questions: ChangeQuestionsSchema,
 });
-export const VerificationSchema = z.strictObject({
-  decisions: z.array(z.strictObject({ id: z.string().regex(/^C-\d+$/), decision: z.enum(['confirmed', 'rejected', 'unverifiable']), reason: text })).max(40),
-  resolutions: z.array(z.strictObject({ id: z.string().regex(/^CRB-\d+$/), status: z.enum(['fixed', 'unverified']), reason: text })).max(100),
-  questions: ChangeQuestionsSchema,
-});
-export const AnswerSchema = z.strictObject({ answer: text, evidence: z.array(text).max(12), next: text });
+// @hey answers correct a wrong premise first, then answer, explain why and cite code locations that are checked before posting.
+// Real answers cited up to eight locations and one failed past a cap of eight, so the earlier limit of twelve stays.
+export const AnswerSchema = z.strictObject({ premise: text.nullable(), answer: text, why: text.nullable(), evidence: z.array(EvidenceSchema).max(12), unverified: text.nullable() });
+export type Answer = z.infer<typeof AnswerSchema>;
 export type Candidate = z.infer<typeof CandidateSchema>;
 export type Analysis = z.infer<typeof AnalysisSchema>;
 export type Check = z.infer<typeof CheckSchema>;

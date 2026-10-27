@@ -47,6 +47,6 @@ test('incremental generation preserves the exact delta and grounds purpose witho
   assert.match(prompt, /변경 전 코드는 직전 출제 커밋/);
   assert.match(prompt, /diff의 LEFT는 MR\/PR 기준 커밋/);
   assert.match(prompt, /내부에서 생성하는 예외와 외부에서 전파되는 예외를 구분/);
-  assert.match(prompt, /오답에 없는 주장을 추가하거나 확인되지 않은 일반 법칙/);
+  assert.match(prompt, /오답에 없는 주장을 덧붙여 반박하지 마세요/);
   assert.equal(calls.length, 1);
 });

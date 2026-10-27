@@ -144,7 +144,7 @@ test('morecs, csinterview and whatelse each have their own five-run limit per re
   assert.equal(denied.data.calls.length, 0); assert.match(denied.data.replies[0][1], /꼬리 질문은 5회까지/);
   const interview = harness('/hey csinterview', { batches: five, output: { questions: [checked(q('새 면접 A?')), checked(q('새 면접 B?'))], unavailableReason: null } }); await interview.run();
   assert.deepEqual(interview.data.saved.questions.map(x => x.question), ['새 면접 A?', '새 면접 B?']); assert.equal(interview.data.saved.start, 3);
-  const more = harness('/hey whatelse', { batches: five, output: { questions: Array.from({ length: 5 }, (_, i) => q(`심화 ${i}?`)) } }); await more.run();
+  const more = harness('/hey whatelse', { batches: five, output: { questions: Array.from({ length: 5 }, (_, i) => q(`심화 ${i}?`)), unavailableReason: null } }); await more.run();
   assert.match(more.data.replies[0][1], /^#### 심화1\./m);
   const four = harness('/hey morecs', { batches: five.slice(0, 5), output: { questions: [follow('꼬리4', '마지막 꼬리?')], unavailableReason: '한 문항만 남았습니다.' } }); await four.run();
   assert.deepEqual(four.data.saved.labels, ['꼬리5']);

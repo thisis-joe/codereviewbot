@@ -11,9 +11,9 @@ When a PR/MR is merged, hey reads the final change and posts **2 basic multiple-
 ## How it works for your team
 
 1. **Merge a PR/MR.** Opening, reopening and pushing do not automatically generate questions.
-2. **Answer 2 questions.** Each has A–D options and tests a CS concept relevant to the actual change. Initial questions stay at a basic level.
-3. **Read the explanations.** Get the correct option as a sentence, an explanation, per-option notes and links to code at the relevant commit.
-4. **Go deeper when needed.** `/hey whatelse` adds 5 deeper questions about the same change.
+2. **Answer 2 questions.** Q1 asks the effect a reviewer must grasp before approving; Q2 asks the principle the change's correctness depends on, in this change's situation. Both have A–D options and stay at a basic level.
+3. **Read the explanations.** They explain the change: behavior before vs after, why it matters and what goes wrong if misread. Wrong-option notes name the misreading and what the code actually does, with key phrases in bold, plus links to code at the relevant commit.
+4. **Go deeper when needed.** `/hey whatelse` adds up to 5 questions that go deeper into this change: trade-offs, failure boundaries, impact on callers, data, operations and compatibility, and how to confirm the guarantee. General CS depth belongs to `/hey csinterview` and `/hey morecs`.
 
 Questions and replies are written in Korean. hey supports code understanding; it does not find defects automatically, edit code, approve or merge PRs.
 
@@ -40,7 +40,7 @@ Questions use H4 headings and blank lines. Reference commits appear as a list of
 
 Explanations show the correct option's sentence, then **explanation → per-option notes → code evidence**. Notes are indented on a new line beneath each option. Each generated explanation is 1–3 sentences connecting CS principles to concrete code conditions. Your answer and the correct option letters are not displayed side by side.
 
-[Initial question example](docs/examples/initial-questions.md) · [Follow-up and explanation examples](docs/examples/whatelse-with-cs.md)
+[Initial question example](docs/examples/initial-questions.md) · [Follow-up and grading examples](docs/examples/whatelse.md) · [`@hey` answer examples](docs/examples/hey.md)
 
 ## Comment commands
 
@@ -52,23 +52,25 @@ Comment on a connected PR/MR. Commands require GitHub Write or GitLab Developer 
 | Answer one question | `/hey answer Q1 B` |
 | Answer several questions | `/hey answer Q1 B Q2 A` |
 | Reveal the questions in the comment you reply to | `/hey showanswer` |
-| Get 5 follow-up questions | `/hey whatelse` |
+| Get up to 5 deeper questions about this change | `/hey whatelse` |
 | Get 2 core CS interview questions | `/hey csinterview` |
 | Dig into the latest interview questions | `/hey morecs` |
 | Regenerate questions | `/hey tryagain` |
-| Ask about the code | `@hey 이 변경에서 멱등성이 필요한 이유가 뭔가요?` |
+| Ask about this change and its code | `@hey 재시도할 때 키를 재사용하는 이유가 뭔가요?` |
 
 ### Answers and explanations
 
 - Add reasoning after your choice, for example: `/hey answer Q1 B 같은 요청의 승인을 재사용해야 하기 때문입니다`.
 - In an inline thread containing one question, a reply such as `B` is enough for grading. Use question numbers in summary comments.
-- A choice alone is graded from the stored answer key. If you add reasoning, the model also assesses it.
+- A choice alone is graded from the stored answer key. If you add reasoning, the model assesses it: for change questions (Q, 심화) it points out whether behavior, reason or impact was misread, with code evidence, and flags a right answer chosen for a wrong reason as partial; for 면접/꼬리 it judges concepts and terms.
+- The stored key decides right or wrong, and its explanation and option notes are shown as stored, so a grade and `/hey showanswer` always agree.
 - `/hey showanswer` reads stored explanations without a model call or marking questions as answered.
+- An `@hey` answer corrects a wrong premise first, then gives the answer, why, code evidence (as links) and what it could not verify. Lookups get no CS explanation.
 - **The question comment you reply to determines the scope.** Reply beneath the initial questions to reveal only those, or beneath a follow-up batch to reveal only that batch. Individual question selectors are not supported.
 - Each follow-up batch opens a separate thread. Outside a question thread, the bot asks you to reply to the relevant question comment. It does not guess a scope for older revisions or legacy threads mixing several batches.
-- On GitLab, use the question comment's reply field. Ordinary GitHub PR comments have no child replies, so use a **question thread attached to code**. The 5 follow-ups share a separate code thread; an initial inline thread reveals only the one question shown there.
+- On GitLab, use the question comment's reply field. Ordinary GitHub PR comments have no child replies, so use a **question thread attached to code**. Each follow-up batch shares a separate code thread; an initial inline thread reveals only the one question shown there.
 
-Follow-up numbers continue within the same code version: `심화1–5`, then `심화6–10`. Each PR/MR allows up to 5 follow-up requests per code version. Earlier question and answer history is preserved.
+Follow-up numbers continue within the same code version: `심화1–5`, then `심화6–10`. When fewer than 5 questions meet the bar, the batch is shorter and says why instead of padding. Each PR/MR allows up to 5 follow-up requests per code version. Earlier question and answer history is preserved.
 
 ### CS interview preparation
 
@@ -109,7 +111,8 @@ Open the generated files below. The demo uses fixtures and makes no model calls.
 |---|---|
 | `.local/demo-report.md` | Initial question comment |
 | `.local/demo-inline.md` | A question attached to a code line |
-| `.local/demo-learning.md` | 5 follow-ups and a graded explanation |
+| `.local/demo-learning.md` | A short 심화 batch with its reason, a right-answer-wrong-reason grade and the same question's reveal |
+| `.local/demo-hey.md` | An `@hey` answer that corrects the question's premise |
 | `.local/demo-csinterview.md` | CS interview questions and thread-scoped answer reveal |
 | `.local/demo-morecs.md` | A follow-up batch, mixed-label grading and thread-scoped reveal |
 | `.local/demo-help.md` | Full command help |

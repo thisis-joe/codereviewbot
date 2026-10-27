@@ -1,0 +1,994 @@
+{
+ "variantMapping": {
+  "s1": {
+   "A": "before",
+   "B": "after-r3"
+  },
+  "s2": {
+   "A": "after-r3",
+   "B": "before"
+  },
+  "s3": {
+   "A": "after-r3",
+   "B": "before"
+  },
+  "s4": {
+   "A": "before",
+   "B": "after-r3"
+  }
+ },
+ "scores": {
+  "s1": {
+   "sample": "s1",
+   "questions": [
+    {
+     "id": "A-Q1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 2,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Asks the core mechanism of the change (the runner calls the API, executes the snapshot tools and re-validates with the phase schema), but C (hand off to Codex CLI) and D (no validation) contradict the stem's own 'Codex CLI 실행 없이도 … 유지' and are strawmen."
+    },
+    {
+     "id": "A-Q2",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 2,
+     "uniqueAnswer": 5,
+     "misreadings": 2,
+     "explanationClarifies": 3,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": true,
+      "mergeGateFail": true
+     },
+     "note": "The stem's 'small chunks keep arriving' clause states D's rule, the 2MB cumulative cap is secondary hardening a reviewer could approve without, the reasoning is generic buffering knowledge, A (chunk order) and B (size implies types) are strawmen, and the explanation opens with a streaming lecture."
+    },
+    {
+     "id": "A-심화1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 5,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Change-specific and well distracted: the AbortSignal is created once outside the 64-round loop, so all rounds share one budget, and it never reaches RepositoryReader. The explanation misses the before/after contrast: on timeout the Codex path SIGKILLed the whole process group, a hard stop the in-process GMS loop no longer gives."
+    },
+    {
+     "id": "A-심화2",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "The stem already says the full history is resent each round, so the pick reduces to arithmetic-series reasoning. Distractors B (store:false makes the server restore history) and D (dropping tool results keeps the evidence) are good misreadings of the new loop."
+    },
+    {
+     "id": "A-심화3",
+     "ownPick": "A",
+     "keyAnswer": "A",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 5,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Tests why schema.parse stays after the API-side json_schema: strict:false, and toJSONSchema with unrepresentable:'any' drops refinements such as safePath. B (completed status equals HTTP success) is a weak distractor."
+    },
+    {
+     "id": "A-심화4",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 5,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 3,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "The sharpest change-specific item: an older controller's strict FailureSchema rejects provider 'gms', HttpModel falls back to the retryable code 'unknown', and GMS authentication failures get auto-retried. But it hinges on a mixed-version deploy, and both the abstract stem and D's vague 'compatibility' wording hide the concrete mechanism, which the explanation never names (FailureSchema enum, HttpModel fallback)."
+    },
+    {
+     "id": "A-심화5",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Names the real exfiltration boundary: tool outputs accumulate in input and are re-sent, and RepositoryReader.read redacts only known patterns. D (JSON stringify prevents execution) is a strawman, and the stem's 'prompt masking only' framing points toward the one option naming another path."
+    },
+    {
+     "id": "B-Q1",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 5,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Ideal merge gate: the default MODEL_PROVIDER flips from codex to gms in both runner-server and compose, and the Gms constructor throws on an empty key at module load, so unconfigured upgrades stop starting. Every distractor (CLI detection, automatic fallback, Codex auth reuse) is a realistic misreading, and the explanation states before/after and the consequence."
+    },
+    {
+     "id": "B-Q2",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 5,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Correctly puts the access boundary for model-chosen paths in RepositoryReader.read (safePath plus realpath root check), reached from the new read_file dispatch. The distractors confuse workspaceSource, the z.string() arg schema and the instructions with enforcement, and the explanation contrasts with the Codex sandbox and MCP server."
+    },
+    {
+     "id": "B-심화1",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 4,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "The stem's assumption that the gateway restores no unstated state nearly decides C. Ruling out D depends on the Responses API pairing function_call with function_call_output, which the key only hedges ('승인할 근거가 없습니다'). Note A correctly says nothing passes previous_response_id."
+    },
+    {
+     "id": "B-심화2",
+     "ownPick": "A",
+     "keyAnswer": "A",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 4,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 5,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "A sound operational judgment: the structured failure, not the 422, separates rate_limit (retryable) from authentication (not retryable). But the deciding 422 + RunnerFailureSchema/HttpModel contract predates this change. Only C (gateway body text is cancelled, never forwarded) and D (no internal retry) test new GMS code."
+    },
+    {
+     "id": "B-심화3",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 2,
+     "uniqueAnswer": 5,
+     "misreadings": 2,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": true,
+      "mergeGateFail": null
+     },
+     "note": "The stem's two constraints (no fabricated success, keep the recovery chance) rule out A and C outright, leaving a generic error-as-tool-result pattern that source-mcp already used before this change. Only B tests the call_id output pairing."
+    }
+   ],
+   "grading": [],
+   "hey": [],
+   "summary": "All 12 keys match my independent picks. Variant B has the stronger merge gates: B-Q1 (the default provider flip that stops unconfigured runners from starting) and B-Q2 (the RepositoryReader path boundary) are essential, have fully plausible distractors and explain before vs after. A-Q2 is secondary, generic and given away by its stem. Variant A has the stronger 심화 set: A-심화3, A-심화4 and A-심화5 test judgments only this change creates (lossy API schema, mixed-version failure enum, tool outputs as an exfiltration path). B's three 심화 lean on stems that state the deciding rule (심화1, 심화3) or on a pre-existing failure contract (심화2)."
+  },
+  "s2": {
+   "sample": "s2",
+   "questions": [
+    {
+     "id": "A-Q1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 5,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Tests the core recovery path (running-phase status now only calls assertLease, so the lease expires and claim reassigns the same step to a new owner); A is the old behavior and D a good misreading, C is weak, and the explanation gives before/after and the operational effect but never says the single global job stalled the whole queue."
+    },
+    {
+     "id": "A-Q2",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 5,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Core second fix, but the stem ('prep files were cleaned, how should the prepared record be treated') points straight at C and B (a retry-count reset makes the record trustworthy) is a strawman; the explanation states that previously only failed-result reviews were reset, so NULL-result retries reused checkpoints to deleted files."
+    },
+    {
+     "id": "A-심화1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 5,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": null,
+      "mergeGateFail": null
+     },
+     "note": "Realistic boundary judgment (the existing 600s model timeouts are still needed because execute()'s 15s heartbeat renews regardless of progress), but the stem's labeled assumption 'the worker heartbeat keeps succeeding' is echoed almost verbatim by B, and C (stopping polls ends the worker heartbeat) is a strawman."
+    },
+    {
+     "id": "A-심화2",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 5,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": null,
+      "mergeGateFail": null
+     },
+     "note": "Change-specific consequence: a NULL-result retry used to resume at validate with revision-A artifacts and now re-prepares from the live platform snapshot (B); all three distractors (file rediscovery, body.headSha pinning, validate comparing against original A) are plausible, though the scenario is elaborate and secondary to the MR."
+    },
+    {
+     "id": "B-Q1",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Asks the core problem fixed (polling alone kept an orphaned running lease alive); D (pending renewal) is a good misreading but A (status re-executes the step) is a strawman, and the explanation opens with a lease principle and leaves the before-state to note C without the queue-blocking impact."
+    },
+    {
+     "id": "B-Q2",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 2,
+     "uniqueAnswer": 5,
+     "misreadings": 1,
+     "explanationClarifies": 3,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Stem already says the change resets the records and the prep files are gone, so 'why' answers itself; A, C and D (retry count restores files, no result means no change, a new owner repoints refs) are strawmen, and the explanation only implies via '도' that the old code kept the generate checkpoint for NULL results."
+    },
+    {
+     "id": "B-심화1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Good change-boundary question with the right anchor (workflow.ts:52): the fix deliberately keeps heartbeat for pending phases, so a poller that never starts the step holds the lease indefinitely; C is a strawman and the explanation does not say the pending branch was left unchanged on purpose."
+    },
+    {
+     "id": "B-심화2",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 5,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Strong implication of the change: with polling no longer covering running phases, the worker's setInterval heartbeat must fire and its DB update succeed within 90s, so event-loop or DB stalls now lose the lease; C captures the old behavior, but the explanation is principle-first and leaves before/after to note C."
+    },
+    {
+     "id": "B-심화3",
+     "ownPick": "A",
+     "keyAnswer": "A",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 3,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 2,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": true,
+      "mergeGateFail": null
+     },
+     "note": "At-least-once model calls after a crash before the generate checkpoint predate this change (an unchanged doc line already states it) and the effect lives in execute()'s generate case, not the anchored status line; the stem's 'before the checkpoint is saved' gives the answer away, and B and C are strawmen."
+    },
+    {
+     "id": "B-심화4",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Tests the boundary the commit explicitly preserved: a non-failed stored result still goes to ready and resumes at publish from the DB result without prep files; A is the right over-generalization misreading, but D (stored result implies published) is a strawman and the explanation does not contrast with the new NULL-result branch."
+    },
+    {
+     "id": "B-심화5",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 2,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 3,
+     "nonNiche": 4,
+     "flags": {
+      "padded": true,
+      "lookup": false,
+      "genericCs": true,
+      "mergeGateFail": null
+     },
+     "note": "Speculative split-commit refactor that nobody proposes; atomicity of retry's single UPDATE against claim (which reuses an existing workflow_step via coalesce) predates this change, and the explanation and note D drift into a general concurrency lesson."
+    }
+   ],
+   "grading": [],
+   "hey": [],
+   "summary": "All 11 keys are correct and match my own picks. Variant A's four questions are all change-specific, and every explanation states the behavior before and after the change; its weaknesses are stems that hint at the answer (A-Q2, A-심화1) and one strawman per question. Variant B has good change-boundary 심화 questions (B-심화1, B-심화2, B-심화4). Its B-Q2 stem answers itself and all three of its wrong options are strawmen, B-심화3 restates the existing at-least-once behavior (genericCs), and B-심화5 is a padded hypothetical refactor; its explanations tend to open with a principle and leave the before/after to the notes. Both Q1s miss that one orphaned running job blocked the whole single-job queue."
+  },
+  "s3": {
+   "sample": "s3",
+   "questions": [
+    {
+     "id": "A-Q1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 5,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Tests the core effect (same-revision regeneration with cooldown and a finite budget instead of permanent v2-key dedup); distractors are the old dedup behavior, unbounded retry and notice republishing, and the explanation states before vs after and why an 'infinite retry' reading would be a wrong approval."
+    },
+    {
+     "id": "A-Q2",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 4,
+     "misreadings": 4,
+     "explanationClarifies": 5,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Correct dedup mechanism (deterministic recover:questions-v3:<priorId>:<attempt> key admitted once by deliveries), but the code comment at store.ts:78 states the answer almost verbatim, and D is partly true because enqueue would also merge a second event into a still-queued review job; option B (serial runner) is the weakest distractor."
+    },
+    {
+     "id": "A-심화1",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 5,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Accurately targets the new Store.retry split (failed report -> result/diff cleared and queued; publish-only failure -> ready), but the stem gives away the deciding rule by saying retry now distinguishes the stored report state and naming the contract (no needless model call, no notice republish), which eliminates A and B outright."
+    },
+    {
+     "id": "A-심화2",
+     "ownPick": "A",
+     "keyAnswer": "A",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 5,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 4,
+     "nonNiche": 3,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Surfaces a real gap I verified: enqueue's queued-job merge rebuilds the body from the new event and keeps regenerate but drops recoveryAttempt, so the cap restarts and is not a revision-wide cost limit; strong distractors (C generalizes the regenerate carry-over), though it hinges on a rare same-head event pattern and the explanation doesn't name which webhook events trigger it."
+    },
+    {
+     "id": "A-심화3",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 5,
+     "nonNiche": 3,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "A realistic operator scenario grounded in recoveryEvent's active-job guard, which counts ready/publishing jobs, so a stuck failure-notice publish holds back new generation; B (publish attempts vs recoveryAttempt) is a good misreading, but the question is secondary to the MR and depends on the exact active-state list."
+    },
+    {
+     "id": "B-Q1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Core-effect question equivalent to A-Q1; option B mirrors the commit title ('bounded retries'), D (notice counts as completion) is close to a strawman, and the explanation opens with a generic bounded-retry principle and leaves the before-state to note A."
+    },
+    {
+     "id": "B-Q2",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 3,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Same judgment as A-Q2 with a clean single answer and a good TOCTOU distractor (C), but A (random keys) is a strawman, the store.ts:78 comment states the answer, and the explanation opens with a textbook definition of idempotency instead of saying the fixed per-revision key became a per-failed-job key."
+    },
+    {
+     "id": "B-심화1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Change-specific: the budget lives in the persisted job body and is chained from the prior failed job, and distractor A cleverly conflates per-job attempts (reset by saveResult) with recoveryAttempt; the 'survives restart' framing hints at DB persistence, and the explanation is principle-first without a before/after."
+    },
+    {
+     "id": "B-심화2",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 2,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 3,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": true,
+      "mergeGateFail": null
+     },
+     "note": "The stem's premise that publishing or queue waits can run long already implies retryAt is not a deadline, so general scheduling sense picks D without this MR; A and B are deadline strawmen contradicted by the stem, and the explanation never says what changed (before this change, recovery ignored retryAt and enqueued at once)."
+    },
+    {
+     "id": "B-심화3",
+     "ownPick": "A",
+     "keyAnswer": "A",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Targets the real Store.retry change, but the 'why' framing makes the answer a general resume-from-valid-checkpoint principle that is deducible without reading the code; B usefully encodes the old behavior's rationale, D is near-strawman, and the explanation leads with the checkpoint principle."
+    },
+    {
+     "id": "B-심화4",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Counterfactual about why the history query matches head, base and start; facts are correct and D (the post-generation live-SHA check) is a good distractor, but the stem's 'what guarantee is lost' presupposition excludes A and D, and the point is peripheral, since the controller already gates on sameRevision."
+    },
+    {
+     "id": "B-심화5",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 5,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 3,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Correctly marks the scope of the new path, which is entered only when a failed report was saved (a lease-expiry claim() failure leaves the completed target report, so recover skips it); it needs real reasoning, but it hinges on a rare explicit-regenerate plus crash plus lease-expiry chain, and D is weak."
+    }
+   ],
+   "grading": [],
+   "hey": [],
+   "summary": "All 12 stored keys in both variants are correct and match my independent picks, and every anchor and factual claim checked out against fee3cb6. The merge-gate pairs are nearly identical (A-Q1~B-Q1, A-Q2~B-Q2): A's explanations state before vs after more directly, while B-Q2 has a strawman option and an idempotency-definition opening, and both Q2 variants are near-answered by the store.ts:78 comment. Variant A's three 심화 questions are concrete, change-specific scenarios, and A-심화2 surfaces a genuine gap (queue merge drops recoveryAttempt, so the cap is not revision-wide), though A-심화1's stem hands over the deciding rule. Variant B's five 심화 questions lean on principle-first 'why' framing: B-심화2 is answerable from its own premise (genericCs), B-심화3/4 are largely deducible from general reasoning, and B-심화4/5 are peripheral or edge-case."
+  },
+  "s4": {
+   "sample": "s4",
+   "questions": [
+    {
+     "id": "A-Q1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 2,
+     "uniqueAnswer": 5,
+     "misreadings": 2,
+     "explanationClarifies": 4,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Right core effect, but the stem itself says reveal scope is tied to the question thread, so B paraphrases the stem and A/C/D are ruled out by the stem rather than by knowing the code."
+    },
+    {
+     "id": "A-Q2",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 2,
+     "uniqueAnswer": 5,
+     "misreadings": 2,
+     "explanationClarifies": 3,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Stem already asserts that copied markers are not trusted and asks why, so A/B/C all argue for the opposite conclusion and D (a permission-vs-provenance principle) wins without reading the code; explanation opens with that principle and never says what changed or what a forged/quoted comment could do."
+    },
+    {
+     "id": "A-심화1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 4,
+     "nonNiche": 2,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Correctly targets the new revealThreadVersion guard (learning-command.ts:97), but the stem ('same code version yet not re-posted') nearly states B, A contradicts that premise, and the case only arises for reveal jobs cached across the deploy."
+    },
+    {
+     "id": "A-심화2",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Good change-specific scenario (tryagain on the same code; the thread's Q-hex IDs resolve through stored history, not the current label), and A is a real trap, but C is self-contradictory and the explanation never says that labels used to resolve via the current numbering."
+    },
+    {
+     "id": "A-심화3",
+     "ownPick": "A",
+     "keyAnswer": "A",
+     "keyCorrect": true,
+     "importance": 2,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 2,
+     "explanationClarifies": 3,
+     "nonNiche": 2,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Accurately reflects the file-level GitHub fallback (platform.ts:72), but it hinges on the rare rename-only edge case, B and D are strawmen (a file-level comment tied to a line; picking the newest batch), and the explanation gives no before/after."
+    },
+    {
+     "id": "A-심화4",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 2,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 2,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Grounded in the new resume path that rebuilds questionThread from the stored snapshot's diff, and A (no source preparation or posting) is a sharp trap, but the stem ('without regenerating, fill in coordinates') largely restates C, and legacy in-flight jobs are a peripheral case."
+    },
+    {
+     "id": "A-심화5",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 1,
+     "grounded": 3,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 3,
+     "explanationClarifies": 2,
+     "nonNiche": 4,
+     "flags": {
+      "padded": true,
+      "lookup": false,
+      "genericCs": true,
+      "mergeGateFail": null
+     },
+     "note": "Tests a generic check-then-act (TOCTOU) limit of the pre-publication snapshot recheck at learning-command.ts:268, which is unchanged context this commit did not create, and the explanation lectures on atomicity without explaining the change."
+    },
+    {
+     "id": "B-Q1",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 5,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 5,
+     "nonNiche": 5,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Concrete two-batch scenario that leaves the rule out of the stem; the distractors are the old bare-showanswer behavior, newest batch and all stored questions, and the explanation gives before vs after and the cost of misreading."
+    },
+    {
+     "id": "B-Q2",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 3,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 4,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": false
+     },
+     "note": "Targets the new all.filter(trusted) boundary with plausible misreadings (stored ID, permission, version marker), but the answer is partly a lookup of the trusted predicate, the stem's 'copied by a write-permission user' eliminates A/C/D, and the explanation does not spell out the harm."
+    },
+    {
+     "id": "B-심화1",
+     "ownPick": "B",
+     "keyAnswer": "B",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 5,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 5,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Strong design-alternative judgment: reusing the discussionId would put two batches in one discussion, and threadQuestions rejects that as mixed; the explanation states before/after, and only C (numbering selects the newest batch) is weak."
+    },
+    {
+     "id": "B-심화2",
+     "ownPick": "C",
+     "keyAnswer": "C",
+     "keyCorrect": true,
+     "importance": 4,
+     "grounded": 5,
+     "understanding": 4,
+     "uniqueAnswer": 5,
+     "misreadings": 5,
+     "explanationClarifies": 5,
+     "nonNiche": 4,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Verified against controller.ts:174/185 and publish.ts:16 (find by summaryMarker): explains why the new question-revision marker must differ, with all distractors plausible, though the stated 'batch listed before summary' condition points fairly directly at C."
+    },
+    {
+     "id": "B-심화3",
+     "ownPick": "D",
+     "keyAnswer": "D",
+     "keyCorrect": true,
+     "importance": 3,
+     "grounded": 5,
+     "understanding": 5,
+     "uniqueAnswer": 5,
+     "misreadings": 4,
+     "explanationClarifies": 5,
+     "nonNiche": 2,
+     "flags": {
+      "padded": false,
+      "lookup": false,
+      "genericCs": false,
+      "mergeGateFail": null
+     },
+     "note": "Carefully conditioned contrast of the two resume paths (rebuild the question anchor vs refuse a pre-contract cached reveal) with explicit before/after, but it depends on the deploy-window legacy-job edge case, and C (re-sequencing) is close to a strawman."
+    }
+   ],
+   "grading": [],
+   "hey": [],
+   "summary": "All 12 keys match my independent picks, and every question in both variants is factually grounded with correct anchors. Variant B is clearly stronger: its stems give concrete scenarios without stating the deciding rule, its distractors are real misreadings, and its explanations say what changed and what goes wrong. B-Q1 is a model merge-gate question, and B returned 3 심화 rather than padding to 5. Variant A's Q1, Q2, 심화1 and 심화4 stems presuppose their answers (\"why not trust it\", \"what is the benefit of X\"), which turns the distractors into strawmen, and A-심화5 is a generic TOCTOU question about a recheck this commit did not touch (genericCs, padded). Both variants spend 심화 on rare legacy-job and rename-only edge cases with low nonNiche."
+  }
+ }
+}
