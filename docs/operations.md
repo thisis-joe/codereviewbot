@@ -17,6 +17,8 @@ Mac 정리 및 복구 주의사항은 [마이그레이션 운영 기록](hey-edo
 
 같은 날 `25312d1`로 Controller·Runner를 함께 교체해 `/hey csinterview`와 `/hey whatelse`를 적용했다. 기존 `/hey morequestion`은 더 이상 인식하지 않는다. DB·워크플로·n8n·터널은 변경하지 않았다. [운영 적용 증거](verification/csinterview-production-2026-10-26.json)를 참고하고, 되돌릴 때는 `/home/ubuntu/hey/releases/csinterview-25312d1`에서 `python3 deploy.py rollback`을 실행한다.
 
+2026-10-27 `fa9b7c8`(PR #24)로 Controller·Runner를 함께 교체해 변경 이해 질문(Q1/Q2·심화), 저장된 정답 해설로 보여 주는 채점, 구역으로 나눈 `@hey` 답변을 적용했다. 직전 운영은 다른 세션이 10분 앞서 배포한 `morecs-dfe1209`이고, 되돌리기는 그 이미지 쌍 그대로다. DB·워크플로·n8n·터널은 변경하지 않았다. [운영 적용 증거](verification/change-production-2026-10-27.json)를 참고하고, 되돌릴 때는 `/home/ubuntu/hey/releases/change-fa9b7c8`에서 `python3 deploy.py rollback`을 실행한다. 이후 배포 확인 스크립트가 `@hey` 응답을 검사한다면 새 필드(premise·answer·why·evidence·unverified)를 써야 한다.
+
 ## GMS 호출량 기준값 수집 (S15P31E102-138)
 
 2026-10-26 운영 Runner(`25312d1` 기반)의 `gms.js`만 이 로깅 변경(최초 커밋 `d7dc5fc`)으로 교체하고 `GMS_USAGE_ENV=production`을 추가했다. Controller는 이미지 변경 없이 재시작만 했고, DB·n8n·터널은 변경하지 않았다. 이제 GMS 요청마다 `gms-usage` 로그가 남는다. 형식은 [연결 설정](connections.md#gms-responses-api-직접-호출-기본-엔진)을 참고한다. [운영 적용 증거](verification/gms-usage-production-2026-10-26.json)가 있고, 되돌릴 때는 `/home/ubuntu/hey/releases/gms-usage-d7dc5fc`에서 `python3 deploy.py rollback`을 실행한다.
