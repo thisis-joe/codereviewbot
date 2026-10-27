@@ -91,7 +91,8 @@ export const AnalysisSchema = z.strictObject({
   questions: ChangeQuestionsSchema,
 });
 // @hey answers correct a wrong premise first, then answer, explain why and cite code locations that are checked before posting.
-export const AnswerSchema = z.strictObject({ premise: text.nullable(), answer: text, why: text.nullable(), evidence: z.array(EvidenceSchema).max(8), unverified: text.nullable() });
+// Real answers cited up to eight locations and one failed past a cap of eight, so the earlier limit of twelve stays.
+export const AnswerSchema = z.strictObject({ premise: text.nullable(), answer: text, why: text.nullable(), evidence: z.array(EvidenceSchema).max(12), unverified: text.nullable() });
 export type Answer = z.infer<typeof AnswerSchema>;
 export type Candidate = z.infer<typeof CandidateSchema>;
 export type Analysis = z.infer<typeof AnalysisSchema>;

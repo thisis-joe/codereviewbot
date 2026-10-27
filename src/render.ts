@@ -128,10 +128,10 @@ function renderFindingBody(f: Finding, s: Snapshot): string {
 export interface AnswerView { premise: string | null; answer: string; why: string | null; evidence: { path: string; line: number; side: 'LEFT' | 'RIGHT'; reason: string }[]; unverified: string | null; dropped?: number }
 /** @hey reply: a premise correction leads, then the answer, its reason, linked code evidence and what stayed unverified. */
 export function renderAnswer(a: AnswerView, s: Snapshot, marker: string): string {
-  const levels: [number, number, string][] = [[6000, 700, ''], [1500, 300, '댓글 길이 제한으로 답변을 축약했습니다.'], [500, 120, '댓글 길이 제한으로 답변을 크게 축약했습니다.']];
-  for (const [text, reason, note] of levels) {
+  const levels: [number, number, number, string][] = [[6000, 700, 12, ''], [1500, 300, 12, '댓글 길이 제한으로 답변을 축약했습니다.'], [500, 120, 4, '댓글 길이 제한으로 답변과 근거를 크게 축약했습니다.']];
+  for (const [text, reason, cited, note] of levels) {
     const fit = (v: string | null) => v === null ? null : clip(v, text), premise = fit(a.premise), why = fit(a.why), unverified = fit(a.unverified);
-    const evidence = [...a.evidence.map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, reason))}`), ...(a.dropped ? [`- 확인할 수 없는 근거 위치 ${a.dropped}곳은 제외했습니다.`] : [])];
+    const evidence = [...a.evidence.slice(0, cited).map(e => `- ${ref(s, e.path, e.line, e.side, 80)}: ${plain(clip(e.reason, reason))}`), ...(a.dropped ? [`- 확인할 수 없는 근거 위치 ${a.dropped}곳은 제외했습니다.`] : [])];
     const body = [replyMarker(marker), ...(premise ? [`**전제와 다른 점**: ${plain(premise)}`, ''] : []), plain(clip(a.answer, text)),
       ...(why ? ['', '##### 이유', '', plain(why)] : []), ...(evidence.length ? ['', '##### 코드 근거', '', ...evidence] : []),
       ...(unverified ? ['', '##### 확인하지 못한 것', '', plain(unverified)] : []), '', COMMAND_HELP_HINT, ...(note ? ['', note] : [])].join('\n');

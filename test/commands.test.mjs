@@ -321,8 +321,13 @@ test('a keyed grade shows exactly the explanation and option notes that /hey sho
 test('the largest @hey answer stays within the comment budget', async () => {
   const big = '&'.repeat(6000), path = Array(5).fill('漢'.repeat(99)).join('/');
   const { renderAnswer } = await import('../dist/render.js');
-  const body = renderAnswer({ premise: big, answer: big, why: big, evidence: Array(8).fill({ path, line: 1, side: 'RIGHT', reason: big }), unverified: big, dropped: 8 }, snapshot(), 'budget');
-  assert.ok(body.length <= 60000, `got ${body.length}`); assert.equal((body.match(/^- \[/gm) ?? []).length, 8);
+  const body = renderAnswer({ premise: big, answer: big, why: big, evidence: Array(12).fill({ path, line: 1, side: 'RIGHT', reason: big }), unverified: big, dropped: 8 }, snapshot(), 'budget');
+  assert.ok(body.length <= 60000, `got ${body.length}`); assert.equal((body.match(/^- \[/gm) ?? []).length, 4); assert.match(body, /답변과 근거를 크게 축약했습니다/);
+  const typical = renderAnswer({ premise: null, answer: '답', why: null, evidence: Array(12).fill({ path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' }), unverified: null }, snapshot(), 'typical');
+  assert.equal((typical.match(/^- \[/gm) ?? []).length, 12); assert.doesNotMatch(typical, /축약/);
+  const { AnswerSchema } = await import('../dist/contracts.js'), cite = { path: 'src/pay.ts', line: 2, side: 'RIGHT', reason: '호출' };
+  assert.equal(AnswerSchema.safeParse({ premise: null, answer: '답', why: null, evidence: Array(12).fill(cite), unverified: null }).success, true);
+  assert.equal(AnswerSchema.safeParse({ premise: null, answer: '답', why: null, evidence: Array(13).fill(cite), unverified: null }).success, false);
 });
 
 test('display numbers resolve to review questions first and then continue through follow-up batches', async () => {
