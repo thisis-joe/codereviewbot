@@ -132,7 +132,7 @@ node scripts/setup.mjs
 ```dotenv
 MODEL_PROVIDER=gms
 GMS_KEY=<발급받은 키>
-GMS_MODEL=gpt-6.1-sol
+GMS_MODEL=gpt-6-luna
 GMS_RESPONSES_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses
 ```
 

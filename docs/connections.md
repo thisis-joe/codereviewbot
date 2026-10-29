@@ -51,7 +51,7 @@ Claude CLI 없이 GMS의 OpenAI Responses API를 직접 호출한다. `.env`에 
 ```dotenv
 MODEL_PROVIDER=gms
 GMS_KEY=<기관에서 발급한 키>
-GMS_MODEL=gpt-6.1-sol
+GMS_MODEL=gpt-6-luna
 GMS_RESPONSES_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses
 ```
 

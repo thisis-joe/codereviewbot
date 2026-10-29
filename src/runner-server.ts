@@ -11,7 +11,7 @@ if ((process.env.RUNNER_TOKEN?.length ?? 0) < 32) throw new Error('RUNNER_TOKEN 
 const provider = process.env.MODEL_PROVIDER || 'gms', data = process.env.DATA_ROOT ?? '/data';
 if (provider !== 'codex' && provider !== 'claude' && provider !== 'gms') throw new Error('MODEL_PROVIDER must be gms, codex or claude');
 const model = provider === 'gms'
-  ? new Gms(data, process.env.GMS_RESPONSES_URL ?? 'https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses', process.env.GMS_KEY ?? '', process.env.GMS_MODEL ?? 'gpt-6.1-sol')
+  ? new Gms(data, process.env.GMS_RESPONSES_URL ?? 'https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses', process.env.GMS_KEY ?? '', process.env.GMS_MODEL ?? 'gpt-6-luna')
   : provider === 'claude'
   ? new ClaudeCode(data, process.env.CLAUDE_CONFIG_DIR ?? '/claude', process.env.CLAUDE_BINARY ?? 'claude', process.env.CLAUDE_MODEL ?? '')
   : new Codex(data, process.env.CODEX_HOME ?? '/codex', process.env.CODEX_BINARY ?? 'codex', process.env.CODEX_MODEL ?? '', process.env.CODEX_BASE_URL ?? '');

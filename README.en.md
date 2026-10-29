@@ -132,7 +132,7 @@ Set your issued GMS key in `.env`:
 ```dotenv
 MODEL_PROVIDER=gms
 GMS_KEY=<your-issued-key>
-GMS_MODEL=gpt-6.1-sol
+GMS_MODEL=gpt-6-luna
 GMS_RESPONSES_URL=https://gms.ssafy.io/gmsapi/api.openai.com/v1/responses
 ```
 
