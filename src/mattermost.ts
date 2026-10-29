@@ -48,7 +48,7 @@ export function renderNotification(target: Target, notification: Notification, a
     const commits = notification.commits ?? [];
     const classified = commits.length === notification.count && commits.every(c => c.parentCount !== undefined);
     const merges = commits.filter(c => c.parentCount !== undefined && c.parentCount > 1).length;
-    const counts = classified ? `변경 커밋 ${notification.count - merges}개 · 병합 커밋 ${merges}개` : `전체 커밋 ${notification.count}개 · 분류 미확인`;
+    const counts = classified ? `신규/변경 커밋 ${notification.count - merges}개` : '신규/변경 커밋 수 확인 필요';
     const headline = created ? `**${who}**님의 **새 브랜치가 생겼어요.** 🌱` : `**${who}**님의 **${counts}**가 올라왔어요. 🚀`;
     const lines = created ? [] : [...commits].filter(c => c.parentCount !== undefined && c.parentCount <= 1)
       .sort((a, b) => (a.timestamp ?? Infinity) - (b.timestamp ?? Infinity))
