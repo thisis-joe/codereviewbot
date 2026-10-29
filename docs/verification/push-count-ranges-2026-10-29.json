@@ -1,0 +1,180 @@
+[
+  {
+    "mr": "132",
+    "before": "2373f191da5bb2161564cf8441bc8bf9d3be00d0",
+    "after": "f891dfaaba9e4f08c0d6edf9eba60ec7100ef621",
+    "changes": 1,
+    "merges": 1,
+    "commits": [
+      {
+        "id": "f891dfaaba9e4f08c0d6edf9eba60ec7100ef621",
+        "parent_ids": [
+          "2373f191da5bb2161564cf8441bc8bf9d3be00d0",
+          "5833f8cf74b6b2a1bd1ba43ce54692348e3b47c4"
+        ],
+        "message": "Merge branch 'feat(fe)/S15P31E102-192-악보-화면에-연습-시간-측정과-9분-30초-알림-연결' into 'develop'"
+      },
+      {
+        "id": "5833f8cf74b6b2a1bd1ba43ce54692348e3b47c4",
+        "parent_ids": [
+          "2373f191da5bb2161564cf8441bc8bf9d3be00d0"
+        ],
+        "message": "feat(fe): 악보 화면에 연습 시간 측정과 9분 30초 알림 연결 (S15P31E102-192)"
+      }
+    ]
+  },
+  {
+    "mr": "134",
+    "before": "e113e34cc472d6001c386c5e955f8c8072f86c6a",
+    "after": "554a9ff4c4a7c2a1143dc9f1ee1db866506f14e2",
+    "changes": 1,
+    "merges": 2,
+    "commits": [
+      {
+        "id": "554a9ff4c4a7c2a1143dc9f1ee1db866506f14e2",
+        "parent_ids": [
+          "e113e34cc472d6001c386c5e955f8c8072f86c6a",
+          "a642b4a145f2f1761be6f7c7515a21561655dd52"
+        ],
+        "message": "Merge branch 'test(be)/S15P31E102-252-분석-다시-시도-API-실제-앱-통합-테스트-추가' into 'develop'"
+      },
+      {
+        "id": "a642b4a145f2f1761be6f7c7515a21561655dd52",
+        "parent_ids": [
+          "403af10ba89bbab82279b4b7c066d5d3e6b33cba",
+          "e113e34cc472d6001c386c5e955f8c8072f86c6a"
+        ],
+        "message": "Merge remote-tracking branch 'origin/develop' into test(be)/S15P31E102-252-분석-다시-시도-API-실제-앱-통합-테스트-추가"
+      },
+      {
+        "id": "403af10ba89bbab82279b4b7c066d5d3e6b33cba",
+        "parent_ids": [
+          "1519136d3c650f9991df512a5df3dd90b08c777d"
+        ],
+        "message": "test(be): 분석 다시 시도 API 실제 앱 통합 테스트 추가 (S15P31E102-252)"
+      }
+    ]
+  },
+  {
+    "mr": "44",
+    "before": "1519136d3c650f9991df512a5df3dd90b08c777d",
+    "after": "e113e34cc472d6001c386c5e955f8c8072f86c6a",
+    "changes": 7,
+    "merges": 8,
+    "commits": [
+      {
+        "id": "e113e34cc472d6001c386c5e955f8c8072f86c6a",
+        "parent_ids": [
+          "1519136d3c650f9991df512a5df3dd90b08c777d",
+          "769efdd5d8aba4de6f5f7144c30af56881dd0a40"
+        ],
+        "message": "Merge branch 'feat(ai)/S15P31E102-108-소금-악보-해석·음원-생성-파이프라인-구축' into 'develop'"
+      },
+      {
+        "id": "769efdd5d8aba4de6f5f7144c30af56881dd0a40",
+        "parent_ids": [
+          "35479e01794d94f7aed63ede6673e10de2ce16ff"
+        ],
+        "message": "docs(ai): 소금 MR에서 로컬 작업 계획 제외 (S15P31E102-108)"
+      },
+      {
+        "id": "35479e01794d94f7aed63ede6673e10de2ce16ff",
+        "parent_ids": [
+          "a6f5ddba53814785dbfa69bab8d7d6da7e21a003",
+          "88a1b058ff9bdd60179d8e161e2af3fbbcc99c84"
+        ],
+        "message": "chore(ai): 소금 검증 후 최신 develop 통합 (S15P31E102-108)"
+      },
+      {
+        "id": "a6f5ddba53814785dbfa69bab8d7d6da7e21a003",
+        "parent_ids": [
+          "a8633e8bc47956d5c47c06a96564b6fb2046ae4b",
+          "64ce7b80b71be2e8e3966261bd4987e5d6205914"
+        ],
+        "message": "feat(ai): 소금 음열·표현과 지속음의 M4A 변환 통합 (S15P31E102-108)"
+      },
+      {
+        "id": "a8633e8bc47956d5c47c06a96564b6fb2046ae4b",
+        "parent_ids": [
+          "ef348c8b6da22729b6379914db1cb9dfb465f02b"
+        ],
+        "message": "refac(ai): 공통 단일 변환 문서·검사의 병합 충돌 해소 (S15P31E102-108)"
+      },
+      {
+        "id": "ef348c8b6da22729b6379914db1cb9dfb465f02b",
+        "parent_ids": [
+          "8f547b857dc54154358f519cd2273c60a1b5367b",
+          "875743ffa0ec4e79e70bb62b71e8ea342e71b768"
+        ],
+        "message": "Merge commit '875743ffa0ec4e79e70bb62b71e8ea342e71b768' into feat(ai)/S15P31E102-108-소금-악보-해석·음원-생성-파이프라인-구축"
+      },
+      {
+        "id": "8f547b857dc54154358f519cd2273c60a1b5367b",
+        "parent_ids": [
+          "f171f560029f3103b711a28d57606169f45928bc",
+          "c478691604fdf80cdd291d349a9312959f8875ea"
+        ],
+        "message": "refac(ai): 소금 단일 음원 생성 범위로 정리 (S15P31E102-108)"
+      },
+      {
+        "id": "f171f560029f3103b711a28d57606169f45928bc",
+        "parent_ids": [
+          "8d018a871f08bc7d6641f2be2c3d75d69987490b"
+        ],
+        "message": "fix(ai): 소금 예제 빠르기 명시와 재생 회귀 확인 (S15P31E102-108)"
+      },
+      {
+        "id": "8d018a871f08bc7d6641f2be2c3d75d69987490b",
+        "parent_ids": [
+          "87d8ba4a7021c0ec804638b6243945a85aeb625a"
+        ],
+        "message": "fix(ai): 악기 선언 충돌과 비단소 재생 설정 보존 (S15P31E102-106)"
+      },
+      {
+        "id": "87d8ba4a7021c0ec804638b6243945a85aeb625a",
+        "parent_ids": [
+          "6b9a8100a11756b71a6834a091045719e67d2863"
+        ],
+        "message": "feat(ai): 소금 JGB·M4A 생성과 실음 보존 검증 (S15P31E102-108)"
+      },
+      {
+        "id": "6b9a8100a11756b71a6834a091045719e67d2863",
+        "parent_ids": [
+          "783002f03ffceeb7ab32ccdf254a10796c5a95ee"
+        ],
+        "message": "feat(ai): 악기별 JGB 해석과 명시적 표현 정책 연결 (S15P31E102-106)"
+      },
+      {
+        "id": "783002f03ffceeb7ab32ccdf254a10796c5a95ee",
+        "parent_ids": [
+          "1a12c0c38e933ae2dfb97244cbd32ed6794c31d4",
+          "a9936acffc4898051d5d07332009bffe3a977831"
+        ],
+        "message": "Merge remote-tracking branch 'origin/feat(data)/S15P31E102-166-JGB-악보의-MIDI·CAT-음원-변환-연결' into feat(ai)/S15P31E102-108-소금-악보-해석·음원-생성-파이프라인-구축"
+      },
+      {
+        "id": "1a12c0c38e933ae2dfb97244cbd32ed6794c31d4",
+        "parent_ids": [
+          "c559ebc1e57ebb9d59ef7d4b31fbbdb11b7f950b",
+          "f1347b5f723ec0766e71f2af6dda4ff305e185c3"
+        ],
+        "message": "Merge remote-tracking branch 'origin/develop' into feat(ai)/S15P31E102-108-소금-악보-해석·음원-생성-파이프라인-구축"
+      },
+      {
+        "id": "c559ebc1e57ebb9d59ef7d4b31fbbdb11b7f950b",
+        "parent_ids": [
+          "b83049daf7f5730b56d157b3c0c32174a7a9d475",
+          "bbebc5f4bfb39ec720ee0b39519faac98172307d"
+        ],
+        "message": "chore(ai): 최신 develop과 악기별 게시 기록 동기화 (S15P31E102-108)"
+      },
+      {
+        "id": "b83049daf7f5730b56d157b3c0c32174a7a9d475",
+        "parent_ids": [
+          "c3dfaeb25758ff235b9eebe379202438f311ebc6"
+        ],
+        "message": "feat(ai): 소금 해석 프로필과 재생 검증 분리 (S15P31E102-108)"
+      }
+    ]
+  }
+]
