@@ -24,7 +24,7 @@ async function fixture(t, responseStatus = 200) {
     api: { request: async path => {
       authorReads.push(path);
       if (path.includes('/repository/compare?')) return { commits: Array.from({ length: 24 }, (_, i) => ({
-        id: (i + 1).toString(16).padStart(40, '0'), message: `feat: 변경 ${i + 1}`,
+        id: (i + 1).toString(16).padStart(40, '0'), message: `feat: 변경 ${i + 1}`, parent_ids: [],
         created_at: new Date(Date.UTC(2026, 9, 23, 0, i)).toISOString(),
       })).reverse() };
       return { author: { name: '박찬형[부울경_1반_E102]팀원', username: 'login_must_not_appear' } };
@@ -136,7 +136,7 @@ test('push events preserve the total count, deduplicate replay and ignore branch
   }
   assert.equal((await f.pool.query('SELECT count(*) FROM mattermost_notifications')).rows[0].count, '1');
   await f.flush(); assert.equal(f.received.length, 1);
-  assert.ok(f.received[0].text.startsWith('**찬형**님의 **커밋 24개**가 올라왔어요. 🚀\n[**feature/data**](https://gitlab.example/team/project/-/compare/'));
+  assert.ok(f.received[0].text.startsWith('**찬형**님의 **변경 커밋 24개 · 병합 커밋 0개**가 올라왔어요. 🚀\n[**feature/data**](https://gitlab.example/team/project/-/compare/'));
   assert.equal(f.received[0].text.split('\n').filter(line => line.startsWith('- ')).length, 24);
   assert.ok(f.received[0].text.indexOf('변경 1**') < f.received[0].text.indexOf('변경 24**'));
   assert.doesNotMatch(f.received[0].text, /must_not_appear|박찬형/);

@@ -8,7 +8,7 @@ import { Store, targetKey } from './store.js';
 import { plain, summaryMarker } from './render.js';
 import { redact } from './redact.js';
 
-type PushCommit = { id: string; subject: string; timestamp: number | null };
+type PushCommit = { id: string; subject: string; timestamp: number | null; parentCount?: number };
 type Notification = { kind: 'opened' | 'reopened' | 'merged' | 'closed'; title: string }
   | { kind: 'questions'; title: string; count: number; noteId: string; partial?: boolean }
   | { kind: 'commented'; title: string; noteId: string; author?: string; preview?: string }
@@ -16,17 +16,18 @@ type Notification = { kind: 'opened' | 'reopened' | 'merged' | 'closed'; title: 
 interface Pending { key: string; target: Target; payload: Notification; owner: string; attempts: number }
 const repositoryKey = (t: Pick<Target, 'platform' | 'instance' | 'repository'>) => JSON.stringify([t.platform, t.instance, t.repository]);
 
-// Store only the subject and ordering metadata; never trust webhook-provided URLs.
+// Store subjects, ordering and parent counts; never trust webhook-provided URLs.
 function pushCommits(values: unknown): PushCommit[] {
   if (!Array.isArray(values)) return [];
-  return values.flatMap(c => {
+  return [...new Map(values.flatMap(c => {
     if (!c || typeof c.id !== 'string' || !/^[a-f0-9]{40,64}$/.test(c.id)) return [];
     const message = typeof c.message === 'string' ? c.message : typeof c.title === 'string' ? c.title : '';
     const subject = redact(message).trim().split(/[\r\n]/, 1)[0]!.trim().slice(0, 500);
     if (!subject) return [];
     const timestamp = Date.parse(c.timestamp ?? c.committed_date ?? c.created_at);
-    return [{ id: c.id, subject, timestamp: Number.isFinite(timestamp) ? timestamp : null }];
-  });
+    const parents = Array.isArray(c.parent_ids) && c.parent_ids.every((id: unknown) => typeof id === 'string' && /^[a-f0-9]{40,64}$/.test(id)) ? c.parent_ids : undefined;
+    return [[c.id, { id: c.id, subject, timestamp: Number.isFinite(timestamp) ? timestamp : null, ...(parents ? { parentCount: parents.length } : {}) }] as const];
+  })).values()];
 }
 
 export function givenName(display: string): string {
@@ -44,8 +45,12 @@ export function renderNotification(target: Target, notification: Notification, a
     const who = plain(givenName(notification.author)), branch = plain(redact(notification.branch));
     const created = /^0+$/.test(notification.before);
     const link = created ? `${project}/-/commits/${encodeURIComponent(notification.branch).replace(/[()]/g, c => c === '(' ? '%28' : '%29')}` : `${project}/-/compare/${notification.before}...${notification.after}`;
-    const headline = created ? `**${who}**님의 **새 브랜치가 생겼어요.** 🌱` : `**${who}**님의 **커밋 ${notification.count}개**가 올라왔어요. 🚀`;
-    const lines = created ? [] : [...(notification.commits ?? [])]
+    const commits = notification.commits ?? [];
+    const classified = commits.length === notification.count && commits.every(c => c.parentCount !== undefined);
+    const merges = commits.filter(c => c.parentCount !== undefined && c.parentCount > 1).length;
+    const counts = classified ? `변경 커밋 ${notification.count - merges}개 · 병합 커밋 ${merges}개` : `전체 커밋 ${notification.count}개 · 분류 미확인`;
+    const headline = created ? `**${who}**님의 **새 브랜치가 생겼어요.** 🌱` : `**${who}**님의 **${counts}**가 올라왔어요. 🚀`;
+    const lines = created ? [] : [...commits].filter(c => c.parentCount !== undefined && c.parentCount <= 1)
       .sort((a, b) => (a.timestamp ?? Infinity) - (b.timestamp ?? Infinity))
       .map(c => {
         const match = /^([a-zA-Z]+(?:\([^\r\n]*?\))?!?:)\s+(.+)$/.exec(c.subject);
@@ -148,11 +153,18 @@ export class Mattermost {
     const destination = this.destinations.get(repositoryKey(job.target));
     if (!destination) { await settle('failed', 'destination_unavailable'); return; }
     let author = '';
-    if (job.payload.kind === 'push' && !/^0+$/.test(job.payload.before) && (job.payload.commits?.length ?? 0) < job.payload.count) {
+    if (job.payload.kind === 'push' && !/^0+$/.test(job.payload.before) && ((job.payload.commits?.length ?? 0) !== job.payload.count || job.payload.commits?.some(c => c.parentCount === undefined))) {
       try {
         const comparison = await destination.platform.api.request(`${destination.platform.root}/repository/compare?from=${job.payload.before}&to=${job.payload.after}&straight=true`);
         const commits = pushCommits(comparison?.commits);
-        if (commits.length < job.payload.count) throw new Error('Incomplete push commits');
+        if (comparison?.compare_timeout || comparison?.overflow || commits.length !== job.payload.count) throw new Error('Incomplete push commits');
+        for (const commit of commits) {
+          if (commit.parentCount !== undefined) continue;
+          const detail = await destination.platform.api.request(`${destination.platform.root}/repository/commits/${commit.id}`);
+          const resolved = pushCommits([detail])[0];
+          if (resolved?.id !== commit.id || resolved.parentCount === undefined) throw new Error('Missing commit parents');
+          commit.parentCount = resolved.parentCount;
+        }
         job.payload.commits = commits;
       } catch { await settle(job.attempts < 3 ? 'queued' : 'failed', 'commits_lookup_failed'); return; }
     }
