@@ -24,6 +24,85 @@ test('generation validates duplicate and invalid source questions before returni
   }
 });
 
+const check = (id, answer, reason = '두 번째 줄의 승인 호출로 확인됩니다.') =>
+  ({ id, answer, evidence: { path: 'src/pay.ts', side: 'RIGHT', line: 2, reason } });
+
+test('blind solving sees no keys, replaces only the rejected question, and checks it again', async () => {
+  const questions = initialQuestions(), calls = [];
+  const replacement = { ...questions[1], question: '변경된 승인 흐름에서 호출자는 어떤 실패를 처리해야 하나요?' };
+  const result = await generate({
+    initialQuestions: async () => ({ output: { questions }, verify: true }),
+    run: async (phase, prompt, _id, timeout) => {
+      calls.push(phase);
+      assert.ok(timeout > 0 && timeout <= 120000);
+      if (phase === 'repair_initial_questions') {
+        const data = JSON.parse(prompt.split('재출제 자료(JSON 데이터):\n')[1]);
+        assert.deepEqual(data.rejected.map(q => q.id), [2]);
+        assert.deepEqual(data.retained.map(q => q.question), [questions[0].question]);
+        return { questions: [{ id: 2, ...replacement }] };
+      }
+      const data = JSON.parse(prompt.split('검증 자료(JSON 데이터):\n')[1]);
+      const expected = calls.length === 1 ? questions : [replacement];
+      assert.deepEqual(data.questions, expected.map((q, i) => ({
+        id: calls.length === 1 ? i + 1 : 2, question: q.question, options: q.options, path: q.path, line: q.line, side: q.side,
+      })));
+      for (const q of expected) {
+        assert.ok(!prompt.includes(q.key.explanation));
+        for (const note of q.key.options) assert.ok(!prompt.includes(note.explanation));
+      }
+      return { checks: calls.length === 1 ? [check(2, 'A'), check(1, 'B')] : [check(2, 'B')] };
+    },
+  });
+  assert.deepEqual(calls, ['verify_initial_questions', 'repair_initial_questions', 'verify_initial_questions']);
+  assert.deepEqual(result.questions, [questions[0], replacement]);
+});
+
+test('blind solving rejects an ambiguous replacement without a second repair', async () => {
+  const questions = initialQuestions(), calls = [];
+  await assert.rejects(() => generate({
+    initialQuestions: async () => ({ output: { questions }, verify: true }),
+    run: async phase => {
+      calls.push(phase);
+      if (phase === 'repair_initial_questions') return { questions: [{ id: 1, ...questions[0] }] };
+      return { checks: [check(1, null, '같은 조건에서 A와 B가 모두 성립합니다.'), ...(calls.length === 1 ? [check(2, 'B')] : [])] };
+    },
+  }), error => error.failure?.code === 'invalid_output');
+  assert.deepEqual(calls, ['verify_initial_questions', 'repair_initial_questions', 'verify_initial_questions']);
+});
+
+test('an invalid draft anchor is repaired without sending it to the solver or replacing a valid neighbor', async () => {
+  const questions = initialQuestions(), calls = [];
+  const broken = { ...questions[0], line: 500 };
+  const result = await generate({
+    initialQuestions: async () => ({ output: { questions: [broken, questions[1]] }, verify: true }),
+    run: async (phase, prompt) => {
+      calls.push(phase);
+      if (phase === 'repair_initial_questions') {
+        const { rejected } = JSON.parse(prompt.split('재출제 자료(JSON 데이터):\n')[1]);
+        assert.deepEqual(rejected.map(q => q.id), [1]);
+        assert.match(rejected[0].reason, /코드 근거/);
+        return { questions: [{ id: 1, ...questions[0] }] };
+      }
+      const data = JSON.parse(prompt.split('검증 자료(JSON 데이터):\n')[1]);
+      assert.deepEqual(data.questions.map(q => q.id), [calls.length === 1 ? 2 : 1]);
+      return { checks: [check(data.questions[0].id, 'B')] };
+    },
+  });
+  assert.deepEqual(calls, ['verify_initial_questions', 'repair_initial_questions', 'verify_initial_questions']);
+  assert.deepEqual(result.questions, questions);
+});
+
+test('missing, duplicate, or ungrounded verifier evidence cannot authorize publishing', async () => {
+  for (const checks of [[check(1, 'B')], [check(1, 'B'), check(1, 'B')], [check(1, 'B'), { ...check(2, 'B'), evidence: { ...check(2, 'B').evidence, line: 1000 } }]]) {
+    const calls = [];
+    await assert.rejects(() => generate({
+      initialQuestions: async () => ({ output: { questions: initialQuestions() }, verify: true }),
+      run: async phase => { calls.push(phase); return { checks }; },
+    }), error => error.failure?.code === 'invalid_output');
+    assert.deepEqual(calls, ['verify_initial_questions']);
+  }
+});
+
 test('unreadable changes return explicit unavailable results without inference', async () => {
   const result = await generate({ run: async () => { throw Error('must not call'); } }, { ...context(), files: {}, diff: {} });
   assert.equal(result.schemaVersion, '2'); assert.equal(result.state, 'partial'); assert.deepEqual(result.questions, []);

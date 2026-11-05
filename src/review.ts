@@ -1,4 +1,5 @@
-import { InitialQuestionsSchema, emptyReport, type Finding, type Report, type Snapshot, type ChangeQuestion } from './contracts.js';
+import { InitialQuestionsSchema, InitialQuestionChecksSchema, InitialQuestionRepairsSchema, emptyReport, type Finding, type Report, type Snapshot, type ChangeQuestion } from './contracts.js';
+import { ModelFailure } from './model-failure.js';
 import type { Policy } from './policy.js';
 import { changeExplanation, grounding, hunkRule, questionSecurity, renameRule, sourceTools, stemRule } from './prompt-blocks.js';
 
@@ -6,8 +7,13 @@ export interface DiffPosition { oldLine?: number; newLine?: number }
 export interface DiffMetadata { oldPath: string; positions?: Record<'LEFT' | 'RIGHT', Record<number, DiffPosition>> }
 export interface DiffFile extends DiffMetadata { patch: string; lines: Set<number>; oldLines?: Set<number> }
 export interface ReviewContext { files: Record<string, string>; baseFiles?: Record<string, string>; diff: Record<string, DiffFile>; excluded: string[]; limited: boolean; sourceDir: string; changesSincePrevious?: { fromHeadSha: string; files: Record<string, { oldPath: string; patch: string }> } }
-export type ModelPhase = 'answer' | 'initial_questions' | 'questions' | 'csinterview' | 'morecs' | 'grade';
-export interface Model { run(phase: ModelPhase, prompt: string, workspaceId: string, timeoutMs?: number): Promise<unknown> }
+export type ModelPhase = 'answer' | 'initial_questions' | 'verify_initial_questions' | 'repair_initial_questions' | 'questions' | 'csinterview' | 'morecs' | 'grade';
+export const INITIAL_QUESTION_CHECK_HEADER = 'x-hey-initial-question-check';
+export interface InitialQuestionDraft { output: unknown; verify: boolean }
+export interface Model {
+  run(phase: ModelPhase, prompt: string, workspaceId: string, timeoutMs?: number): Promise<unknown>;
+  initialQuestions?(prompt: string, workspaceId: string, timeoutMs: number): Promise<InitialQuestionDraft>;
+}
 export function parsePatch(patch: string, side: 'LEFT' | 'RIGHT' = 'RIGHT'): Set<number> {
   const result = new Set<number>(); let line = 0, active = false;
   for (const text of patch.split('\n')) {
@@ -70,28 +76,45 @@ export function hasQuestionSource(context: ReviewContext): boolean {
   return Object.entries(context.diff).some(([path, diff]) => (['LEFT', 'RIGHT'] as const).some(side =>
     questionSourcePath({ path, side, line: (side === 'LEFT' ? diff.oldLines : diff.lines)?.values().next().value ?? 1 }, context)));
 }
+class InvalidQuestion extends Error {}
 export function validateQuestions(questions: ChangeQuestion[], context: ReviewContext, prior: ChangeQuestion[] = []): ChangeQuestion[] {
   const keyOf = (q: ChangeQuestion) => q.question.normalize('NFKC').replace(/\s+/g, '').replace(/[?？.!]/g, '').toLowerCase();
   const seen = new Set(prior.map(keyOf));
   return questions.map(q => {
     const key = keyOf(q);
-    if (seen.has(key)) throw new Error('중복 질문은 허용하지 않습니다.'); seen.add(key);
+    if (seen.has(key)) throw new InvalidQuestion('중복 질문은 허용하지 않습니다.'); seen.add(key);
     const path = questionSourcePath(q, context);
-    if (!path) throw new Error('질문의 코드 근거는 이번 변경의 유효한 위치여야 합니다.');
+    if (!path) throw new InvalidQuestion('질문의 코드 근거는 이번 변경의 유효한 위치여야 합니다.');
     return { ...q, path };
   });
 }
-export function buildQuestionPrompt(s: Snapshot, policy: Policy, context: ReviewContext, guidelines: string[], issues: string[], previous: Report | null = null): string {
+type NumberedQuestion = { id: number; question: ChangeQuestion };
+type RejectedQuestion = NumberedQuestion & { reason: string; check?: ReturnType<typeof InitialQuestionChecksSchema.parse>['checks'][number] };
+type InitialRepair = {
+  retained: { id: number; question: string }[];
+  rejected: RejectedQuestion[];
+};
+export function buildQuestionPrompt(s: Snapshot, policy: Policy, context: ReviewContext, guidelines: string[], issues: string[], previous: Report | null = null, repair?: InitialRepair): string {
   const data = JSON.stringify({ snapshot: s, policy, guidelines, linkedIssues: issues,
     changesSincePrevious: context.changesSincePrevious ?? null, previousQuestions: previous?.questions.map(q => q.question) ?? [],
     diff: Object.fromEntries(Object.entries(context.diff).map(([path, d]) => [path, { oldPath: d.oldPath, patch: d.patch }])), sourceExcerpts: sourceExcerpts(context), excluded: context.excluded });
-  return `당신은 이 저장소의 시니어 엔지니어입니다. 동료가 이 PR/MR을 승인하기 전에 변경을 제대로 이해했는지 확인하는 4지선다 질문 2개를 냅니다. 이 질문은 머지 전 관문입니다. 답하지 못하는 리뷰어라면 아직 승인하면 안 되는 내용을 물으세요. 문항은 평가이자 학습 자료이므로, 틀린 사람도 해설을 읽고 이 변경을 이해할 수 있어야 합니다.
+  const repairIds = repair?.rejected.map(q => q.id).sort().join(', ');
+  const task = repair
+    ? `지정된 id(${repairIds})의 4지선다 문항 ${repair.rejected.length}개만 새로 냅니다. 나머지 문항은 이미 확정됐습니다.`
+    : '동료가 이 PR/MR을 승인하기 전에 변경을 제대로 이해했는지 확인하는 4지선다 질문 2개를 냅니다.';
+  const effect = '- Q1은 변경의 핵심 효과를 묻습니다. 리뷰어가 승인 전에 반드시 알아야 할 효과 하나를 고르세요. 이 변경이 머지되면 무엇이 달라지는지(동작, 새로 얻는 보장, 새로 생기는 위험, 영향받는 호출부·데이터·운영) 가운데 승인 판단을 가장 크게 바꾸는 것입니다.';
+  const principle = '- Q2는 이 변경의 정확성이 가장 크게 기대는 원리 하나를 이번 변경의 상황에서 묻습니다. 그 원리가 성립하지 않으면 이 변경이 틀리게 되어야 합니다. 원리의 이름이나 정의를 묻지 말고, 이번 변경의 구체적인 상황에 그 원리를 적용한 결론을 고르게 하세요. 변경의 결정을 질문에 적고 "왜 이렇게 했나요?"라고 묻지 말고, 그 원리가 작동하는 상황을 주고 결과나 필요한 조건을 고르게 하세요. 원리는 멱등성·원자성·동시성 같은 CS 원리일 수도, 데이터 계약·하위 호환·권한 경계·실패 격리 같은 설계 원리일 수도 있습니다. 변경이 실제로 기대지 않는 원리를 끼워 넣지 마세요.';
+  const assignment = repair
+    ? ['재출제 문항은 level=basic입니다. 이미 확정된 문항과 다른 판단을 묻습니다.', ...repair.rejected.map(q => q.id === 1 ? effect : principle)].join('\n')
+    : `두 질문 모두 level=basic입니다. Q1과 Q2는 서로 다른 이해를 확인합니다. 같은 사실을 효과와 원리로 두 번 묻지 마세요.\n${effect}\n${principle}`;
+  const output = repair
+    ? `questions 배열 길이는 반드시 ${repair.rejected.length}입니다. id는 ${repairIds}만 사용하고 각 id를 한 번씩 반환하세요. 검증에서 드러난 문제를 코드와 대조한 뒤 새 문항을 설계하세요. 각 문항에는 id, question, path, line, side, level, options, key를 작성합니다.`
+    : 'questions에는 정확히 2개 문항을 넣고, 각 문항에는 question, path, line, side, level, options, key를 작성합니다.';
+  return `당신은 이 저장소의 시니어 엔지니어입니다. ${task} 이 질문은 머지 전 관문입니다. 답하지 못하는 리뷰어라면 아직 승인하면 안 되는 내용을 물으세요. 문항은 평가이자 학습 자료이므로, 틀린 사람도 해설을 읽고 이 변경을 이해할 수 있어야 합니다.
 
 [임무]
 
-두 질문 모두 level=basic입니다. Q1과 Q2는 서로 다른 이해를 확인합니다. 같은 사실을 효과와 원리로 두 번 묻지 마세요.
-- Q1은 변경의 핵심 효과를 묻습니다. 리뷰어가 승인 전에 반드시 알아야 할 효과 하나를 고르세요. 이 변경이 머지되면 무엇이 달라지는지(동작, 새로 얻는 보장, 새로 생기는 위험, 영향받는 호출부·데이터·운영) 가운데 승인 판단을 가장 크게 바꾸는 것입니다.
-- Q2는 이 변경의 정확성이 가장 크게 기대는 원리 하나를 이번 변경의 상황에서 묻습니다. 그 원리가 성립하지 않으면 이 변경이 틀리게 되어야 합니다. 원리의 이름이나 정의를 묻지 말고, 이번 변경의 구체적인 상황에 그 원리를 적용한 결론을 고르게 하세요. 변경의 결정을 질문에 적고 "왜 이렇게 했나요?"라고 묻지 말고, 그 원리가 작동하는 상황을 주고 결과나 필요한 조건을 고르게 하세요. 원리는 멱등성·원자성·동시성 같은 CS 원리일 수도, 데이터 계약·하위 호환·권한 경계·실패 격리 같은 설계 원리일 수도 있습니다. 변경이 실제로 기대지 않는 원리를 끼워 넣지 마세요.
+${assignment}
 
 [기본 수준]
 
@@ -137,13 +160,48 @@ ${changeExplanation}
 
 [출력]
 
-지정된 출력 스키마에 맞는 JSON만 반환하세요. questions에는 정확히 2개 문항을 넣고, 각 문항에는 question, path, line, side, level, options, key를 작성합니다. level은 모두 basic입니다. 질문에 난이도 태그를 붙이지 말고, 후보 목록·검토 과정·평가표는 출력하지 마세요.
+지정된 출력 스키마에 맞는 JSON만 반환하세요. ${output} level은 모두 basic입니다. 질문에 난이도 태그를 붙이지 말고, 후보 목록·검토 과정·평가표는 출력하지 마세요.
 
 ${questionSecurity}
 
 출제 자료(JSON 데이터):
-${data}`;
+${data}${repair ? '\n\n재출제 자료(JSON 데이터):\n' + JSON.stringify(repair) : ''}`;
 }
+
+async function rejectedQuestions(model: Model, workspaceId: string, context: ReviewContext, candidates: NumberedQuestion[], remaining: () => number): Promise<RejectedQuestion[]> {
+  if (!candidates.length) return [];
+  // Construct the input by allowlist. Neither the answer key nor earlier model messages reach the solver.
+  const questions = candidates.map(({ id, question: { question, path, line, side, options } }) =>
+    ({ id, question, path, line, side, options: options.map(({ id, text }) => ({ id, text })) }));
+  const diff = Object.fromEntries(Object.entries(context.diff)
+    .filter(([path, file]) => questions.some(q => (q.side === 'LEFT' ? file.oldPath : path) === q.path))
+    .map(([path, file]) => [path, { oldPath: file.oldPath, patch: file.patch }]));
+  const data = { questions, diff, sourceExcerpts: questions.flatMap(q => anchorExcerpts(q, context)) };
+  const prompt = `당신은 출제와 별개로 문항을 실제로 푸는 코드 리뷰어입니다. 각 문항의 전제와 보기 A~D를 코드와 대조하세요.
+질문의 조건 아래 유일하게 참인 보기의 id를 answer에 쓰세요. 질문의 전제가 코드와 다르거나, 보기가 모두 틀리거나, 둘 이상이 성립하거나, 필요한 조건·근거가 빠져 결론을 내릴 수 없다면 answer는 null입니다.
+evidence에는 근거가 되는 파일 경로·줄·side와 짧은 이유를 쓰세요. null이면 어떤 보기나 전제가 어떤 조건에서 어긋나는지 구체적으로 쓰세요. 단순한 문장 스타일로 문항을 거부하지 마세요.
+${sourceTools(context.sourceDir)} 판단하세요. LEFT는 실제 변경 전 파일 경로, RIGHT는 변경 후 경로입니다.
+checks에는 요청된 id를 빠짐없이 한 번씩 넣고 JSON만 반환하세요.
+
+${questionSecurity}
+
+검증 자료(JSON 데이터):
+${JSON.stringify(data)}`;
+  const { checks } = InitialQuestionChecksSchema.parse(await model.run('verify_initial_questions', prompt, workspaceId, remaining()));
+  const byId = new Map(checks.map(check => [check.id, check]));
+  if (checks.length !== candidates.length || byId.size !== checks.length) throw invalidQuestionCheck();
+  return candidates.flatMap(candidate => {
+    const check = byId.get(candidate.id);
+    if (!check) throw invalidQuestionCheck();
+    const { path, side, line } = check.evidence;
+    const source = side === 'LEFT' ? context.baseFiles : context.files;
+    if (!source || !Object.hasOwn(source, path) || line > source[path]!.split('\n').length) throw invalidQuestionCheck();
+    return check.answer === candidate.question.key?.answer ? [] : [{
+      ...candidate, check, reason: check.answer === null ? '유일한 정답을 코드로 확인하지 못했습니다.' : '별도 풀이와 출제 정답이 일치하지 않습니다.',
+    }];
+  });
+}
+const invalidQuestionCheck = () => new ModelFailure({ provider: 'gms', code: 'invalid_output' });
 /** Keep historical reports readable without re-evaluating their findings. */
 export function archivedFindings(previous: Report | null): Finding[] {
   return (previous?.findings ?? []).map(f => ['new', 'open'].includes(f.status) ? { ...f, status: 'unverified' } : { ...f });
@@ -154,9 +212,48 @@ export async function generateQuestions(model: Model, workspaceId: string, s: Sn
     const reason = '출제 가능한 텍스트 변경 근거가 없어 질문을 생성하지 못했습니다.';
     return { ...base, state: 'partial', questionsUnavailableReason: reason, limitations: [reason] };
   }
-  const result = InitialQuestionsSchema.parse(await model.run('initial_questions', buildQuestionPrompt(s, policy, context, guidelines, issues, previous), workspaceId, budgetMs));
+  const prompt = buildQuestionPrompt(s, policy, context, guidelines, issues, previous);
+  const deadline = performance.now() + budgetMs;
+  const remaining = () => {
+    const ms = Math.floor(deadline - performance.now());
+    if (ms < 1) throw new ModelFailure({ provider: 'gms', code: 'timeout' });
+    return ms;
+  };
+  const draft = model.initialQuestions
+    ? await model.initialQuestions(prompt, workspaceId, budgetMs)
+    : { output: await model.run('initial_questions', prompt, workspaceId, budgetMs), verify: false };
+  const result = InitialQuestionsSchema.parse(draft.output);
+  let questions: ChangeQuestion[];
+  if (!draft.verify) questions = validateQuestions(result.questions, context);
+  else {
+    const valid: NumberedQuestion[] = [], rejected: RejectedQuestion[] = [];
+    for (const [i, question] of result.questions.entries()) {
+      try {
+        const [normalized] = validateQuestions([question], context, valid.map(q => q.question));
+        valid.push({ id: i + 1, question: normalized! });
+      } catch (error) {
+        if (!(error instanceof InvalidQuestion)) throw error;
+        rejected.push({ id: i + 1, question, reason: error.message });
+      }
+    }
+    rejected.push(...await rejectedQuestions(model, workspaceId, context, valid, remaining));
+    questions = valid.map(q => q.question);
+    if (rejected.length) {
+      const rejectedIds = new Set(rejected.map(q => q.id));
+      const retained = valid.filter(q => !rejectedIds.has(q.id)).map(q => ({ id: q.id, question: q.question.question }));
+      const repair = buildQuestionPrompt(s, policy, context, guidelines, issues, previous, { retained, rejected });
+      const { questions: replacements } = InitialQuestionRepairsSchema.parse(await model.run('repair_initial_questions', repair, workspaceId, remaining()));
+      const byId = new Map(replacements.map(({ id, ...question }) => [id, question]));
+      if (replacements.length !== rejectedIds.size || byId.size !== rejectedIds.size || rejected.some(q => !byId.has(q.id))) throw invalidQuestionCheck();
+      // Validate the merged batch using the original diff coordinates, before normalizing LEFT paths.
+      try { questions = validateQuestions(result.questions.map((q, i) => byId.get(i + 1) ?? q), context); }
+      catch (error) { if (error instanceof InvalidQuestion) throw invalidQuestionCheck(); throw error; }
+      const repaired = questions.flatMap((question, i) => byId.has(i + 1) ? [{ id: i + 1, question }] : []);
+      if ((await rejectedQuestions(model, workspaceId, context, repaired, remaining)).length) throw invalidQuestionCheck();
+    }
+  }
   // Keep the model's priority order; difficulty quotas no longer apply.
   return { ...base, state: context.limited ? 'partial' : 'completed',
-    questions: validateQuestions(result.questions, context),
+    questions,
     limitations: context.limited ? ['자료 크기 제한으로 일부 변경을 출제 범위에서 제외했습니다.'] : [] };
 }

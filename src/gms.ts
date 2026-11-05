@@ -8,7 +8,7 @@ import { optionIds } from './contracts.js';
 import { RepositoryReader } from './source-reader.js';
 import { redact } from './redact.js';
 import { ModelFailure } from './model-failure.js';
-import type { Model, ModelPhase } from './review.js';
+import type { InitialQuestionDraft, Model, ModelPhase } from './review.js';
 
 const readArgs = z.strictObject({ path: z.string(), start: z.int().min(1).default(1), limit: z.int().min(1).max(500).default(200) });
 const toolSchemas = { list_files: z.strictObject({}), read_file: readArgs, read_base_file: readArgs, search_text: z.strictObject({ term: z.string().min(1).max(200) }) };
@@ -85,6 +85,9 @@ export class Gms implements Model {
   constructor(readonly root: string, readonly url: string, readonly key: string, readonly model: string) {
     if (!key || !model || !url) throw new Error('GMS_KEY, GMS_MODEL and GMS_RESPONSES_URL are required');
   }
+  async initialQuestions(prompt: string, id: string, timeoutMs: number): Promise<InitialQuestionDraft> {
+    return { output: await this.run('initial_questions', prompt, id, timeoutMs), verify: this.model === 'gpt-6-luna' };
+  }
   async run(phase: ModelPhase, prompt: string, id: string, timeoutMs = 600000): Promise<unknown> {
     const source = await workspaceSource(this.root, id), reader = new RepositoryReader(source), base = new RepositoryReader(join(dirname(source), 'base'));
     const signal = AbortSignal.timeout(timeoutMs);
@@ -131,7 +134,7 @@ export class Gms implements Model {
           const text = messages.flatMap(m => m.content ?? []).filter(c => c.type === 'output_text').map(c => c.text ?? '').join('');
           if (Buffer.byteLength(text) > 512000) throw new ModelFailure({ provider: 'gms', code: 'invalid_output' });
           const raw: unknown = JSON.parse(text);
-          const value = schema.parse(phase === 'initial_questions' ? repairInitialExplanations(raw) : raw);
+          const value = schema.parse(phase === 'initial_questions' || phase === 'repair_initial_questions' ? repairInitialExplanations(raw) : raw);
           if (entry) try { mkdirSync(cache, { recursive: true, mode: 0o700 }); await writeFile(entry, JSON.stringify({ phase, model: this.model, at: new Date().toISOString(), result: value }), { mode: 0o600 }); } catch { /* Caching never fails a model call. */ }
           return value;
         }

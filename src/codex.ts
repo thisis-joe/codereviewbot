@@ -3,13 +3,17 @@ import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { AnswerSchema, InitialQuestionsSchema, QuestionBatchSchema, CsInterviewBatchSchema, MoreCsBatchSchema, GradeSchema } from './contracts.js';
+import { AnswerSchema, InitialQuestionsSchema, InitialQuestionChecksSchema, InitialQuestionRepairsSchema, QuestionBatchSchema, CsInterviewBatchSchema, MoreCsBatchSchema, GradeSchema } from './contracts.js';
 import { execute } from './process.js';
 import { ModelFailure, RunnerFailureSchema } from './model-failure.js';
-import type { Model, ModelPhase } from './review.js';
+import { INITIAL_QUESTION_CHECK_HEADER, type InitialQuestionDraft, type Model, type ModelPhase } from './review.js';
 import { redact } from './redact.js';
 
-export const phaseSchemas = { answer: AnswerSchema, initial_questions: InitialQuestionsSchema, questions: QuestionBatchSchema, csinterview: CsInterviewBatchSchema, morecs: MoreCsBatchSchema, grade: GradeSchema };
+export const phaseSchemas = {
+  answer: AnswerSchema, initial_questions: InitialQuestionsSchema,
+  verify_initial_questions: InitialQuestionChecksSchema, repair_initial_questions: InitialQuestionRepairsSchema,
+  questions: QuestionBatchSchema, csinterview: CsInterviewBatchSchema, morecs: MoreCsBatchSchema, grade: GradeSchema,
+} satisfies Record<ModelPhase, z.ZodType>;
 export const sourceServer = fileURLToPath(new URL('./source-mcp.js', import.meta.url));
 export async function workspaceSource(dataRoot: string, id: string): Promise<string> {
   if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid workspace ID');
@@ -50,7 +54,14 @@ export class Codex implements Model {
 }
 export class HttpModel implements Model {
   constructor(readonly url: string, readonly token: string) {}
+  async initialQuestions(prompt: string, workspaceId: string, timeoutMs: number): Promise<InitialQuestionDraft> {
+    const response = await this.request('initial_questions', prompt, workspaceId, timeoutMs);
+    return { output: await response.json(), verify: response.headers.get(INITIAL_QUESTION_CHECK_HEADER) === 'blind' };
+  }
   async run(phase: ModelPhase, prompt: string, workspaceId: string, timeoutMs = 600000): Promise<unknown> {
+    return (await this.request(phase, prompt, workspaceId, timeoutMs)).json();
+  }
+  private async request(phase: ModelPhase, prompt: string, workspaceId: string, timeoutMs: number): Promise<Response> {
     const response = await fetch(`${this.url}/run`, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(timeoutMs + 5000), headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ phase, prompt, workspaceId, timeoutMs }) });
     if (!response.ok) {
       const text = await response.text();
@@ -59,6 +70,6 @@ export class HttpModel implements Model {
       if (parsed?.success) throw new ModelFailure(parsed.data.failure);
       throw new ModelFailure({ code: response.status >= 500 || response.status === 409 ? 'unavailable' : [401, 403].includes(response.status) ? 'authentication' : 'unknown' });
     }
-    return response.json();
+    return response;
   }
 }
