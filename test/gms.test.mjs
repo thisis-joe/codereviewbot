@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Gms } from '../dist/gms.js';
-import { heyAnswer } from './fixtures.mjs';
+import { heyAnswer, initialQuestions } from './fixtures.mjs';
 
 test('GMS Responses performs snapshot tool calls then validates structured output', async t => {
  const root = await mkdtemp(join(tmpdir(), 'gms-')); t.after(() => rm(root, {recursive:true,force:true}));
@@ -71,6 +71,24 @@ async function fakeGms(t, reply) {
 }
 const toolCall=n=>[{type:'function_call',name:'list_files',call_id:'c'+n,arguments:'{}'}];
 const answer=()=>[{type:'message',content:[{type:'output_text',text:JSON.stringify(heyAnswer())}]}];
+
+test('GMS repairs Luna’s misplaced initial-question explanations and rejects copied choices', async t => {
+  const expected = { questions: initialQuestions() };
+  const malformed = structuredClone(expected);
+  const question = malformed.questions[1];
+  const [a, b] = question.key.options;
+  a.text = question.options[0].text;
+  b.text = b.explanation;
+  delete b.explanation;
+  const gateway = await fakeGms(t, () => [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(malformed) }] }]);
+  const model = new Gms(gateway.root, gateway.model.url, 'key', 'gpt-6-luna');
+  assert.deepEqual(await model.run('initial_questions', 'inspect', gateway.id, 5000), expected);
+  assert.equal(gateway.bodies.length, 1);
+
+  b.text = question.options[1].text;
+  await assert.rejects(() => model.run('initial_questions', 'inspect', gateway.id, 5000), e => e.failure.code === 'invalid_output');
+});
+
 function withEnv(t, values) {
  const saved=Object.fromEntries(Object.keys(values).map(k=>[k,process.env[k]]));
  for (const [k,v] of Object.entries(values)) v===undefined?delete process.env[k]:process.env[k]=v;

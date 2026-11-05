@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Store, type Job } from './store.js';
 import { Platform } from './platform.js';
 import { Workspaces } from './workspace.js';
-import { generateQuestions, archivedFindings, hasQuestionSource, sourceExcerpts, type Model } from './review.js';
+import { generateQuestions, archivedFindings, sourceExcerpts, type Model } from './review.js';
 import { emptyReport, reviewed, isQuestionReport, hasChangeQuestions, withoutKeys, AnswerSchema, type Snapshot, type Report, type Target } from './contracts.js';
 import { publish, Superseded } from './publish.js';
 import { HttpError } from './http-client.js';
@@ -84,7 +84,7 @@ export class Controller {
     const issues = (await this.platform(job.body.target).linkedIssues(snap.description)).map(redact);
     const started = Date.now();
     const result = await generateQuestions(this.model, job.id, snap, prepared.policy, prepared.context, previous, prepared.guidelines, issues, prepared.mode);
-    console.info(JSON.stringify({ jobId: job.id, event: 'questions_generated', prepareMs, generateMs: Date.now() - started, modelCalls: hasQuestionSource(prepared.context) ? 1 : 0 }));
+    console.info(JSON.stringify({ jobId: job.id, event: 'questions_generated', prepareMs, generateMs: Date.now() - started }));
     return { report: { ...result, requireAnswers: value.requireAnswers }, diff: Object.fromEntries(Object.entries(prepared.context.diff).map(([p, d]) => [p, { oldPath: d.oldPath, positions: d.positions }])), reviewSeconds: Math.round((Date.now() - started) / 1000) };
   }
   async validateReview(job: Job, snap: Snapshot): Promise<void> {

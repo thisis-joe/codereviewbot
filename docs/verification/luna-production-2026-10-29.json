@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-29",
+  "sourceCommit": "5dfc973d6fbb6cbb061b9eb0904cd28062fc6683",
+  "branch": "feat/gpt-6-luna",
+  "target": "edo1:/home/ubuntu/hey",
+  "release": "luna-5dfc973",
+  "change": {
+    "runner.environment.GMS_MODEL": {
+      "before": "gpt-6.1-sol",
+      "after": "gpt-6-luna"
+    }
+  },
+  "deployment": "complete",
+  "health": {
+    "controller": "healthy",
+    "runner": "healthy",
+    "postgres": "healthy",
+    "n8n": "running",
+    "tunnel": "running"
+  },
+  "checks": {
+    "unitTests": 201,
+    "integrationTests": 71,
+    "preflightLiveGms": "completed: 2 requests, 1 source tool call, valid structured answer",
+    "postDeployLiveGms": "completed: 2 requests, 1 source tool call, valid structured answer using container GMS_MODEL",
+    "newRunnerErrors": 0,
+    "externalTestPosts": 0,
+    "rollbackConfigValidated": true
+  },
+  "scope": "Existing production runner image retained; runtime model selected by environment override. Other container IDs preserved; controller briefly stopped to drain and resumed. No schema, dependency, credential or workflow changes. Repository defaults and examples updated separately.",
+  "review": "Author self-inspection; no independent specialist review",
+  "rollback": "ssh -o ClearAllForwardings=yes edo1 \"cd /home/ubuntu/hey/releases/luna-5dfc973 && python3 deploy.py rollback\"",
+  "privateEvidence": "edo1:/home/ubuntu/hey/releases/luna-5dfc973 (protected config backups, operations.log, activate.json, verified.json)",
+  "limitations": "Live checks cover source tool access and structured answer generation; no synthetic public comment was posted and no broad question-quality comparison was performed."
+}

@@ -47,7 +47,15 @@ export const ChangeQuestionSchema = z.strictObject({
 export const ChangeQuestionsSchema = z.array(ChangeQuestionSchema).min(3).max(10);
 // Initial questions cover fundamental CS principles; advanced learning is opt-in.
 export const INITIAL_QUESTION_COUNT = 2;
-export const InitialQuestionsSchema = z.strictObject({ questions: z.array(ChangeQuestionSchema.extend({ level: z.literal('basic') })).length(INITIAL_QUESTION_COUNT) });
+const InitialQuestionSchema = ChangeQuestionSchema.extend({ level: z.literal('basic') });
+const initialQuestionId = z.int().min(1).max(INITIAL_QUESTION_COUNT);
+export const InitialQuestionsSchema = z.strictObject({ questions: z.array(InitialQuestionSchema).length(INITIAL_QUESTION_COUNT) });
+export const InitialQuestionChecksSchema = z.strictObject({ checks: z.array(z.strictObject({
+  id: initialQuestionId, answer: z.enum(optionIds).nullable(), evidence: EvidenceSchema,
+})).min(1).max(INITIAL_QUESTION_COUNT) });
+export const InitialQuestionRepairsSchema = z.strictObject({
+  questions: z.array(InitialQuestionSchema.extend({ id: initialQuestionId })).min(1).max(INITIAL_QUESTION_COUNT),
+});
 const shortfallReason = z.string().trim().min(1).max(1000).nullable();
 // Each /hey whatelse batch aims for five questions and returns fewer, with a reason, rather than padding.
 export const QUESTION_BATCH_SIZE = 5;

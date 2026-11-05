@@ -37,7 +37,7 @@ export function failureMessage(failure: FailureInfo): string {
     authentication: `${provider} 인증을 확인할 수 없습니다. 봇 운영자가 로그인·키 설정을 확인해야 합니다.`,
     timeout: '질문 생성 제한 시간을 초과했습니다.',
     unavailable: `${provider}에 일시적으로 연결할 수 없습니다.`,
-    invalid_output: '생성된 질문의 형식이 올바르지 않아 게시하지 못했습니다.',
+    invalid_output: '질문의 출력 형식 또는 코드 근거 검증을 통과하지 못해 게시하지 못했습니다.',
     unknown: '질문 생성 중 오류가 발생했습니다. 봇 운영자가 오류 기록을 확인해야 합니다.',
   };
   const when = failure.retryAt ? ` 다음 자동 재시도: ${new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(failure.retryAt))} (한국 시간).` : '';
